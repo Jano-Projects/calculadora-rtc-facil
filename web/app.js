@@ -1,0 +1,849 @@
+/* Calculadora RTC Fácil — front-end (JavaScript puro, sem build).
+ * Conversa com a calculadora oficial pelo proxy local: /api/calculadora/...
+ * e com o gerenciador local: /painel/... */
+"use strict";
+
+const API = "/api/calculadora";
+const ANO_ALIQ_OBRIGATORIA = 2027;
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const brl = (v) => (Number(v) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const pct = (v, casas = 2) => (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas }) + "%";
+const num = (v) => (v === "" || v === null || v === undefined || isNaN(Number(v)) ? null : Number(v));
+const hoje = () => new Date().toLocaleDateString("sv-SE"); // AAAA-MM-DD no fuso local
+const anoDe = (d) => Number(String(d).slice(0, 4));
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+const estado = {
+  itens: [],
+  ufs: [],
+  ultimoCalculo: null, // { enviado, recebido, resultado }
+  seq: 1,
+};
+const cache = new Map(); // respostas de dados abertos
+
+/* ====================================================================== armazenamento local */
+const salvar = () => {
+  try {
+    localStorage.setItem("calc-rtc", JSON.stringify({
+      itens: estado.itens, data: $("#op-data").value, uf: $("#op-uf").value, mun: $("#op-mun").value,
+      cmpA: $("#cmp-a").value, cmpB: $("#cmp-b").value,
+    }));
+  } catch { /* navegador sem armazenamento: segue sem salvar */ }
+};
+const carregarSalvo = () => {
+  try { return JSON.parse(localStorage.getItem("calc-rtc") || "null"); } catch { return null; }
+};
+
+/* ====================================================================== chamadas */
+async function api(caminho, opcoes = {}) {
+  const r = await fetch(API + caminho, {
+    ...opcoes,
+    headers: { Accept: "application/json", ...(opcoes.body ? { "Content-Type": "application/json" } : {}), ...(opcoes.headers || {}) },
+  });
+  const texto = await r.text();
+  let corpo = null;
+  try { corpo = texto ? JSON.parse(texto) : null; } catch { corpo = texto; }
+  if (!r.ok) {
+    const e = new Error(mensagemDeErro(corpo, r.status));
+    e.status = r.status; e.corpo = corpo;
+    throw e;
+  }
+  return { corpo, cabecalhos: r.headers };
+}
+
+function mensagemDeErro(corpo, status) {
+  if (corpo && typeof corpo === "object") {
+    const partes = [corpo.title, corpo.detail].filter(Boolean);
+    const campos = corpo.fields || corpo.campos || corpo.errors || corpo.objects;
+    if (Array.isArray(campos)) campos.forEach((c) => partes.push((c.name || c.pointer || c.campo || "") + " " + (c.userMessage || c.detail || c.message || c.mensagem || "")));
+    if (partes.length) return partes.join(" — ");
+  }
+  if (status === 503) return "O motor de cálculo ainda está sendo preparado. Aguarde alguns instantes.";
+  return `Erro ${status} ao falar com a calculadora.`;
+}
+
+async function dadoAberto(caminho) {
+  if (cache.has(caminho)) return cache.get(caminho);
+  const p = api("/dados-abertos" + caminho).then((r) => r.corpo).catch((e) => { cache.delete(caminho); throw e; });
+  cache.set(caminho, p);
+  return p;
+}
+
+const dataOp = () => $("#op-data").value || hoje();
+
+/* ====================================================================== status do painel / motor */
+let jaIniciouApp = false;
+async function acompanharPainel() {
+  let s;
+  try {
+    s = await (await fetch("/painel/status", { cache: "no-store" })).json();
+  } catch {
+    mostrarPreparo({ estado: "erro", mensagem: "Não foi possível falar com o painel. A janela da calculadora (terminal) ainda está aberta?" });
+    setTimeout(acompanharPainel, 4000);
+    return;
+  }
+  atualizarChip(s);
+  if (s.pronto) {
+    $("#preparo").hidden = true;
+    if (!jaIniciouApp) { jaIniciouApp = true; iniciarApp(); }
+    setTimeout(acompanharPainel, s.atualizando ? 5000 : 60000);
+  } else {
+    mostrarPreparo(s);
+    setTimeout(acompanharPainel, 2000);
+  }
+}
+
+async function mostrarPreparo(s) {
+  const p = $("#preparo");
+  p.hidden = false;
+  p.classList.toggle("erro", s.estado === "erro");
+  $("#preparo h1").textContent = s.estado === "erro" ? "Não foi possível preparar a calculadora" : "Preparando a calculadora";
+  $("#preparo-msg").textContent = s.mensagem || "Preparando...";
+  $("#preparo-tentar").hidden = s.estado !== "erro";
+  if ($("#preparo details").open) {
+    try { $("#preparo-log").textContent = await (await fetch("/painel/log", { cache: "no-store" })).text(); } catch { /* sem log */ }
+  }
+}
+
+function atualizarChip(s) {
+  const chip = $("#chip-versao");
+  chip.className = "chip";
+  let texto, titulo;
+  if (s.atualizando) {
+    chip.classList.add("atualizando");
+    texto = "atualizando motor...";
+    titulo = s.mensagem;
+  } else if (s.pronto) {
+    const nova = s.versaoDisponivel && s.versaoInstalada && s.versaoDisponivel !== s.versaoInstalada;
+    chip.classList.add(nova || s.erroAtualizacao ? "erro" : "ok");
+    texto = "motor oficial " + (s.versaoInstalada || "?") + (nova ? " (nova: " + s.versaoDisponivel + ")" : "");
+    titulo = s.erroAtualizacao ? "Última atualização falhou: " + s.erroAtualizacao
+      : s.ultimaVerificacao ? "Verificado em " + s.ultimaVerificacao : "";
+  } else {
+    texto = "preparando...";
+    titulo = s.mensagem;
+  }
+  chip.textContent = texto;
+  chip.title = titulo || "";
+  $("#ajuda-status").textContent = s.pronto
+    ? `Em uso: calculadora oficial versão ${s.versaoInstalada}. Mais recente publicada: ${s.versaoDisponivel || "não verificado"}${s.ultimaVerificacao ? " (verificado em " + s.ultimaVerificacao + ")" : ""}.`
+      + (s.atualizacaoAutomatica ? ` Atualização automática ligada (a cada ${s.horasEntreVerificacoes} h).` : " Atualização automática desligada.")
+      + (s.erroAtualizacao ? " Última tentativa falhou: " + s.erroAtualizacao : "")
+    : s.mensagem;
+}
+
+async function pedirAtualizacao() {
+  const r = await fetch("/painel/atualizar", { method: "POST" });
+  if (r.status === 409) alert("A atualização automática está desligada (o painel foi iniciado com --sem-atualizacao, --versao ou --api-externa).");
+  setTimeout(acompanharPainel, 1000);
+}
+
+/* ====================================================================== operação: data, UF, município */
+async function carregarUfs() {
+  estado.ufs = await dadoAberto("/ufs");
+  estado.ufs.sort((a, b) => a.sigla.localeCompare(b.sigla));
+  $("#op-uf").innerHTML = estado.ufs.map((u) => `<option value="${esc(u.sigla)}">${esc(u.sigla)} — ${esc(u.nome)}</option>`).join("");
+}
+
+async function carregarMunicipios(uf, selecionar) {
+  const lista = await dadoAberto("/ufs/municipios?siglaUf=" + encodeURIComponent(uf));
+  lista.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  const sel = $("#op-mun");
+  sel.innerHTML = lista.map((m) => `<option value="${m.codigo}">${esc(m.nome)}</option>`).join("");
+  if (selecionar && lista.some((m) => String(m.codigo) === String(selecionar))) sel.value = String(selecionar);
+}
+
+function textoFase(data) {
+  const ano = anoDe(data);
+  if (ano < 2026) return ["Antes de 2026 a CBS e o IBS ainda não existem.", ""];
+  if (ano === 2026) return ["2026 é o ano de teste: CBS de 0,9% e IBS de 0,1%, compensados com PIS/Cofins. As alíquotas vêm da base oficial.", ""];
+  if (ano < 2029) return [`${ano}: a CBS substitui o PIS e a Cofins, e começa o Imposto Seletivo. O IBS ainda é simbólico (0,1%).`, "f2027"];
+  if (ano < 2033) return [`${ano}: transição — o IBS sobe aos poucos enquanto ICMS e ISS diminuem.`, "f2027"];
+  return [`${ano}: sistema novo completo. ICMS e ISS deixam de existir.`, "f2027"];
+}
+
+async function aoMudarData() {
+  const d = dataOp();
+  const [txt, cls] = textoFase(d);
+  const f = $("#op-fase");
+  f.textContent = txt;
+  f.className = "fase " + cls;
+  $("#cons-data").textContent = new Date(d + "T12:00").toLocaleDateString("pt-BR");
+  $("#bloco-aliquotas").hidden = anoDe(d) < ANO_ALIQ_OBRIGATORIA;
+  await Promise.allSettled([carregarClassificacoes(d), preencherAliquotasReferencia(true)]);
+  renderizarItens();
+  salvar();
+}
+
+/** Busca as alíquotas de referência da base oficial para a data e o local. */
+async function aliquotasReferencia(data, uf, mun) {
+  const u = estado.ufs.find((x) => x.sigla === uf);
+  const [cbs, ibsuf, ibsmun] = await Promise.all([
+    dadoAberto(`/aliquota-uniao?data=${data}`),
+    u ? dadoAberto(`/aliquota-uf?codigoUf=${u.codigo}&data=${data}`) : null,
+    dadoAberto(`/aliquota-municipio?codigoMunicipio=${mun}&data=${data}`),
+  ].map((p) => Promise.resolve(p).catch(() => null)));
+  const valor = (a) => {
+    if (!a) return null;
+    const ref = num(a.aliquotaReferencia), prop = num(a.aliquotaPropria);
+    if (prop === null) return ref;
+    if (a.formaAplicacao === "SUBSTITUICAO") return prop;
+    if (a.formaAplicacao === "ACRESCIMO") return (ref || 0) + prop;
+    if (a.formaAplicacao === "DECRESCIMO") return (ref || 0) - prop;
+    return ref;
+  };
+  return { cbs: valor(cbs), ibsEstadual: valor(ibsuf), ibsMunicipal: valor(ibsmun) };
+}
+
+async function preencherAliquotasReferencia(forcar) {
+  const d = dataOp();
+  if (anoDe(d) < ANO_ALIQ_OBRIGATORIA) return;
+  const a = await aliquotasReferencia(d, $("#op-uf").value, $("#op-mun").value);
+  for (const [id, v] of [["#aliq-cbs", a.cbs], ["#aliq-ibsuf", a.ibsEstadual], ["#aliq-ibsmun", a.ibsMunicipal]]) {
+    if (v !== null && (forcar || $(id).value === "")) $(id).value = v;
+  }
+}
+
+/* ====================================================================== classificações e NCM */
+let classificacoes = []; // [{codigo, descricao, cst, cstDescricao}]
+async function carregarClassificacoes(data) {
+  const lista = await dadoAberto("/situacoes-tributarias/cbs-ibs?data=" + data);
+  const out = [];
+  for (const sit of lista || []) {
+    for (const c of sit.classificacoesTributarias || []) {
+      out.push({ codigo: c.codigo, descricao: c.descricao, cst: sit.codigo, cstDescricao: sit.descricao });
+    }
+  }
+  out.sort((a, b) => a.codigo.localeCompare(b.codigo));
+  classificacoes = out;
+}
+
+function opcoesClassificacao(selecionada) {
+  const grupos = new Map();
+  for (const c of classificacoes) {
+    if (!grupos.has(c.cst)) grupos.set(c.cst, { desc: c.cstDescricao, itens: [] });
+    grupos.get(c.cst).itens.push(c);
+  }
+  let html = `<option value="">Escolha a classificação...</option>`;
+  if (selecionada && !classificacoes.some((c) => c.codigo === selecionada)) {
+    html += `<option value="${esc(selecionada)}" selected>${esc(selecionada)} (não vigente nesta data)</option>`;
+  }
+  for (const [cst, g] of grupos) {
+    html += `<optgroup label="CST ${esc(cst)} — ${esc(g.desc)}">` + g.itens.map((c) =>
+      `<option value="${esc(c.codigo)}"${c.codigo === selecionada ? " selected" : ""}>${esc(c.codigo)} · ${esc(c.descricao)}</option>`).join("") + "</optgroup>";
+  }
+  return html;
+}
+
+const cstDe = (cClassTrib) => (classificacoes.find((c) => c.codigo === cClassTrib) || {}).cst || String(cClassTrib || "").slice(0, 3);
+
+async function listaNcm(data) {
+  return dadoAberto("/ncm/vigentes?data=" + data).catch(() => []);
+}
+async function detalheNcm(ncm, data) {
+  return dadoAberto(`/ncm?ncm=${encodeURIComponent(ncm)}&data=${data}`).catch(() => null);
+}
+
+/* ====================================================================== editor de itens */
+function novoItem(dados = {}) {
+  return {
+    descricao: "", tipo: "ncm", codigo: "", cClassTrib: "", valor: "", quantidade: "", unidade: "UN", aliqIS: "",
+    ...dados,
+    id: estado.seq++,
+  };
+}
+
+function itemDeExemplo([descricao, codigo, cClassTrib, valor, quantidade, unidade, aliqIS, tipo]) {
+  return novoItem({
+    descricao, codigo, cClassTrib, valor, quantidade: quantidade ?? "", unidade: unidade || "UN",
+    aliqIS: aliqIS ?? "", tipo: tipo || "ncm",
+  });
+}
+
+function renderizarItens() {
+  const lista = $("#lista-itens");
+  lista.innerHTML = "";
+  $("#itens-vazio").hidden = estado.itens.length > 0;
+  const opcoesPorItem = new Map();
+  estado.itens.forEach((it, i) => {
+    const el = $("#tpl-item").content.firstElementChild.cloneNode(true);
+    el.dataset.id = it.id;
+    $(".item-num", el).textContent = String(i + 1).padStart(2, "0");
+    for (const campo of $$("[data-c]", el)) {
+      const c = campo.dataset.c;
+      if (c === "cClassTrib") {
+        if (!opcoesPorItem.has(it.cClassTrib)) opcoesPorItem.set(it.cClassTrib, opcoesClassificacao(it.cClassTrib));
+        campo.innerHTML = opcoesPorItem.get(it.cClassTrib);
+      }
+      campo.value = it[c] ?? "";
+    }
+    atualizarRotulosItem(el, it);
+    lista.appendChild(el);
+    atualizarDescricaoCodigo(el, it);
+  });
+}
+
+function atualizarRotulosItem(el, it) {
+  $(".rot-codigo", el).textContent = it.tipo === "nbs" ? "NBS (9 dígitos)" : "NCM (8 dígitos)";
+  $("[data-c=codigo]", el).maxLength = it.tipo === "nbs" ? 9 : 8;
+}
+
+async function atualizarDescricaoCodigo(el, it) {
+  const desc = $(".desc-codigo", el);
+  const caixaIS = $(".caixa.is", el);
+  desc.textContent = "";
+  caixaIS.hidden = true;
+  if (it.tipo !== "ncm" || !/^\d{8}$/.test(it.codigo)) return;
+  const d = dataOp();
+  const lista = await listaNcm(d);
+  const achado = lista.find((n) => n.ncm === it.codigo);
+  desc.textContent = achado ? achado.descricao : "NCM não encontrado nesta data";
+  if (anoDe(d) >= ANO_ALIQ_OBRIGATORIA) {
+    const det = await detalheNcm(it.codigo, d);
+    if (det && det.tributadoPeloImpostoSeletivo) {
+      caixaIS.hidden = false;
+      if (it.aliqIS === "" && det.aliquotaAdValorem !== null && det.aliquotaAdValorem !== undefined) {
+        it.aliqIS = det.aliquotaAdValorem;
+        $("[data-c=aliqIS]", el).value = it.aliqIS;
+      }
+    }
+  }
+}
+
+function itemDoElemento(el) {
+  return estado.itens.find((i) => String(i.id) === el.dataset.id);
+}
+
+function ligarEditor() {
+  const lista = $("#lista-itens");
+  lista.addEventListener("input", (ev) => {
+    const el = ev.target.closest(".item");
+    const c = ev.target.dataset.c;
+    if (!el || !c) return;
+    const it = itemDoElemento(el);
+    it[c] = ev.target.value;
+    ev.target.closest(".caixa")?.classList.remove("invalida");
+    if (c === "codigo") {
+      ev.target.value = it.codigo = ev.target.value.replace(/\D/g, "");
+      sugerirNcm(ev.target, it);
+      atualizarDescricaoCodigo(el, it);
+    }
+    salvar();
+  });
+  lista.addEventListener("change", (ev) => {
+    const el = ev.target.closest(".item");
+    if (!el) return;
+    const it = itemDoElemento(el);
+    if (ev.target.dataset.c === "tipo") {
+      it.tipo = ev.target.value;
+      atualizarRotulosItem(el, it);
+      atualizarDescricaoCodigo(el, it);
+    }
+    salvar();
+  });
+  lista.addEventListener("click", (ev) => {
+    if (!ev.target.classList.contains("remover")) return;
+    const el = ev.target.closest(".item");
+    estado.itens = estado.itens.filter((i) => String(i.id) !== el.dataset.id);
+    renderizarItens();
+    salvar();
+  });
+  lista.addEventListener("focusout", () => setTimeout(() => { if (!document.activeElement?.closest("#sugestoes")) fecharSugestoes(); }, 150));
+}
+
+/* ---------------------------------------------------------------- autocompletar NCM */
+let sugestaoAlvo = null;
+async function sugerirNcm(input, it) {
+  if (it.tipo !== "ncm" || input.value.length < 2) return fecharSugestoes();
+  const lista = await listaNcm(dataOp());
+  const q = input.value;
+  const achados = lista.filter((n) => n.ncm.startsWith(q)).slice(0, 40);
+  if (!achados.length || (achados.length === 1 && achados[0].ncm === q)) return fecharSugestoes();
+  mostrarSugestoes(input, achados, (n) => {
+    input.value = n.ncm;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    if (!it.descricao) {
+      const el = input.closest(".item");
+      it.descricao = n.descricao.replace(/<[^>]+>/g, "").replace(/^[-\s]+/, "").slice(0, 80);
+      $("[data-c=descricao]", el).value = it.descricao;
+    }
+    fecharSugestoes();
+    salvar();
+  });
+}
+
+function mostrarSugestoes(input, achados, escolher) {
+  const box = $("#sugestoes");
+  const r = input.getBoundingClientRect();
+  box.style.left = window.scrollX + r.left + "px";
+  box.style.top = window.scrollY + r.bottom + 4 + "px";
+  box.innerHTML = achados.map((n, i) => `<div role="option" data-i="${i}"><code>${esc(n.ncm)}</code>${esc(n.descricao.replace(/<[^>]+>/g, ""))}</div>`).join("");
+  box.hidden = false;
+  sugestaoAlvo = { input, achados, escolher, sel: -1 };
+  box.onmousedown = (ev) => {
+    const d = ev.target.closest("[data-i]");
+    if (d) { ev.preventDefault(); escolher(achados[Number(d.dataset.i)]); }
+  };
+}
+function fecharSugestoes() { $("#sugestoes").hidden = true; sugestaoAlvo = null; }
+document.addEventListener("keydown", (ev) => {
+  if (!sugestaoAlvo || $("#sugestoes").hidden) return;
+  const s = sugestaoAlvo, itens = $$("#sugestoes [data-i]");
+  if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
+    ev.preventDefault();
+    s.sel = Math.max(0, Math.min(itens.length - 1, s.sel + (ev.key === "ArrowDown" ? 1 : -1)));
+    itens.forEach((d, i) => d.setAttribute("aria-selected", i === s.sel));
+    itens[s.sel]?.scrollIntoView({ block: "nearest" });
+  } else if (ev.key === "Enter" && s.sel >= 0) {
+    ev.preventDefault();
+    s.escolher(s.achados[s.sel]);
+  } else if (ev.key === "Escape") fecharSugestoes();
+});
+
+/* ====================================================================== montagem da requisição */
+const arred2 = (v) => Math.round((v + Number.EPSILON) * 100) / 100;
+
+/** Valida os itens e devolve o JSON no formato da calculadora oficial. */
+async function montarOperacao(data, opcoes = {}) {
+  const ano = anoDe(data);
+  const erros = [];
+  let aliq = null;
+  if (ano >= ANO_ALIQ_OBRIGATORIA) {
+    aliq = opcoes.aliquotas || {
+      cbs: num($("#aliq-cbs").value), ibsEstadual: num($("#aliq-ibsuf").value), ibsMunicipal: num($("#aliq-ibsmun").value),
+    };
+    if (aliq.cbs === null || aliq.ibsEstadual === null || aliq.ibsMunicipal === null) erros.push("Informe as alíquotas de CBS e IBS (obrigatórias a partir de 2027).");
+  }
+  const itens = [];
+  for (const [i, it] of estado.itens.entries()) {
+    const n = i + 1;
+    const rot = `Item ${n}${it.descricao ? " (" + it.descricao + ")" : ""}`;
+    const tam = it.tipo === "nbs" ? 9 : 8;
+    if (!new RegExp(`^\\d{${tam}}$`).test(it.codigo)) erros.push(`${rot}: o ${it.tipo.toUpperCase()} deve ter ${tam} dígitos.`);
+    if (!/^\d{6}$/.test(it.cClassTrib)) erros.push(`${rot}: escolha a classificação tributária.`);
+    const valor = num(it.valor);
+    if (valor === null || valor < 0) erros.push(`${rot}: informe o valor.`);
+    const qtd = num(it.quantidade);
+    if (qtd !== null && qtd <= 0) erros.push(`${rot}: a quantidade deve ser maior que zero.`);
+
+    const item = { numero: n, cst: cstDe(it.cClassTrib), cClassTrib: it.cClassTrib };
+    item[it.tipo] = it.codigo;
+    item.baseCalculo = valor;
+    if (qtd !== null) { item.quantidade = qtd; item.unidade = it.unidade || "UN"; }
+
+    if (aliq) {
+      item.aliquotasNominais = { cbs: aliq.cbs, ibsEstadual: aliq.ibsEstadual, ibsMunicipal: aliq.ibsMunicipal };
+      if (it.tipo === "ncm" && /^\d{8}$/.test(it.codigo)) {
+        const det = await detalheNcm(it.codigo, data);
+        if (det && det.tributadoPeloImpostoSeletivo) {
+          let a = num(it.aliqIS);
+          if (a === null && det.aliquotaAdValorem !== null && det.aliquotaAdValorem !== undefined) a = Number(det.aliquotaAdValorem);
+          if (a === null) {
+            erros.push(`${rot}: este produto paga Imposto Seletivo a partir de 2027. Informe a alíquota do IS (a lei ainda não definiu o valor; use uma estimativa).`);
+          } else if (valor !== null) {
+            const imposto = arred2(valor * a / 100);
+            delete item.baseCalculo; // a calculadora soma base do IS + IS para chegar à base de CBS/IBS
+            item.impostoSeletivo = {
+              cst: "000", cClassTrib: "000001", baseCalculo: valor, impostoInformado: imposto,
+              ...(qtd !== null ? { quantidade: qtd, unidade: it.unidade || "UN" } : {}),
+            };
+            item.aliquotasNominais.impostoSeletivo = { adValorem: a };
+          }
+        }
+      }
+    }
+    itens.push(item);
+  }
+  if (!itens.length) erros.push("Adicione pelo menos um item.");
+  const uf = opcoes.uf || $("#op-uf").value, mun = Number(opcoes.municipio || $("#op-mun").value);
+  if (!mun) erros.push("Escolha o município.");
+  return {
+    erros,
+    operacao: {
+      id: "calc-rtc-facil-" + Date.now(),
+      versao: "1.0.0",
+      dhFatoGerador: `${data}T12:00:00-03:00`,
+      municipio: mun,
+      uf,
+      itens,
+    },
+  };
+}
+
+/* ====================================================================== interpretação da resposta */
+const n2 = (v) => Number(v || 0);
+
+function interpretar(resposta, operacao) {
+  const itens = (resposta.objetos || []).map((o) => {
+    const env = operacao.itens.find((i) => i.numero === o.nObj) || {};
+    const orig = estado.itens[o.nObj - 1] || {};
+    const ibscbs = o.tribCalc?.IBSCBS;
+    const g = ibscbs?.gIBSCBS || {};
+    const is = o.tribCalc?.IS;
+    const memorias = [];
+    for (const m of [is?.memoriaCalculo, g.gCBS?.memoriaCalculo, g.gIBSUF?.memoriaCalculo, g.gIBSMun?.memoriaCalculo]) if (m && !memorias.includes(m)) memorias.push(m);
+    const valor = env.impostoSeletivo ? n2(env.impostoSeletivo.baseCalculo) : n2(env.baseCalculo);
+    return {
+      numero: o.nObj,
+      descricao: orig.descricao || "",
+      codigo: env.ncm || env.nbs || "",
+      cClassTrib: env.cClassTrib,
+      valor,
+      estado: o.estadoItem || (ibscbs || is ? "CALCULADO" : "—"),
+      erros: o.erros || [],
+      vBC: n2(g.vBC),
+      pCBS: n2(g.gCBS?.pCBS),
+      red: n2(g.gCBS?.gRed?.pRedAliq),
+      pEfet: g.gCBS?.gRed ? n2(g.gCBS.gRed.pAliqEfet) : n2(g.gCBS?.pCBS),
+      cbs: n2(g.gCBS?.vCBS),
+      ibs: n2(g.vIBS ?? (n2(g.gIBSUF?.vIBSUF) + n2(g.gIBSMun?.vIBSMun))),
+      is: n2(is?.vIS),
+      pIS: is ? n2(is.pIS) : null,
+      memorias,
+    };
+  });
+  const soma = (k) => arred2(itens.reduce((a, i) => a + (i.erros.length ? 0 : i[k]), 0));
+  const tot = { valor: soma("valor"), cbs: soma("cbs"), ibs: soma("ibs"), is: soma("is") };
+  const t = resposta.total?.tribCalc;
+  if (t?.IBSCBSTot) {
+    tot.cbs = n2(t.IBSCBSTot.gCBS?.vCBS ?? tot.cbs);
+    tot.ibs = n2(t.IBSCBSTot.gIBS?.vIBS ?? tot.ibs);
+  }
+  if (t?.ISTot) tot.is = n2(t.ISTot.vIS);
+  tot.tributos = arred2(tot.cbs + tot.ibs + tot.is);
+  return { itens, tot, comErro: itens.filter((i) => i.erros.length).length };
+}
+
+const nomeEstado = {
+  CALCULADO: ["Calculado", "ok"], CALCULO_SIMULADO: ["Simulado", "sim"], INCONSISTENCIA_ENTRADA: ["Erro nos dados", "erro"],
+  NAO_IMPLEMENTADO: ["Não implementado", "erro"], FALHA_TECNICA: ["Falha técnica", "erro"],
+};
+const selo = (e) => { const [t, c] = nomeEstado[e] || [e, ""]; return `<span class="selo ${c}">${esc(t)}</span>`; };
+
+/* ====================================================================== calcular */
+async function calcular() {
+  const st = $("#calc-status");
+  const btn = $("#btn-calcular");
+  $$(".caixa.invalida").forEach((c) => c.classList.remove("invalida"));
+  st.className = "calc-status";
+  st.textContent = "Calculando...";
+  btn.disabled = true;
+  try {
+    const data = dataOp();
+    const { erros, operacao } = await montarOperacao(data);
+    if (erros.length) {
+      st.className = "calc-status erro";
+      st.textContent = erros[0] + (erros.length > 1 ? ` (+${erros.length - 1} pendência${erros.length > 2 ? "s" : ""})` : "");
+      marcarInvalidos();
+      return;
+    }
+    const r = await api("/observabilidade/regime-geral", { method: "POST", body: JSON.stringify(operacao) });
+    const resultado = interpretar(r.corpo, operacao);
+    estado.ultimoCalculo = { enviado: operacao, recebido: r.corpo, resultado, aviso: r.cabecalhos.get("x-warning-dados-simulados"), data };
+    renderizarCupom(estado.ultimoCalculo);
+    renderizarDetalhe(resultado);
+    st.textContent = resultado.comErro ? `${resultado.comErro} item(ns) com erro — veja o detalhamento.` : "Pronto.";
+    if (resultado.comErro) st.className = "calc-status erro";
+  } catch (e) {
+    st.className = "calc-status erro";
+    st.textContent = e.message;
+    estado.ultimoCalculo = { enviado: null, recebido: e.corpo || e.message };
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function marcarInvalidos() {
+  for (const el of $$("#lista-itens .item")) {
+    const it = itemDoElemento(el);
+    const tam = it.tipo === "nbs" ? 9 : 8;
+    if (!new RegExp(`^\\d{${tam}}$`).test(it.codigo)) $("[data-c=codigo]", el).closest(".caixa").classList.add("invalida");
+    if (!/^\d{6}$/.test(it.cClassTrib)) $("[data-c=cClassTrib]", el).closest(".caixa").classList.add("invalida");
+    if (num(it.valor) === null) $("[data-c=valor]", el).closest(".caixa").classList.add("invalida");
+    const cis = $(".caixa.is", el);
+    if (!cis.hidden && num(it.aliqIS) === null) cis.classList.add("invalida");
+  }
+}
+
+function renderizarCupom({ resultado: r, data, aviso }) {
+  const uf = $("#op-uf").value;
+  const mun = $("#op-mun").selectedOptions[0]?.textContent || "";
+  const t = r.tot;
+  const carga = t.valor ? (t.tributos / t.valor) * 100 : 0;
+  const linhas = r.itens.map((i) => `
+    <div class="linha"><span>${String(i.numero).padStart(2, "0")} ${esc((i.descricao || i.codigo).slice(0, 22))}</span><span>${brl(i.valor)}</span></div>`).join("");
+  $("#cupom").className = "cupom";
+  $("#cupom").innerHTML = `
+    <h2>SIMULAÇÃO DE TRIBUTOS</h2>
+    <p class="sub">${esc(mun)} / ${esc(uf)} — ${new Date(data + "T12:00").toLocaleDateString("pt-BR")}</p>
+    <hr>${linhas}<hr>
+    <div class="linha"><span>Valor dos itens</span><span>${brl(t.valor)}</span></div>
+    <div class="linha cbs"><span>CBS (federal)</span><span>${brl(t.cbs)}</span></div>
+    <div class="linha"><span>IBS (estado + município)</span><span>${brl(t.ibs)}</span></div>
+    ${t.is || anoDe(data) >= 2027 ? `<div class="linha is"><span>Imposto Seletivo</span><span>${brl(t.is)}</span></div>` : ""}
+    <hr>
+    <div class="linha total"><span>Tributos novos</span><span>${brl(t.tributos)}</span></div>
+    <div class="carga">${pct(carga)} do valor dos itens</div>
+    ${aviso || r.itens.some((i) => i.estado === "CALCULO_SIMULADO") ? `<p class="alerta">Cálculo simulado: usa alíquotas informadas, ainda não definitivas.</p>` : ""}
+    ${r.comErro ? `<p class="alerta erro">${r.comErro} item(ns) não entraram no total por erro nos dados.</p>` : ""}
+    <p class="sub">Calculado pela calculadora oficial da Receita Federal</p>`;
+  $("#cupom-acoes").hidden = false;
+}
+
+function renderizarDetalhe(r) {
+  const tab = $("#tab-detalhe");
+  const temIS = r.itens.some((i) => i.is || i.pIS !== null);
+  let html = `<thead><tr><th>#</th><th>Item</th><th>Código</th><th>cClassTrib</th><th class="n">Valor</th>
+    <th class="n">Redução</th><th class="n">CBS efetiva</th><th class="n">CBS</th><th class="n">IBS</th>${temIS ? '<th class="n">IS</th>' : ""}<th>Situação</th></tr></thead><tbody>`;
+  for (const i of r.itens) {
+    html += `<tr class="clicavel" data-n="${i.numero}" title="Clique para ver a memória de cálculo">
+      <td>${i.numero}</td><td>${esc(i.descricao)}</td><td>${esc(i.codigo)}</td><td>${esc(i.cClassTrib)}</td>
+      <td class="n">${brl(i.valor)}</td><td class="n">${i.erros.length ? "—" : pct(i.red)}</td>
+      <td class="n">${i.erros.length ? "—" : pct(i.pEfet)}</td><td class="n">${brl(i.cbs)}</td><td class="n">${brl(i.ibs)}</td>
+      ${temIS ? `<td class="n">${i.pIS !== null ? brl(i.is) : "—"}</td>` : ""}<td>${selo(i.estado)}</td></tr>
+      <tr class="memoria" data-m="${i.numero}" hidden><td></td><td colspan="${temIS ? 10 : 9}">
+        ${i.erros.map((e) => `<p class="erro-item"><strong>${esc(e.code || "")} ${esc(e.title || "")}</strong> — ${esc(e.detail || "")}</p>`).join("")}
+        ${i.memorias.map((m) => `<p>${esc(m)}</p>`).join("") || (i.erros.length ? "" : "<p>Sem memória de cálculo.</p>")}
+      </td></tr>`;
+  }
+  const t = r.tot;
+  html += `</tbody><tfoot><tr><td></td><td colspan="3">Total</td><td class="n">${brl(t.valor)}</td><td></td><td></td>
+    <td class="n">${brl(t.cbs)}</td><td class="n">${brl(t.ibs)}</td>${temIS ? `<td class="n">${brl(t.is)}</td>` : ""}<td></td></tr></tfoot>`;
+  tab.innerHTML = html;
+  r.itens.filter((i) => i.erros.length).forEach((i) => { tab.querySelector(`tr[data-m="${i.numero}"]`).hidden = false; });
+  $("#detalhe-itens").hidden = false;
+}
+
+/* ====================================================================== comparar */
+async function comparar() {
+  const st = $("#cmp-status");
+  const a = $("#cmp-a").value, b = $("#cmp-b").value;
+  st.className = "calc-status";
+  if (!a || !b) { st.textContent = "Escolha as duas datas."; return; }
+  st.textContent = "Calculando as duas datas...";
+  $("#btn-comparar").disabled = true;
+  try {
+    const uf = $("#op-uf").value, mun = $("#op-mun").value;
+    const rodar = async (d) => {
+      const aliquotas = anoDe(d) >= ANO_ALIQ_OBRIGATORIA ? await aliquotasReferencia(d, uf, mun) : null;
+      const { erros, operacao } = await montarOperacao(d, { aliquotas });
+      if (erros.length) throw new Error(`Em ${new Date(d + "T12:00").toLocaleDateString("pt-BR")}: ${erros[0]}`);
+      const r = await api("/observabilidade/regime-geral", { method: "POST", body: JSON.stringify(operacao) });
+      return interpretar(r.corpo, operacao);
+    };
+    const [ra, rb] = await Promise.all([rodar(a), rodar(b)]);
+    renderizarComparacao(a, b, ra, rb);
+    st.textContent = "";
+    salvar();
+  } catch (e) {
+    st.className = "calc-status erro";
+    st.textContent = e.message;
+  } finally {
+    $("#btn-comparar").disabled = false;
+  }
+}
+
+function renderizarComparacao(a, b, ra, rb) {
+  const fmt = (d) => new Date(d + "T12:00").toLocaleDateString("pt-BR");
+  const card = (d, r) => `<div class="cmp-card"><h3>${fmt(d)}</h3><div class="valor">${brl(r.tot.tributos)}</div>
+    <div class="det">CBS ${brl(r.tot.cbs)} · IBS ${brl(r.tot.ibs)}${r.tot.is ? " · IS " + brl(r.tot.is) : ""}<br>
+    ${pct(r.tot.valor ? r.tot.tributos / r.tot.valor * 100 : 0)} do valor dos itens${r.comErro ? ` · <span class="mais">${r.comErro} com erro</span>` : ""}</div></div>`;
+  const dif = rb.tot.tributos - ra.tot.tributos;
+  const maxT = Math.max(...ra.itens.map((i) => i.cbs + i.ibs + i.is), ...rb.itens.map((i) => i.cbs + i.ibs + i.is), 0.01);
+  let linhas = "";
+  for (const ia of ra.itens) {
+    const ib = rb.itens.find((x) => x.numero === ia.numero) || { cbs: 0, ibs: 0, is: 0, erros: [] };
+    const ta = ia.cbs + ia.ibs + ia.is, tb = ib.cbs + ib.ibs + ib.is, d = tb - ta;
+    linhas += `<tr><td>${ia.numero}</td><td>${esc(ia.descricao || ia.codigo)}</td><td class="n">${brl(ia.valor)}</td>
+      <td class="n">${ia.erros.length ? '<span class="mais">erro</span>' : brl(ta)}</td><td><div class="barra-cmp"><span style="width:${ta / maxT * 100}%"></span></div></td>
+      <td class="n">${ib.erros.length ? '<span class="mais">erro</span>' : brl(tb)}</td><td><div class="barra-cmp b"><span style="width:${tb / maxT * 100}%"></span></div></td>
+      <td class="n ${d > 0.004 ? "mais" : d < -0.004 ? "menos" : ""}">${d > 0.004 ? "+" : ""}${brl(d)}</td></tr>`;
+  }
+  $("#cmp-resultado").innerHTML = `
+    <div class="cmp-cards">${card(a, ra)}${card(b, rb)}
+      <div class="cmp-card"><h3>Diferença</h3><div class="valor ${dif > 0 ? "mais" : dif < 0 ? "menos" : ""}">${dif > 0 ? "+" : ""}${brl(dif)}</div>
+      <div class="det">nos tributos novos da nota, de uma data para a outra</div></div></div>
+    <div class="tabela-rolagem"><table><thead><tr><th>#</th><th>Item</th><th class="n">Valor</th>
+      <th class="n">${fmt(a)}</th><th></th><th class="n">${fmt(b)}</th><th></th><th class="n">Diferença</th></tr></thead>
+      <tbody>${linhas}</tbody></table></div>`;
+}
+
+/* ====================================================================== consultar */
+async function buscarNcm() {
+  const q = $("#busca-ncm").value.trim().toLowerCase();
+  const ul = $("#res-ncm");
+  if (q.length < 2) { ul.innerHTML = ""; return; }
+  const d = dataOp();
+  const lista = await listaNcm(d);
+  const so = q.replace(/\D/g, "");
+  const achados = lista.filter((n) => (so && so === q ? n.ncm.startsWith(so) : n.descricao.toLowerCase().includes(q))).slice(0, 60);
+  ul.innerHTML = achados.length ? achados.map((n) => `<li><code>${esc(n.ncm)}</code><span>${esc(n.descricao.replace(/<[^>]+>/g, ""))}<small data-ncm="${esc(n.ncm)}"></small></span>
+    <button class="btn btn-sec btn-mini acao" data-add="${esc(n.ncm)}">Adicionar à nota</button></li>`).join("")
+    : "<li>Nada encontrado. Tente outra palavra ou só os primeiros dígitos do código.</li>";
+  if (anoDe(d) >= ANO_ALIQ_OBRIGATORIA) {
+    for (const n of achados.slice(0, 15)) {
+      detalheNcm(n.ncm, d).then((det) => {
+        const s = ul.querySelector(`small[data-ncm="${n.ncm}"]`);
+        if (s && det?.tributadoPeloImpostoSeletivo) s.innerHTML = `<span class="tag-is">Paga Imposto Seletivo</span>`;
+      });
+    }
+  }
+}
+
+function buscarClassificacao() {
+  const q = $("#busca-class").value.trim().toLowerCase();
+  const ul = $("#res-class");
+  const achados = classificacoes.filter((c) => !q || c.codigo.includes(q) || c.descricao.toLowerCase().includes(q)).slice(0, 120);
+  ul.innerHTML = achados.map((c) => `<li><code>${esc(c.codigo)}</code><span>${esc(c.descricao)}<small>CST ${esc(c.cst)} — ${esc(c.cstDescricao)}</small></span></li>`).join("")
+    || "<li>Nenhuma classificação encontrada.</li>";
+}
+
+/* ====================================================================== arquivos e exportação */
+function baixarArquivo(nome, conteudo, tipo) {
+  const url = URL.createObjectURL(new Blob([conteudo], { type: tipo }));
+  const a = Object.assign(document.createElement("a"), { href: url, download: nome });
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function exportarCsv() {
+  const c = estado.ultimoCalculo;
+  if (!c?.resultado) return;
+  const f = (v) => String(v).replace(".", ",");
+  const linhas = [["Item", "Descricao", "Codigo", "cClassTrib", "Valor", "Reducao %", "CBS efetiva %", "CBS", "IBS", "IS", "Situacao"]];
+  for (const i of c.resultado.itens) linhas.push([i.numero, i.descricao, i.codigo, i.cClassTrib, f(i.valor), f(i.red), f(i.pEfet), f(i.cbs), f(i.ibs), f(i.is), (nomeEstado[i.estado] || [i.estado])[0]]);
+  const t = c.resultado.tot;
+  linhas.push(["", "TOTAL", "", "", f(t.valor), "", "", f(t.cbs), f(t.ibs), f(t.is), ""]);
+  const csv = "﻿" + linhas.map((l) => l.map((x) => `"${String(x).replace(/"/g, '""')}"`).join(";")).join("\r\n");
+  baixarArquivo(`tributos-${c.data}.csv`, csv, "text/csv;charset=utf-8");
+}
+
+function exportarItens() {
+  const dados = { formato: "calculadora-rtc-facil/itens@1", uf: $("#op-uf").value, municipio: $("#op-mun").value, data: dataOp(),
+    itens: estado.itens.map(({ id, ...resto }) => resto) };
+  baixarArquivo("itens-nota.json", JSON.stringify(dados, null, 2), "application/json");
+}
+
+async function importarItens(arquivo) {
+  try {
+    const d = JSON.parse(await arquivo.text());
+    // aceita o formato desta ferramenta ou um JSON no formato da API oficial
+    const itens = d.itens || [];
+    estado.itens = itens.map((i) => i.cClassTrib && (i.ncm || i.nbs)
+      ? novoItem({ tipo: i.nbs ? "nbs" : "ncm", codigo: i.ncm || i.nbs, cClassTrib: i.cClassTrib,
+          valor: i.impostoSeletivo?.baseCalculo ?? i.baseCalculo ?? "", quantidade: i.quantidade ?? "", unidade: i.unidade || "UN",
+          aliqIS: i.aliquotasNominais?.impostoSeletivo?.adValorem ?? "" })
+      : novoItem(i));
+    if (d.uf) { $("#op-uf").value = d.uf; await carregarMunicipios(d.uf, d.municipio); }
+    if (d.data) $("#op-data").value = d.data;
+    else if (d.dhFatoGerador) $("#op-data").value = d.dhFatoGerador.slice(0, 10);
+    await aoMudarData();
+  } catch (e) {
+    alert("Não consegui ler o arquivo: " + e.message);
+  }
+}
+
+/* ====================================================================== inicialização */
+async function carregarExemplo(chave) {
+  const ex = window.EXEMPLOS[chave];
+  if (!ex) return;
+  if (estado.itens.length && !confirm(`Substituir os ${estado.itens.length} itens atuais pelo exemplo "${ex.nome}"?`)) return;
+  estado.itens = ex.itens.map(itemDeExemplo);
+  if (ex.local) {
+    $("#op-uf").value = ex.local.uf;
+    await carregarMunicipios(ex.local.uf, ex.local.municipio);
+  }
+  await preencherAliquotasReferencia(true);
+  renderizarItens();
+  salvar();
+}
+
+function trocarAba(nome) {
+  $$(".abas button").forEach((b) => b.setAttribute("aria-selected", b.dataset.aba === nome));
+  $$(".aba").forEach((s) => { s.hidden = s.id !== "aba-" + nome; });
+  if (nome === "consultar") { buscarClassificacao(); buscarNcm(); }
+}
+
+async function iniciarApp() {
+  const salvo = carregarSalvo();
+  $("#op-data").value = salvo?.data || hoje();
+  $("#cmp-a").value = salvo?.cmpA || hoje();
+  $("#cmp-b").value = salvo?.cmpB || "2027-07-15";
+  $("#sel-exemplo").innerHTML += Object.entries(window.EXEMPLOS).map(([k, e]) => `<option value="${k}">${esc(e.nome)}</option>`).join("");
+  try {
+    await carregarUfs();
+    const uf = salvo?.uf || "SP";
+    $("#op-uf").value = uf;
+    await carregarMunicipios(uf, salvo?.mun || (uf === "SP" ? 3550308 : null));
+  } catch (e) {
+    $("#calc-status").className = "calc-status erro";
+    $("#calc-status").textContent = "Não consegui carregar as UFs: " + e.message;
+  }
+  if (salvo?.itens?.length) {
+    estado.itens = salvo.itens.map((i) => novoItem(i));
+  }
+  await aoMudarData();
+  listaNcm(dataOp()); // pré-carrega a lista de NCM para o autocompletar
+}
+
+function ligarEventos() {
+  $$(".abas button").forEach((b) => b.addEventListener("click", () => trocarAba(b.dataset.aba)));
+  $("#chip-versao").addEventListener("click", () => trocarAba("ajuda"));
+  $("#op-data").addEventListener("change", aoMudarData);
+  $("#op-uf").addEventListener("change", async () => { await carregarMunicipios($("#op-uf").value); await preencherAliquotasReferencia(true); salvar(); });
+  $("#op-mun").addEventListener("change", async () => { await preencherAliquotasReferencia(true); salvar(); });
+  $("#btn-add").addEventListener("click", () => {
+    estado.itens.push(novoItem());
+    renderizarItens();
+    $$("#lista-itens .item").at(-1)?.querySelector("[data-c=descricao]")?.focus();
+    salvar();
+  });
+  $("#sel-exemplo").addEventListener("change", async (ev) => { await carregarExemplo(ev.target.value); ev.target.value = ""; });
+  $("#btn-limpar").addEventListener("click", () => {
+    if (estado.itens.length && !confirm("Remover todos os itens?")) return;
+    estado.itens = []; renderizarItens(); salvar();
+  });
+  $("#btn-exportar").addEventListener("click", exportarItens);
+  $("#inp-importar").addEventListener("change", (ev) => { if (ev.target.files[0]) importarItens(ev.target.files[0]); ev.target.value = ""; });
+  $("#btn-calcular").addEventListener("click", calcular);
+  $("#btn-comparar").addEventListener("click", comparar);
+  $("#btn-csv").addEventListener("click", exportarCsv);
+  $("#btn-imprimir").addEventListener("click", () => window.print());
+  $("#btn-json").addEventListener("click", () => {
+    const c = estado.ultimoCalculo || {};
+    $("#json-env").textContent = JSON.stringify(c.enviado, null, 2);
+    $("#json-rec").textContent = typeof c.recebido === "string" ? c.recebido : JSON.stringify(c.recebido, null, 2);
+    $("#dlg-json").showModal();
+  });
+  $$("[data-copiar]").forEach((b) => b.addEventListener("click", async (ev) => {
+    ev.preventDefault();
+    try { await navigator.clipboard.writeText($("#" + b.dataset.copiar).textContent); b.textContent = "Copiado"; }
+    catch { b.textContent = "Selecione e copie"; }
+    setTimeout(() => { b.textContent = "Copiar"; }, 1500);
+  }));
+  let tBusca;
+  $("#busca-ncm").addEventListener("input", () => { clearTimeout(tBusca); tBusca = setTimeout(buscarNcm, 200); });
+  $("#busca-class").addEventListener("input", buscarClassificacao);
+  $("#res-ncm").addEventListener("click", (ev) => {
+    const ncm = ev.target.dataset?.add;
+    if (!ncm) return;
+    estado.itens.push(novoItem({ codigo: ncm, descricao: ev.target.closest("li").querySelector("span").firstChild.textContent.slice(0, 80) }));
+    renderizarItens(); salvar();
+    ev.target.textContent = "Adicionado";
+  });
+  $("#tab-detalhe").addEventListener("click", (ev) => {
+    const tr = ev.target.closest("tr.clicavel");
+    if (tr) { const m = $(`#tab-detalhe tr[data-m="${tr.dataset.n}"]`); m.hidden = !m.hidden; }
+  });
+  $("#btn-verificar").addEventListener("click", pedirAtualizacao);
+  $("#preparo-tentar").addEventListener("click", pedirAtualizacao);
+  $("#preparo details").addEventListener("toggle", async (ev) => {
+    if (!ev.target.open) return;
+    try { $("#preparo-log").textContent = await (await fetch("/painel/log", { cache: "no-store" })).text(); } catch { /* sem log */ }
+  });
+  ligarEditor();
+}
+
+ligarEventos();
+acompanharPainel();

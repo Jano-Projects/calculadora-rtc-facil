@@ -1,0 +1,6 @@
+# Tudo que é baixado ou gerado em tempo de execução
+dados/
+*.log
+.DS_Store
+Thumbs.db
+__pycache__/

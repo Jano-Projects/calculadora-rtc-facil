@@ -1,0 +1,57 @@
+name: Motor oficial
+
+# Instala de verdade a última versão da calculadora da Receita Federal, do jeito que o usuário faria
+# (baixando o JDK portátil), em cada sistema suportado, e faz um cálculo de teste.
+# Roda toda semana para avisar se uma versão nova da Receita quebrar a instalação.
+
+on:
+  schedule:
+    - cron: '17 9 * * 1'   # segundas, 06:17 em Brasília
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['app/**', 'iniciar.sh', 'iniciar.bat', 'scripts/**', '.github/workflows/motor-oficial.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    name: ${{ matrix.nome }}
+    runs-on: ubuntu-latest
+    container: ${{ matrix.imagem }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - nome: Ubuntu 24.04
+            imagem: ubuntu:24.04
+            preparar: apt-get update && apt-get install -y curl ca-certificates tar gzip
+          - nome: Debian estável
+            imagem: debian:stable
+            preparar: apt-get update && apt-get install -y wget ca-certificates tar gzip
+          - nome: Fedora
+            imagem: fedora:latest
+            preparar: dnf install -y tar gzip findutils which
+    steps:
+      - name: Pacotes que já vêm numa instalação desktop
+        run: ${{ matrix.preparar }}
+      - uses: actions/checkout@v4
+      - name: Instalar a última versão oficial e calcular
+        run: bash iniciar.sh --instalar-e-sair
+      - name: Logs
+        if: always()
+        run: tail -n 80 dados/logs/*.log || true
+
+  windows:
+    name: Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Instalar a última versão oficial e calcular
+        shell: cmd
+        run: call iniciar.bat --instalar-e-sair
+      - name: Logs
+        if: always()
+        shell: pwsh
+        run: Get-ChildItem dados/logs -Filter *.log | ForEach-Object { Write-Host "=== $($_.Name)"; Get-Content $_.FullName -Tail 80 }

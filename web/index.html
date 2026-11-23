@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calculadora RTC</title>
+<link rel="icon" href="icone.svg" type="image/svg+xml">
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+
+<!-- Tela de preparação: aparece enquanto o motor oficial é baixado/compilado/iniciado -->
+<div id="preparo" class="preparo" role="status" aria-live="polite">
+  <div class="preparo-caixa">
+    <img src="icone.svg" alt="" width="56" height="56">
+    <h1>Preparando a calculadora</h1>
+    <p id="preparo-msg">Conectando ao painel...</p>
+    <div class="barra"><span></span></div>
+    <p class="preparo-dica">Na primeira vez, a calculadora oficial da Receita Federal é baixada e compilada no seu computador. Isso leva de 5 a 15 minutos. Nas próximas vezes, abre em segundos.</p>
+    <details>
+      <summary>Ver detalhes técnicos</summary>
+      <pre id="preparo-log"></pre>
+    </details>
+    <button id="preparo-tentar" class="btn" hidden>Tentar de novo</button>
+  </div>
+</div>
+
+<header class="topo">
+  <div class="marca">
+    <img src="icone.svg" alt="" width="32" height="32">
+    <div>
+      <strong>Calculadora RTC</strong>
+      <span>CBS, IBS e Imposto Seletivo da Reforma Tributária</span>
+    </div>
+  </div>
+  <nav class="abas" role="tablist">
+    <button role="tab" aria-selected="true" data-aba="calcular">Calcular nota</button>
+    <button role="tab" aria-selected="false" data-aba="comparar">Comparar datas</button>
+    <button role="tab" aria-selected="false" data-aba="consultar">Consultar códigos</button>
+    <button role="tab" aria-selected="false" data-aba="ajuda">Ajuda</button>
+  </nav>
+  <button id="chip-versao" class="chip" title="Versão do motor de cálculo oficial">motor —</button>
+</header>
+
+<main>
+  <!-- ============================================================ CALCULAR -->
+  <section id="aba-calcular" class="aba" role="tabpanel">
+    <div class="grade">
+      <div class="coluna-form">
+        <fieldset class="bloco">
+          <legend>Operação</legend>
+          <div class="campos">
+            <label class="caixa">
+              <span>Data da operação</span>
+              <input type="date" id="op-data" required>
+            </label>
+            <label class="caixa">
+              <span>UF</span>
+              <select id="op-uf"></select>
+            </label>
+            <label class="caixa larga">
+              <span>Município</span>
+              <select id="op-mun"></select>
+            </label>
+          </div>
+          <p class="fase" id="op-fase"></p>
+        </fieldset>
+
+        <fieldset class="bloco" id="bloco-aliquotas" hidden>
+          <legend>Alíquotas</legend>
+          <p class="nota">A partir de 2027 a calculadora oficial pede que você informe as alíquotas. Já preenchemos com as alíquotas de referência da base oficial; altere se quiser simular outro cenário.</p>
+          <div class="campos">
+            <label class="caixa"><span>CBS (federal) %</span><input type="number" id="aliq-cbs" step="0.0001" min="0"></label>
+            <label class="caixa"><span>IBS estadual %</span><input type="number" id="aliq-ibsuf" step="0.0001" min="0"></label>
+            <label class="caixa"><span>IBS municipal %</span><input type="number" id="aliq-ibsmun" step="0.0001" min="0"></label>
+          </div>
+        </fieldset>
+
+        <fieldset class="bloco">
+          <legend>Itens da nota</legend>
+          <div class="acoes-itens">
+            <button class="btn" id="btn-add">Adicionar item</button>
+            <label class="btn btn-sec seletor">
+              Carregar exemplo
+              <select id="sel-exemplo" aria-label="Carregar exemplo">
+                <option value="">Escolha...</option>
+              </select>
+            </label>
+            <button class="btn btn-sec" id="btn-exportar" title="Salvar os itens num arquivo .json">Salvar itens</button>
+            <label class="btn btn-sec" title="Abrir itens de um arquivo .json">Abrir itens<input type="file" id="inp-importar" accept=".json,application/json" hidden></label>
+            <button class="btn btn-sec btn-perigo" id="btn-limpar">Limpar</button>
+          </div>
+          <div id="lista-itens" class="lista-itens"></div>
+          <p class="vazio" id="itens-vazio">Nenhum item ainda. Adicione um item ou carregue um exemplo para começar.</p>
+        </fieldset>
+
+        <div class="calcular-barra">
+          <button class="btn btn-grande" id="btn-calcular">Calcular tributos</button>
+          <span id="calc-status" class="calc-status" aria-live="polite"></span>
+        </div>
+      </div>
+
+      <aside class="coluna-cupom">
+        <div id="cupom" class="cupom vazio-cupom">
+          <p>O resultado aparece aqui depois de calcular.</p>
+        </div>
+        <div class="cupom-acoes" id="cupom-acoes" hidden>
+          <button class="btn btn-sec" id="btn-csv">Baixar planilha (CSV)</button>
+          <button class="btn btn-sec" id="btn-imprimir">Imprimir</button>
+          <button class="btn btn-sec" id="btn-json">Ver JSON</button>
+        </div>
+      </aside>
+    </div>
+
+    <section id="detalhe-itens" class="detalhe" hidden>
+      <h2>Detalhamento por item</h2>
+      <div class="tabela-rolagem"><table id="tab-detalhe"></table></div>
+    </section>
+  </section>
+
+  <!-- ============================================================ COMPARAR -->
+  <section id="aba-comparar" class="aba" role="tabpanel" hidden>
+    <fieldset class="bloco">
+      <legend>Comparar a mesma nota em duas datas</legend>
+      <p class="nota">Usa os itens, a UF e o município da aba "Calcular nota". Escolha duas datas para ver como os tributos novos mudam com a transição.</p>
+      <div class="campos">
+        <label class="caixa"><span>Antes</span><input type="date" id="cmp-a"></label>
+        <label class="caixa"><span>Depois</span><input type="date" id="cmp-b"></label>
+        <button class="btn btn-grande" id="btn-comparar">Comparar</button>
+      </div>
+      <p class="calc-status" id="cmp-status" aria-live="polite"></p>
+    </fieldset>
+    <div id="cmp-resultado"></div>
+    <aside class="aviso-leitura">
+      <h3>Como ler a comparação</h3>
+      <p>A calculadora oficial mostra só os <strong>tributos novos</strong> (CBS, IBS e Imposto Seletivo). PIS, Cofins, ICMS, ISS e IPI não aparecem. Em 2026 a CBS e o IBS são de teste e compensados com PIS/Cofins. Em 2027 a CBS substitui o PIS e a Cofins. Por isso, o aumento que aparece aqui não é, sozinho, o aumento de preço para o consumidor.</p>
+      <p>O que é novo de verdade a partir de 2027 é o <strong>Imposto Seletivo</strong> (bebidas açucaradas, alcoólicas, cigarros, veículos...). Ele também entra na base da CBS e do IBS.</p>
+    </aside>
+  </section>
+
+  <!-- ============================================================ CONSULTAR -->
+  <section id="aba-consultar" class="aba" role="tabpanel" hidden>
+    <div class="grade-consulta">
+      <fieldset class="bloco">
+        <legend>Produtos (NCM)</legend>
+        <label class="caixa larga"><span>Código ou descrição</span><input type="search" id="busca-ncm" placeholder="ex.: arroz, 2202, chocolate"></label>
+        <ul id="res-ncm" class="resultados"></ul>
+      </fieldset>
+      <fieldset class="bloco">
+        <legend>Classificações tributárias (cClassTrib)</legend>
+        <label class="caixa larga"><span>Código ou descrição</span><input type="search" id="busca-class" placeholder="ex.: cesta básica, 200003, higiene"></label>
+        <ul id="res-class" class="resultados"></ul>
+      </fieldset>
+    </div>
+    <p class="nota">As listas seguem a data da operação escolhida em "Calcular nota" (<span id="cons-data"></span>).</p>
+  </section>
+
+  <!-- ============================================================ AJUDA -->
+  <section id="aba-ajuda" class="aba texto" role="tabpanel" hidden>
+    <h2>Como usar</h2>
+    <ol>
+      <li>Em <strong>Operação</strong>, escolha a data e o local da venda. A data define as regras aplicadas: 2026 é o ano de teste, e a CBS passa a valer de verdade em 2027.</li>
+      <li>Adicione os itens. Para cada um, informe o <strong>NCM</strong> (produto) ou a <strong>NBS</strong> (serviço), a <strong>classificação tributária</strong>, o valor e a quantidade. Comece por um exemplo se preferir.</li>
+      <li>Clique em <strong>Calcular tributos</strong>. O cupom mostra o total de CBS, IBS e Imposto Seletivo, e o detalhamento mostra a conta de cada item.</li>
+    </ol>
+
+    <h2>De onde vêm os cálculos</h2>
+    <p>Todo cálculo é feito pela <a href="https://github.com/ReceitaFederal/calculadora-rtc-regime-regular" target="_blank" rel="noopener">calculadora oficial da Receita Federal</a> (código aberto), rodando no seu computador. Esta tela só organiza a entrada e o resultado. Nada é enviado para a internet.</p>
+
+    <h2>Atualizações</h2>
+    <p id="ajuda-status">—</p>
+    <p>Quando a Receita publica uma versão nova, ela é baixada, compilada e colocada em uso sozinha, sem fechar esta tela. A verificação acontece ao abrir a calculadora e depois a cada poucas horas.</p>
+    <p class="acoes-ajuda">
+      <button class="btn" id="btn-verificar">Procurar atualização agora</button>
+      <a class="btn btn-sec" href="/painel/log" target="_blank">Ver registro técnico</a>
+      <a class="btn btn-sec" href="/api/swagger-ui.html" target="_blank">Abrir a API (Swagger)</a>
+    </p>
+
+    <h2>Avisos importantes</h2>
+    <ul>
+      <li>A partir de 2027, as alíquotas da CBS e do IBS precisam ser informadas. Os resultados aparecem como <em>cálculo simulado</em> até que as alíquotas definitivas sejam publicadas.</li>
+      <li>As alíquotas reais do Imposto Seletivo ainda dependem de lei. Os valores dos exemplos são ilustrativos.</li>
+      <li>Esta ferramenta serve para estudo e conferência. Ela não substitui a orientação de um contador.</li>
+    </ul>
+  </section>
+</main>
+
+<dialog id="dlg-json" class="dlg">
+  <form method="dialog" class="dlg-topo"><strong>JSON enviado e recebido</strong><button class="btn btn-sec">Fechar</button></form>
+  <div class="dlg-corpo">
+    <h3>Enviado <button class="btn btn-sec btn-mini" data-copiar="json-env">Copiar</button></h3>
+    <pre id="json-env"></pre>
+    <h3>Recebido <button class="btn btn-sec btn-mini" data-copiar="json-rec">Copiar</button></h3>
+    <pre id="json-rec"></pre>
+  </div>
+</dialog>
+
+<template id="tpl-item">
+  <div class="item">
+    <div class="item-num"></div>
+    <div class="campos">
+      <label class="caixa larga"><span>Descrição (só para você)</span><input data-c="descricao" maxlength="80" placeholder="ex.: Arroz 5 kg"></label>
+      <label class="caixa estreita"><span>Tipo</span>
+        <select data-c="tipo"><option value="ncm">Produto</option><option value="nbs">Serviço</option></select>
+      </label>
+      <label class="caixa codigo"><span class="rot-codigo">NCM</span><input data-c="codigo" inputmode="numeric" autocomplete="off" maxlength="9"><small class="desc-codigo"></small></label>
+      <label class="caixa larga"><span>Classificação tributária</span><select data-c="cClassTrib"></select></label>
+      <label class="caixa estreita"><span>Valor (R$)</span><input data-c="valor" type="number" step="0.01" min="0"></label>
+      <label class="caixa estreita"><span>Quantidade</span><input data-c="quantidade" type="number" step="0.0001" min="0"></label>
+      <label class="caixa estreita"><span>Unidade</span>
+        <select data-c="unidade"><option>UN</option><option>KG</option><option>LT</option><option>M3</option><option>VN</option></select>
+      </label>
+      <label class="caixa estreita is" hidden><span>Imposto Seletivo %</span><input data-c="aliqIS" type="number" step="0.01" min="0"></label>
+    </div>
+    <button class="remover" title="Remover item" aria-label="Remover item">×</button>
+  </div>
+</template>
+
+<div id="sugestoes" class="sugestoes" role="listbox" hidden></div>
+
+<script src="exemplos.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
