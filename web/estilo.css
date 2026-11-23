@@ -356,3 +356,10 @@ tfoot td { font-weight: 700; border-bottom: 0; }
 .tab-ad td.forte, .tab-ad th:nth-child(7), .tab-ad th:nth-child(12) { font-weight: 700; }
 .aviso-leitura ul { padding-left: 1.2rem; }
 .aviso-leitura li { margin-bottom: .35rem; }
+td.emb { font-style: italic; color: var(--tinta-2); }
+.ad-marca { font-size: .8rem; white-space: nowrap; margin-right: .25rem; }
+#ad-fabrica-caixa[hidden] { display: none !important; }
+.carga-consumo { background: var(--branco); border: 1px solid var(--regua-forte); border-radius: var(--raio); padding: .75rem 1rem; margin-bottom: 1.25rem; }
+.carga-consumo h3 { margin: 0 0 .5rem; font-size: 1rem; }
+.carga-consumo table { max-width: 720px; }
+.carga-consumo .nota { margin: .5rem 0 0; }

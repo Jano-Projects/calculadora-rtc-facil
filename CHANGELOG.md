@@ -1,5 +1,23 @@
 # Mudanças
 
+## 1.4.0 — 2026-11-23
+
+### Novidades na aba "Antes e depois"
+- **Quem vende: comércio ou indústria.** No comércio (o padrão), IPI, Imposto Seletivo e PIS/Cofins monofásico incidem uma vez, na indústria, sobre um **preço de fábrica** informado (padrão: 60% do preço), e o ICMS-ST chega já pago. Todos entram como custo embutido. Na indústria, tudo é destacado na própria venda.
+- **Novos campos por item:** FCP %, PIS/Cofins monofásico (marcador e alíquota) e ICMS-ST (marcador). Padrões:
+  - monofásico de 13% nas bebidas frias, 12,5% em perfumaria e higiene e 12% em medicamentos;
+  - ICMS-ST nas bebidas.
+- **Cenário do ICMS de 2027 em diante:** CBS e IBS fora da base do ICMS (padrão, como em 2026) ou dentro da base, já que a lei não diz expressamente.
+- **Quadro "Tributos sobre o consumo do produto":** separa o destacado nesta venda do embutido no custo e lista o que não entra (renda, folha, resíduos da cadeia, DIFAL, importação). Na tabela por item, os valores embutidos aparecem em itálico.
+
+### Correções
+- **IPI e Imposto Seletivo eram calculados sobre o preço de venda.** Na venda do comércio isso superestimava os dois, porque eles incidem uma vez, na indústria, sobre o preço de fábrica.
+- **Diferenças de arredondamento.** Diferenças menores que 2 centavos entre o tributo antigo e o novo aparecem como "sem mudança".
+
+### Documentação
+- **Novo: [Tributos e bases](docs/tributos-e-bases.md).** A base de cada tributo hoje e depois, o que é "por dentro" e "por fora", indústria × comércio, destacado × embutido × não incluído, e por que o destacado na venda final representa a cadeia nos tributos não cumulativos.
+- **Pontos de atenção:** o 14 foi reescrito, e entram o 15 (CBS e IBS na base do ICMS, ponto em aberto) e o 16 (o total não é a carga tributária completa). No ponto 5, a observação de que o IS é cobrado na indústria.
+
 ## 1.3.0 — 2026-11-23
 
 ### Novidades

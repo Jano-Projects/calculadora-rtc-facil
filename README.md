@@ -7,7 +7,7 @@ Calcule **CBS, IBS e Imposto Seletivo** da Reforma Tributária do Consumo (LC 21
 - **Sempre na versão mais recente**: quando a Receita publica uma versão nova da [calculadora oficial](https://github.com/ReceitaFederal/calculadora-rtc-regime-regular), ela é baixada, compilada e colocada em uso automaticamente, sem fechar a tela.
 - **Tela amigável**: monte a nota item a item, com autocompletar de NCM e lista de classificações tributárias. O resultado sai em forma de cupom e com detalhamento por item.
 - **Compare datas**: veja a mesma nota em 2026 (ano de teste) e em 2027 (CBS para valer + Imposto Seletivo).
-- **Antes e depois**: a carga de hoje (PIS/Cofins, ICMS/ISS, IPI) ao lado da de depois da reforma, com o que migra (PIS/Cofins → CBS, IPI → Imposto Seletivo), o que fica (ICMS/ISS até 2028) e o preço estimado.
+- **Antes e depois**: os tributos sobre o consumo de hoje (PIS/Cofins, ICMS/ISS, FCP, IPI, monofásico, ICMS-ST) ao lado dos de depois da reforma. Mostra o que migra (PIS/Cofins → CBS, IPI → Imposto Seletivo), o que fica (ICMS/ISS até 2028), o que é destacado na venda e o que vem embutido no custo, e o preço estimado. Funciona para venda da indústria ou do comércio.
 - **Tudo local**: os cálculos rodam na sua máquina. Nenhum dado da sua nota sai do computador.
 - **100% código aberto** (licença MIT).
 
@@ -92,6 +92,7 @@ Variáveis de ambiente: `CALC_RTC_PORTA`, `CALC_RTC_HORAS_VERIFICACAO` (0 deslig
 **Para quem usa**
 - [Pontos de atenção](docs/pontos-de-atencao.md): o que pode enganar nos resultados e o que fazer.
 - [Entenda a reforma](docs/entenda-a-reforma.md): CBS, IBS, Imposto Seletivo, cronograma de 2026 a 2033 e glossário.
+- [Tributos e bases](docs/tributos-e-bases.md): a base de cada tributo, o que é "imposto sobre imposto", destacado × embutido e o que não entra.
 - [Diferenças que confundem](docs/diferencas.md): calculado × simulado, redução × imunidade × isenção, NCM × NBS, CST × cClassTrib e outras.
 - [Perguntas frequentes](docs/perguntas-frequentes.md).
 - [Guia de uso](docs/guia-de-uso.md): a tela, os campos e como ler o resultado.

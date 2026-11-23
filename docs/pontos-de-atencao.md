@@ -45,6 +45,8 @@ Pela lei, em 2027 e 2028 a CBS ainda é reduzida em 0,1 ponto percentual para co
 - **Início em fevereiro.** Pela MP, o IS começa a produzir efeitos em **2 de fevereiro de 2027**. A calculadora oficial não aplica essa data: se você informar uma alíquota de IS para uma operação de janeiro de 2027, ela calcula.
 - **Valor estimado.** A alíquota é informada por você em cada item. O campo pode vir vazio ou com uma estimativa dos exemplos.
 
+- **Cobrado uma vez, na indústria.** O IS é cobrado na venda da indústria ou do importador, sobre o preço de fábrica. Nas abas *Calcular nota* e *Comparar datas*, informar o IS num item trata aquela venda como **venda da indústria**. Para simular uma compra no comércio, use a aba *Antes e depois* com "Quem vende: comércio".
+
 **O que fazer.** Confira a alíquota do seu produto na MP, porque ela varia por tipo de bebida, cigarro, veículo etc. Para operações entre 1º de janeiro e 1º de fevereiro de 2027, avalie com o contador se o IS deve entrar. Lembre que o IS entra na base de cálculo da CBS e do IBS.
 
 ## 6. A classificação tributária depende da operação, não só do produto
@@ -101,20 +103,31 @@ Qual delas vale depende de **quem vende, para quem e com que finalidade**.
 
 ## 14. "Antes e depois" é uma estimativa com premissas
 
-**O que pode enganar.** A aba *Antes e depois* mostra a carga de hoje, a de depois e um preço estimado. Os tributos novos vêm da calculadora oficial, mas os atuais (PIS/Cofins, ICMS/ISS, IPI) são **estimados** pela tela a partir de alíquotas padrão:
+**O que pode enganar.** A aba *Antes e depois* mostra a carga de hoje, a de depois e um preço estimado. Os tributos novos vêm da calculadora oficial, mas os atuais (PIS/Cofins, ICMS/ISS, FCP, IPI) são **estimados** pela tela a partir de padrões:
 - ICMS pela alíquota geral do estado;
-- PIS/Cofins pelo regime escolhido (zero na cesta básica e no hortifrúti);
-- IPI igual ao Imposto Seletivo nos produtos sujeitos a ele, e zero nos demais.
+- PIS/Cofins pelo regime escolhido, com zero na cesta básica e no hortifrúti, e monofásico em bebidas, perfumaria, higiene e medicamentos;
+- ICMS-ST nas bebidas;
+- IPI igual ao Imposto Seletivo nos produtos sujeitos a ele;
+- preço de fábrica de 60% do preço de venda.
 
-Além disso, o modelo supõe:
-- **margem constante e repasse integral:** o valor sem tributos não muda e toda diferença vai para o preço;
-- **só a venda final:** considera só os tributos desta venda, sem os créditos e a carga das etapas anteriores.
-
-Não modela Simples Nacional, substituição tributária, DIFAL, fundo de pobreza, exceções da Zona Franca de Manaus nem regimes específicos (combustíveis, monofásicos).
-
-Os padrões podem errar muito em alguns itens. Itens da cesta básica, por exemplo, costumam ter ICMS reduzido ou isento no estado, e com a alíquota geral a carga de hoje sai alta demais.
+O modelo supõe **margem constante e repasse integral**. Os padrões podem errar muito em itens com regra estadual própria (cesta básica com ICMS reduzido, por exemplo).
 
 **O que fazer.**
-- Ajuste as alíquotas por item na tabela *Alíquotas atuais por item*, com os valores que a empresa realmente aplica (veja no ERP ou na nota de venda).
+- Escolha corretamente **quem vende** (indústria ou comércio).
+- Ajuste por item as alíquotas que a empresa realmente aplica (veja no ERP ou na nota de venda).
 - Leia o preço estimado como "o que aconteceria se nada além dos tributos mudasse", e não como previsão de preço.
-- Para conferência fiscal, use os valores de CBS, IBS e IS, que vêm da calculadora oficial. Os dos tributos atuais são aproximações.
+- Para conferência fiscal, use os valores de CBS, IBS e IS, que vêm da calculadora oficial.
+
+A regra de base de cada tributo está em [tributos e bases](tributos-e-bases.md).
+
+## 15. A CBS e o IBS podem entrar na base do ICMS a partir de 2027
+
+**O que pode enganar.** A lei não diz expressamente se, de 2027 a 2032, a CBS e o IBS entram na base de cálculo do ICMS e do ISS. Em 2026 não entram (resposta da Sefaz-SP). O padrão da ferramenta supõe que continue assim. Se os estados incluírem, o ICMS fica maior do que o mostrado.
+
+**O que fazer.** Na aba *Antes e depois*, compare as duas opções de "ICMS de 2027 em diante" para ver o tamanho do efeito, e acompanhe a posição do seu estado.
+
+## 16. O total não é a carga tributária completa do produto
+
+**O que pode enganar.** Mesmo na aba *Antes e depois*, o total inclui só os **tributos sobre o consumo**, destacados na venda ou embutidos no custo. Não entram os tributos sobre a renda e a folha das empresas da cadeia (IRPJ, CSLL, INSS patronal), os resíduos de etapas sem crédito, o DIFAL nem os tributos de importação. Por isso o valor fica abaixo dos "tributos aproximados" impressos nos cupons fiscais.
+
+**O que fazer.** Use a ferramenta para entender a **troca de tributos sobre o consumo** na reforma, e não como medida da carga total.

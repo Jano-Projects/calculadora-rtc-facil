@@ -28,6 +28,7 @@ const salvar = () => {
     localStorage.setItem("calc-rtc", JSON.stringify({
       itens: estado.itens.map(({ verOpcoes, ...i }) => i), data: $("#op-data").value, uf: $("#op-uf").value, mun: $("#op-mun").value,
       cmpA: $("#cmp-a").value, cmpB: $("#cmp-b").value, adData: $("#ad-data").value,
+      adVendedor: $("#ad-vendedor").value, adFabrica: $("#ad-fabrica").value, adIcmsBase: $("#ad-icms-base").value, adRegime: $("#ad-regime").value,
     }));
   } catch { /* navegador sem armazenamento: segue sem salvar */ }
 };
@@ -612,7 +613,7 @@ async function montarOperacao(data, opcoes = {}) {
       if (it.tipo === "ncm" && /^\d{8}$/.test(it.codigo)) {
         const det = await pagaImpostoSeletivo(it.codigo, data);
         if (det) {
-          let a = num(it.aliqIS);
+          let a = opcoes.aliqIS ? opcoes.aliqIS[i] : num(it.aliqIS);
           if (a === null && det.aliquotaAdValorem !== null && det.aliquotaAdValorem !== undefined) a = Number(det.aliquotaAdValorem);
           if (a === null) {
             erros.push(`${rot}: este produto paga Imposto Seletivo a partir de 2027. Informe a alíquota no campo "Imposto Seletivo %" do item (para 2027, veja a MP 1.399/2026: bebidas açucaradas 2,6%, cerveja de malte 4,2%...).`);
@@ -915,12 +916,20 @@ function renderizarComparacao(a, b, ra, rb) {
 }
 
 /* ====================================================================== antes e depois da reforma
- * Os tributos NOVOS (CBS, IBS, IS) vêm da calculadora oficial. Os ATUAIS (PIS/Cofins, ICMS/ISS, IPI)
- * são estimados aqui, a partir de alíquotas padrão editáveis. Modelo (por item, P = preço de hoje):
- *   hoje:   ICMS = i·P (por dentro) · PIS/Cofins = c·(P − ICMS) (STF, Tema 69) · A = P·(1−i)(1−c)
- *           L (valor sem tributos) = A / (1 + ipi) · IPI = L·ipi · base CBS/IBS de teste = A
- *   depois: IS = L·is · A' = L + IS · ICMS = A'·i'/(1−i') com i' = i × fator da transição
- *           base CBS/IBS = A' (sem ICMS, com IS) · preço = A' + ICMS + CBS + IBS (por fora)            */
+ * Os tributos NOVOS (CBS, IBS, IS) vêm da calculadora oficial. Os ATUAIS (PIS/Cofins, ICMS/ISS, FCP, IPI)
+ * são estimados aqui, a partir de alíquotas padrão editáveis. P = preço de venda de hoje.
+ *
+ * Venda da INDÚSTRIA (ou serviço): tudo é destacado na própria venda.
+ *   hoje:   ICMS = i·P (por dentro, i = ICMS + FCP) · PIS/Cofins = c·(P − ICMS) (STF, Tema 69; c = monofásico se marcado)
+ *           A = P·(1−i)(1−c) · L (valor sem tributos) = A/(1+ipi) · IPI = L·ipi · base CBS/IBS de teste = A
+ *   depois: IS = L·is · A' = L + IS
+ * Venda do COMÉRCIO: IPI, IS e PIS/Cofins monofásico incidem uma vez, na indústria, sobre o preço de fábrica F;
+ *   o ICMS-ST foi pago antecipado pela indústria. Tudo isso chega embutido no custo.
+ *   hoje:   F = f·P · IPI = F·ipi · PIS/Cofins mono = m·F · ICMS = i·P · PIS/Cofins do comércio = c·(P − ICMS) (zero se mono)
+ *           L = P − ICMS − PIS/Cofins − mono − IPI · base CBS/IBS de teste = P − ICMS − PIS/Cofins do comércio
+ *   depois: IS = F·is (embutido) · A' = L + IS
+ * Depois, nos dois casos: base CBS/IBS = A' (sem ICMS/ISS, com IS) · ICMS = i'·(A' [+ CBS + IBS]) / (1 − i'),
+ *   i' = i × fator da transição · preço = A' + ICMS + CBS + IBS (CBS e IBS por fora)                               */
 
 // Alíquota geral (modal) do ICMS em 2026, sem fundo de pobreza. Fonte: buscadorncm.com.br/icms (conferido em 16/11/2026).
 const ICMS_MODAL_2026 = {
@@ -929,20 +938,39 @@ const ICMS_MODAL_2026 = {
 };
 const CLASSIF_PISCOFINS_ZERO = new Set(["200003", "200014"]); // cesta básica e hortifrúti: PIS/Cofins zero é comum (Lei 10.925/2004)
 
+/** PIS/Cofins monofásico típico por NCM (alíquota somada, cobrada na indústria). */
+function monofasicoPadrao(ncm) {
+  if (/^220[123]/.test(ncm)) return 13;                       // bebidas frias: 2,32% + 10,68% (Lei 13.097/2015)
+  if (/^330[3-7]/.test(ncm) || /^3401(1190|2010)/.test(ncm) || /^96032100/.test(ncm)) return 12.5; // perfumaria e higiene: 2,2% + 10,3% (Lei 10.147/2000)
+  if (/^300[34]/.test(ncm)) return 12;                        // medicamentos: 2,1% + 9,9% (Lei 10.147/2000)
+  return null;
+}
+const stPadrao = (ncm) => /^220[123]/.test(ncm); // bebidas: ICMS-ST é comum em todos os estados
+
 /** Parte do ICMS/ISS que ainda existe no ano (transição da EC 132: −10% ao ano de 2029 a 2032, extinto em 2033). */
 const fatorIcmsIss = (ano) => (ano <= 2028 ? 1 : ano >= 2033 ? 0 : 1 - (ano - 2028) / 10);
 const dataAntes = () => { const h = hoje(); return h <= "2026-12-31" ? h : "2026-12-31"; };
+const vendeComercio = () => $("#ad-vendedor").value === "comercio";
 
 function padroesAntigos(it, isDet) {
   const regime = num($("#ad-regime").value) ?? 9.25;
   const servico = it.tipo === "nbs";
+  const mono = servico ? null : monofasicoPadrao(it.codigo);
   return {
     pc: CLASSIF_PISCOFINS_ZERO.has(it.cClassTrib) ? 0 : regime,
+    mono: mono !== null, monoPct: mono ?? 12.5,
     icms: servico ? (num($("#ad-iss").value) ?? 5) : (num($("#ad-icms").value) ?? 18),
+    fcp: 0,
+    st: !servico && stPadrao(it.codigo),
     ipi: !servico && isDet && num(it.aliqIS) !== null ? num(it.aliqIS) : 0,
   };
 }
-const valorAntigo = (it, campo, padrao) => (it["ad_" + campo] !== undefined && it["ad_" + campo] !== "" ? num(it["ad_" + campo]) : padrao);
+const valorAntigo = (it, campo, padrao) => {
+  const v = it["ad_" + campo];
+  if (v === undefined || v === "") return padrao;
+  if (typeof padrao === "boolean") return v === true || v === "1";
+  return num(v);
+};
 
 async function renderizarAntesDepois() {
   const uf = $("#op-uf").value, munNome = $("#op-mun").selectedOptions[0]?.textContent || "";
@@ -952,8 +980,9 @@ async function renderizarAntesDepois() {
     : `Nenhum item na nota. Adicione itens na aba <strong>Calcular nota</strong>.`;
   $("#ad-antes-texto").innerHTML = `Regras de 2026, em ${fmtData(dataAntes())}: PIS/Cofins, ICMS/ISS e IPI integrais, mais CBS e IBS de teste (compensados).`;
   $("#ad-uf").textContent = uf;
+  $("#ad-fabrica-caixa").hidden = !vendeComercio();
   if ($("#ad-icms").dataset.uf !== uf) { $("#ad-icms").value = ICMS_MODAL_2026[uf] ?? 18; $("#ad-icms").dataset.uf = uf; }
-  $("#ad-padroes-nota").innerHTML = `ICMS padrão: alíquota geral de ${esc(uf)} em 2026 (${pct(ICMS_MODAL_2026[uf] ?? 18, 1)}), sem fundo de pobreza. <strong>Atenção:</strong> itens de cesta básica, medicamentos, combustíveis e outros costumam ter ICMS reduzido, isento ou por substituição tributária no estado. Ajuste esses itens na tabela. Itens de cesta básica e hortifrúti usam PIS/Cofins zero. Produtos com Imposto Seletivo usam IPI igual à alíquota do IS.`;
+  $("#ad-padroes-nota").innerHTML = `ICMS padrão: alíquota geral de ${esc(uf)} em 2026 (${pct(ICMS_MODAL_2026[uf] ?? 18, 1)}), sem fundo de pobreza. <strong>Atenção:</strong> itens de cesta básica, medicamentos, combustíveis e outros costumam ter ICMS reduzido, isento ou por substituição tributária no estado. Ajuste esses itens na tabela.`;
 
   // alíquotas de CBS/IBS do cenário "depois" (mesmo quadro da comparação)
   const d = $("#ad-data").value;
@@ -977,13 +1006,47 @@ async function renderizarAntesDepois() {
   for (const [n, it] of estado.itens.entries()) {
     const isDet = it.tipo === "ncm" ? await pagaImpostoSeletivo(it.codigo, "2027-02-02") : null;
     const p = padroesAntigos(it, isDet);
-    const campo = (c, v, extra = "") => `<input type="number" step="0.01" min="0" class="ad-in" data-ad="${c}" data-id="${it.id}" value="${valorAntigo(it, c, v) ?? ""}" ${extra}>`;
+    const servico = it.tipo === "nbs";
+    const campo = (c, v) => `<input type="number" step="0.01" min="0" class="ad-in" data-ad="${c}" data-id="${it.id}" value="${valorAntigo(it, c, v) ?? ""}">`;
+    const marca = (c, v, rot) => `<label class="ad-marca"><input type="checkbox" data-ad="${c}" data-id="${it.id}" ${valorAntigo(it, c, v) ? "checked" : ""}> ${rot}</label>`;
     linhas.push(`<tr><td>${n + 1}</td><td>${esc(it.descricao || it.codigo)}</td><td class="n">${brl(it.valor)}</td>
-      <td>${campo("pc", p.pc)}</td><td>${campo("icms", p.icms)}</td>
-      <td>${it.tipo === "nbs" ? "—" : campo("ipi", p.ipi)}</td>
+      <td>${campo("pc", p.pc)}</td>
+      <td>${servico ? "—" : `${marca("mono", p.mono, "mono.")} ${campo("monoPct", p.monoPct)}`}</td>
+      <td>${campo("icms", p.icms)}</td>
+      <td>${servico ? "—" : campo("fcp", p.fcp)}</td>
+      <td>${servico ? "—" : marca("st", p.st, "ST")}</td>
+      <td>${servico ? "—" : campo("ipi", p.ipi)}</td>
       <td class="n">${isDet ? `${esc(it.aliqIS === "" ? "?" : it.aliqIS)}%` : "—"}</td></tr>`);
   }
-  $("#ad-itens").innerHTML = `<thead><tr><th>#</th><th>Item</th><th class="n">Preço hoje</th><th>PIS/Cofins %</th><th>ICMS ou ISS %</th><th>IPI %</th><th class="n">IS % (2027)</th></tr></thead><tbody>${linhas.join("")}</tbody>`;
+  $("#ad-itens").innerHTML = `<thead><tr><th>#</th><th>Item</th><th class="n">Preço hoje</th><th>PIS/Cofins %</th><th>Monofásico %</th>
+    <th>ICMS ou ISS %</th><th>FCP %</th><th>ICMS-ST</th><th>IPI %</th><th class="n">IS % (2027)</th></tr></thead><tbody>${linhas.join("")}</tbody>`;
+}
+
+/** Tributos atuais e valor sem tributos (L) de um item, conforme quem vende. */
+function tributosAtuais(it, isDet) {
+  const P = num(it.valor) || 0;
+  const p = padroesAntigos(it, isDet);
+  const servico = it.tipo === "nbs";
+  const icmsPct = (valorAntigo(it, "icms", p.icms) || 0) + (servico ? 0 : (valorAntigo(it, "fcp", p.fcp) || 0));
+  const i = icmsPct / 100;
+  const mono = !servico && valorAntigo(it, "mono", p.mono);
+  const m = (valorAntigo(it, "monoPct", p.monoPct) || 0) / 100;
+  const c = (valorAntigo(it, "pc", p.pc) || 0) / 100;
+  const st = !servico && valorAntigo(it, "st", p.st);
+  const ipi = servico ? 0 : (valorAntigo(it, "ipi", p.ipi) || 0) / 100;
+  const isPct = isDet ? num(it.aliqIS) : null;
+  const comercio = vendeComercio() && !servico;
+  const r = { P, i, st, servico, comercio, isPct, destacado: {}, embutido: {} };
+  if (comercio) {
+    const F = ((num($("#ad-fabrica").value) ?? 60) / 100) * P;
+    const ipiV = F * ipi, monoV = mono ? m * F : 0, icms = i * P, pcV = mono ? 0 : c * (P - icms);
+    Object.assign(r, { F, ipiV, monoV, icms, pcV, L: P - icms - pcV - monoV - ipiV, baseTeste: P - icms - pcV });
+  } else {
+    const cEff = mono ? m : c;
+    const icms = i * P, pcV = cEff * (P - icms), A = P * (1 - i) * (1 - cEff), L = A / (1 + ipi);
+    Object.assign(r, { F: L, ipiV: L * ipi, monoV: 0, icms, pcV, L, baseTeste: A });
+  }
+  return r;
 }
 
 async function calcularAntesDepois() {
@@ -1000,45 +1063,48 @@ async function calcularAntesDepois() {
   st.className = "calc-status"; st.textContent = "Calculando...";
   $("#btn-antesdepois").disabled = true;
   try {
-    // 1. tributos atuais e valor sem tributos (L) de cada item
     const fator = fatorIcmsIss(anoDe(d));
-    const base = [];
+    const cbsNaBaseIcms = $("#ad-icms-base").value === "dentro";
+    // 1. tributos atuais de cada item
+    const atuais = [];
     for (const it of estado.itens) {
-      const P = num(it.valor) || 0;
       const isDet = it.tipo === "ncm" ? await pagaImpostoSeletivo(it.codigo, "2027-02-02") : null;
-      const p = padroesAntigos(it, isDet);
-      const i = (valorAntigo(it, "icms", p.icms) || 0) / 100, c = (valorAntigo(it, "pc", p.pc) || 0) / 100;
-      const ipi = it.tipo === "nbs" ? 0 : (valorAntigo(it, "ipi", p.ipi) || 0) / 100;
-      const A = P * (1 - i) * (1 - c), L = A / (1 + ipi);
-      base.push({ P, i, c, ipi, A, L, icms: i * P, pc: c * (1 - i) * P, ipiV: L * ipi, servico: it.tipo === "nbs" });
+      atuais.push(tributosAtuais(it, isDet));
     }
-    // 2. tributos novos pela calculadora oficial: hoje (teste, base A) e depois (base L, + IS)
-    const rodar = async (data, bases, aliq) => {
-      const { erros, operacao } = await montarOperacao(data, { aliquotas: aliq, bases: bases.map(arred2) });
+    // 2. tributos novos pela calculadora oficial.
+    // Depois: a base do IS enviada é L; a alíquota é ajustada para que o IS calculado seja o do modelo
+    // (no comércio, IS = F × alíquota, embutido no custo), e a base de CBS/IBS fique L + IS.
+    const isAlvo = atuais.map((a) => (a.isPct === null || a.isPct === undefined || isNaN(a.isPct) ? null : a.F * a.isPct / 100));
+    const aliqISEnvio = atuais.map((a, k) => (isAlvo[k] === null ? null : a.L > 0 ? Math.round(isAlvo[k] / a.L * 1e6) / 1e4 : 0));
+    const rodar = async (data, bases, aliq, aliqIS) => {
+      const { erros, operacao } = await montarOperacao(data, { aliquotas: aliq, bases: bases.map(arred2), aliqIS });
       if (erros.length) throw new Error(`Em ${fmtData(data)}: ${erros[0].replace(`no campo "Imposto Seletivo %" do item`, `no campo "Imposto Seletivo %" do item, na aba Calcular nota,`)}`);
       const r = await api("/observabilidade/regime-geral", { method: "POST", body: JSON.stringify(operacao) });
       return interpretar(r.corpo, operacao);
     };
-    const dAntes = dataAntes();
     const [rAntes, rDepois] = await Promise.all([
-      rodar(dAntes, base.map((b) => b.A), null),
-      rodar(d, base.map((b) => b.L), aliquotas),
+      rodar(dataAntes(), atuais.map((a) => a.baseTeste), null, null),
+      rodar(d, atuais.map((a) => a.L), aliquotas, aliqISEnvio),
     ]);
     // 3. monta os dois cenários
     const itens = estado.itens.map((it, k) => {
-      const b = base[k];
+      const a = atuais[k];
       const na = rAntes.itens.find((x) => x.numero === k + 1) || {}, nd = rDepois.itens.find((x) => x.numero === k + 1) || {};
-      const is = nd.is || 0, Ad = b.L + is, i2 = b.i * fator;
-      const icmsD = i2 < 1 ? Ad * i2 / (1 - i2) : 0;
-      const antes = { pc: b.pc, icms: b.icms, ipi: b.ipiV, cbsTeste: na.cbs || 0, ibsTeste: na.ibs || 0 };
+      const is = nd.is || 0, Ad = a.L + is, i2 = a.i * fator;
+      const cbs = nd.cbs || 0, ibs = nd.ibs || 0;
+      const icmsD = i2 < 1 ? i2 * (Ad + (cbsNaBaseIcms ? cbs + ibs : 0)) / (1 - i2) : 0;
+      const antes = { pc: a.pcV + a.monoV, icms: a.icms, ipi: a.ipiV, cbsTeste: na.cbs || 0, ibsTeste: na.ibs || 0 };
       antes.total = antes.pc + antes.icms + antes.ipi;
-      const depois = { cbs: nd.cbs || 0, ibs: nd.ibs || 0, is, icms: icmsD };
-      depois.total = depois.cbs + depois.ibs + depois.is + depois.icms;
-      const preco = Ad + icmsD + depois.cbs + depois.ibs;
-      return { n: k + 1, it, P: b.P, L: b.L, servico: b.servico, antes, depois, preco,
-        erro: [...(na.erros || []), ...(nd.erros || [])][0] };
+      // o que chega embutido no custo (comércio) e o que é destacado nesta venda
+      // no comércio, o ICMS-ST chegou pago pela indústria; na venda da própria indústria ele é retido e destacado
+      antes.embutido = a.comercio ? a.ipiV + a.monoV + (a.st ? a.icms : 0) : 0;
+      const depois = { cbs, ibs, is, icms: icmsD };
+      depois.total = cbs + ibs + is + icmsD;
+      depois.embutido = a.comercio ? is + (a.st ? icmsD : 0) : 0;
+      return { n: k + 1, it, P: a.P, L: a.L, servico: a.servico, comercio: a.comercio, st: a.st && a.comercio, pcEmb: a.comercio && a.monoV > 0.004, antes, depois,
+        preco: Ad + icmsD + cbs + ibs, erro: [...(na.erros || []), ...(nd.erros || [])][0] };
     });
-    renderizarResultadoAntesDepois(itens, d, fator);
+    renderizarResultadoAntesDepois(itens, d, fator, cbsNaBaseIcms);
     st.textContent = itens.some((x) => x.erro) ? "Há itens com erro: veja a tabela." : "";
     if (itens.some((x) => x.erro)) st.className = "calc-status erro";
   } catch (e) {
@@ -1048,12 +1114,13 @@ async function calcularAntesDepois() {
   }
 }
 
-function renderizarResultadoAntesDepois(itens, d, fator) {
+function renderizarResultadoAntesDepois(itens, d, fator, cbsNaBaseIcms) {
   const ok = itens.filter((x) => !x.erro);
   const soma = (f) => ok.reduce((a, x) => a + f(x), 0);
   const T = {
     P: soma((x) => x.P), L: soma((x) => x.L), preco: soma((x) => x.preco),
     pc: soma((x) => x.antes.pc), icmsA: soma((x) => x.antes.icms), ipi: soma((x) => x.antes.ipi), antes: soma((x) => x.antes.total),
+    embA: soma((x) => x.antes.embutido), embD: soma((x) => x.depois.embutido),
     cbsT: soma((x) => x.antes.cbsTeste), ibsT: soma((x) => x.antes.ibsTeste),
     cbs: soma((x) => x.depois.cbs), ibs: soma((x) => x.depois.ibs), is: soma((x) => x.depois.is), icmsD: soma((x) => x.depois.icms), depois: soma((x) => x.depois.total),
   };
@@ -1062,10 +1129,14 @@ function renderizarResultadoAntesDepois(itens, d, fator) {
   const varPct = T.P ? (T.preco / T.P - 1) * 100 : 0;
   const sinal = (v) => (v > 0.004 ? "+" : "");
   const anoD = anoDe(d);
+  const comercio = ok.some((x) => x.comercio);
+  // diferença de migração; menos de 2 centavos é arredondamento
+  const dif = (a, b) => (Math.abs(b - a) < 0.02 ? `<span>(sem mudança)</span>` : `<span class="${b > a ? "mais" : "menos"}">(${sinal(b - a)}${brl(b - a)})</span>`);
+  // valor embutido no custo aparece em itálico
+  const v = (valor, emb) => `<td class="n${emb && valor > 0.004 ? " emb" : ""}">${brl(valor)}</td>`;
 
-  // barra empilhada: composição do preço
-  const segs = (lista, totalBarra) => lista.filter(([, v]) => v > 0.004).map(([cls, v, rot]) =>
-    `<span class="seg ${cls}" style="width:${(v / totalBarra) * 100}%" title="${esc(rot)}: ${brl(v)}"></span>`).join("");
+  const segs = (lista, totalBarra) => lista.filter(([, val]) => val > 0.004).map(([cls, val, rot]) =>
+    `<span class="seg ${cls}" style="width:${(val / totalBarra) * 100}%" title="${esc(rot)}: ${brl(val)}"></span>`).join("");
   const maxBarra = Math.max(T.P, T.preco);
   const barra = (rot, valor, lista) => `<div class="comp-linha"><span class="comp-rot">${rot}</span>
       <div class="comp-barra" style="width:${(valor / maxBarra) * 100}%">${segs(lista, valor)}</div><span class="comp-val">${brl(valor)}</span></div>`;
@@ -1073,8 +1144,8 @@ function renderizarResultadoAntesDepois(itens, d, fator) {
   const linhas = itens.map((x) => x.erro
     ? `<tr><td>${x.n}</td><td>${esc(x.it.descricao || x.it.codigo)}</td><td colspan="12" class="erro-item">${esc(x.erro.code || "")} ${esc(x.erro.title || "")}: ${esc(x.erro.detail || "")}</td></tr>`
     : `<tr><td>${x.n}</td><td>${esc(x.it.descricao || x.it.codigo)}</td><td class="n">${brl(x.P)}</td>
-      <td class="n">${brl(x.antes.pc)}</td><td class="n">${brl(x.antes.icms)}</td><td class="n">${brl(x.antes.ipi)}</td><td class="n forte">${brl(x.antes.total)}</td>
-      <td class="n">${brl(x.depois.cbs)}</td><td class="n">${brl(x.depois.ibs)}</td><td class="n">${brl(x.depois.is)}</td><td class="n">${brl(x.depois.icms)}</td><td class="n forte">${brl(x.depois.total)}</td>
+      ${v(x.antes.pc, x.pcEmb)}${v(x.antes.icms, x.st)}${v(x.antes.ipi, x.comercio)}<td class="n forte">${brl(x.antes.total)}</td>
+      ${v(x.depois.cbs)}${v(x.depois.ibs)}${v(x.depois.is, x.comercio)}${v(x.depois.icms, x.st)}<td class="n forte">${brl(x.depois.total)}</td>
       <td class="n">${brl(x.preco)}</td><td class="n ${x.preco > x.P + 0.004 ? "mais" : x.preco < x.P - 0.004 ? "menos" : ""}">${sinal(x.preco - x.P)}${pct((x.preco / x.P - 1) * 100, 1)}</td></tr>`).join("");
 
   $("#ad-resultado").innerHTML = `
@@ -1088,14 +1159,24 @@ function renderizarResultadoAntesDepois(itens, d, fator) {
         <div class="det">hoje ${brl(T.P)} · ${sinal(varPct)}${pct(varPct, 1)} com repasse integral</div></div>
     </div>
 
+    <div class="carga-consumo">
+      <h3>Tributos sobre o consumo do produto</h3>
+      <table><thead><tr><th></th><th class="n">Destacado nesta venda</th><th class="n">Embutido no custo</th><th class="n">Total</th><th class="n">% do preço</th></tr></thead>
+        <tbody>
+          <tr><td>Hoje</td><td class="n">${brl(T.antes - T.embA)}</td><td class="n">${brl(T.embA)}</td><td class="n forte">${brl(T.antes)}</td><td class="n">${pct(T.P ? T.antes / T.P * 100 : 0, 1)}</td></tr>
+          <tr><td>Depois</td><td class="n">${brl(T.depois - T.embD)}</td><td class="n">${brl(T.embD)}</td><td class="n forte">${brl(T.depois)}</td><td class="n">${pct(T.preco ? T.depois / T.preco * 100 : 0, 1)}</td></tr>
+        </tbody></table>
+      <p class="nota">${comercio ? "Embutido no custo: IPI, Imposto Seletivo e PIS/Cofins monofásico pagos pela indústria, e ICMS por substituição tributária. " : ""}Não entram: tributos sobre a renda e a folha das empresas da cadeia, resíduos de etapas sem crédito, DIFAL e tributos de importação.</p>
+    </div>
+
     <div class="migracao">
       <div class="mig"><h3>Migra</h3>
-        <p><strong>PIS/Cofins</strong> ${brl(T.pc)} → <strong>CBS</strong> ${brl(T.cbs)} <span class="${T.cbs - T.pc > 0.004 ? "mais" : "menos"}">(${sinal(T.cbs - T.pc)}${brl(T.cbs - T.pc)})</span></p>
-        <p><strong>IPI</strong> ${brl(T.ipi)} → <strong>Imposto Seletivo</strong> ${brl(T.is)} <span class="${T.is - T.ipi > 0.004 ? "mais" : "menos"}">(${sinal(T.is - T.ipi)}${brl(T.is - T.ipi)})</span> · nos demais produtos o IPI é zerado</p>
+        <p><strong>PIS/Cofins</strong> ${brl(T.pc)} → <strong>CBS</strong> ${brl(T.cbs)} ${dif(T.pc, T.cbs)}</p>
+        <p><strong>IPI</strong> ${brl(T.ipi)} → <strong>Imposto Seletivo</strong> ${brl(T.is)} ${dif(T.ipi, T.is)} · nos demais produtos o IPI é zerado</p>
         <p><strong>IBS</strong> ${brl(T.ibs)}: ${anoD <= 2028 ? "ainda simbólico (0,1%)" : "cresce enquanto o ICMS/ISS cai"}</p></div>
       <div class="mig"><h3>Fica</h3>
         <p><strong>${rotIcms}</strong> ${brl(T.icmsA)} → ${brl(T.icmsD)}: ${fator === 1 ? "a alíquota continua a mesma até 2028" : fator === 0 ? "extinto em 2033" : `alíquota a ${pct(fator * 100, 0)} da atual em ${anoD}`}</p>
-        <p class="nota">${fator === 1 ? "O valor muda mesmo com a alíquota igual porque o PIS/Cofins sai do preço, e o ICMS/ISS é calculado sobre ele. " : ""}O ICMS e o ISS só começam a cair em 2029 e deixam de existir em 2033.</p></div>
+        <p class="nota">${fator === 1 ? "O valor muda mesmo com a alíquota igual porque o PIS/Cofins sai do preço, e o ICMS/ISS é calculado sobre ele. " : ""}${cbsNaBaseIcms ? "Cenário com CBS e IBS dentro da base do ICMS. " : "Cenário com CBS e IBS fora da base do ICMS, como em 2026. "}O ICMS e o ISS só começam a cair em 2029 e deixam de existir em 2033.</p></div>
     </div>
 
     <h3 class="sub-ad">Composição do preço</h3>
@@ -1114,7 +1195,8 @@ function renderizarResultadoAntesDepois(itens, d, fator) {
       <tbody>${linhas}</tbody>
       <tfoot><tr><td></td><td>Total</td><td class="n">${brl(T.P)}</td><td class="n">${brl(T.pc)}</td><td class="n">${brl(T.icmsA)}</td><td class="n">${brl(T.ipi)}</td><td class="n">${brl(T.antes)}</td>
         <td class="n">${brl(T.cbs)}</td><td class="n">${brl(T.ibs)}</td><td class="n">${brl(T.is)}</td><td class="n">${brl(T.icmsD)}</td><td class="n">${brl(T.depois)}</td>
-        <td class="n">${brl(T.preco)}</td><td class="n">${sinal(varPct)}${pct(varPct, 1)}</td></tr></tfoot></table></div>`;
+        <td class="n">${brl(T.preco)}</td><td class="n">${sinal(varPct)}${pct(varPct, 1)}</td></tr></tfoot></table></div>
+    <p class="nota">Valores em <em>itálico</em> chegam embutidos no custo: não são destacados nesta venda, mas fazem parte do preço.</p>`;
 }
 
 /* ====================================================================== consultar */
@@ -1226,6 +1308,10 @@ async function iniciarApp() {
   $("#cmp-a").value = salvo?.cmpA || hoje();
   $("#cmp-b").value = salvo?.cmpB || "2027-07-15";
   $("#ad-data").value = salvo?.adData || "2027-03-01";
+  if (salvo?.adVendedor) $("#ad-vendedor").value = salvo.adVendedor;
+  if (salvo?.adFabrica) $("#ad-fabrica").value = salvo.adFabrica;
+  if (salvo?.adIcmsBase) $("#ad-icms-base").value = salvo.adIcmsBase;
+  if (salvo?.adRegime) $("#ad-regime").value = salvo.adRegime;
   $("#sel-exemplo").innerHTML += Object.entries(window.EXEMPLOS).map(([k, e]) => `<option value="${k}">${esc(e.nome)}</option>`).join("");
   try {
     await carregarUfs();
@@ -1273,12 +1359,15 @@ function ligarEventos() {
   for (const id of ["#ad-regime", "#ad-icms", "#ad-iss"]) $(id).addEventListener("change", renderizarAntesDepois);
   $("#ad-itens").addEventListener("input", (ev) => {
     const it = estado.itens.find((i) => String(i.id) === ev.target.dataset.id);
-    if (it) { it["ad_" + ev.target.dataset.ad] = ev.target.value; salvar(); }
+    if (!it) return;
+    it["ad_" + ev.target.dataset.ad] = ev.target.type === "checkbox" ? (ev.target.checked ? "1" : "0") : ev.target.value;
+    salvar();
   });
   $("#ad-restaurar").addEventListener("click", () => {
-    for (const it of estado.itens) { delete it.ad_pc; delete it.ad_icms; delete it.ad_ipi; }
+    for (const it of estado.itens) for (const k of Object.keys(it)) if (k.startsWith("ad_")) delete it[k];
     salvar(); renderizarAntesDepois();
   });
+  for (const id of ["#ad-vendedor", "#ad-fabrica", "#ad-icms-base"]) $(id).addEventListener("change", () => { renderizarAntesDepois(); salvar(); });
   $("#cmp-is").addEventListener("input", (ev) => {
     const it = estado.itens.find((i) => String(i.id) === ev.target.dataset.is);
     if (it) { it.aliqIS = ev.target.value; salvar(); }

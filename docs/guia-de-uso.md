@@ -87,15 +87,21 @@ Usa os itens, a UF e o município da aba *Calcular nota*. O resumo da nota apare
 Esta aba responde "quanto pago hoje, quanto vou pagar e o que muda de lugar". Ela usa os itens e o local da aba *Calcular nota* e trata o **Valor** de cada item como o **preço de venda de hoje**, com os tributos atuais embutidos.
 
 1. **Cenários.** *Antes* usa as regras de 2026, na data de hoje. *Depois* é a data que você escolher, de 2027 em diante, e traz o mesmo quadro de alíquotas de CBS e IBS da comparação.
-2. **Tributos atuais.** Escolha o regime de PIS/Cofins de quem vende: não cumulativo (lucro real, 9,25%) ou cumulativo (lucro presumido, 3,65%). O ICMS vem preenchido com a alíquota geral do estado em 2026, e o ISS dos serviços com 5%. Na tabela por item, ajuste o que for diferente: ICMS reduzido da cesta básica no seu estado, IPI da TIPI, alíquota própria.
+2. **Tributos atuais.**
+   - **Quem vende:** *comércio* (varejo ou atacado) ou *indústria/importador*. No comércio, IPI, Imposto Seletivo, PIS/Cofins monofásico e ICMS-ST chegam **embutidos no custo**, calculados sobre o **preço de fábrica** (padrão: 60% do preço de venda).
+   - **Regime de PIS/Cofins:** não cumulativo (lucro real, 9,25%) ou cumulativo (lucro presumido, 3,65%).
+   - **ICMS e ISS:** o ICMS vem com a alíquota geral do estado em 2026, e o ISS dos serviços com 5%.
+   - **ICMS de 2027 em diante:** CBS e IBS fora da base (padrão, como em 2026) ou dentro da base (se os estados incluírem).
+   - **Tabela por item:** PIS/Cofins %, monofásico (marcador e %), ICMS/ISS %, FCP %, ICMS-ST (marcador) e IPI %. Ajuste o que for diferente: ICMS reduzido da cesta básica no seu estado, IPI da TIPI, FCP.
 3. **Resultado.**
    - **Cartões:** a carga de hoje, a de depois e o preço estimado.
+   - **Tributos sobre o consumo do produto:** separa o que é **destacado nesta venda** do que vem **embutido no custo**.
    - **Migra:** o PIS/Cofins virando CBS, e o IPI virando Imposto Seletivo ou zero.
    - **Fica:** o ICMS/ISS, que continua até 2028 e cai de 2029 a 2032.
    - **Composição do preço:** barras com o valor sem tributos e cada tributo, hoje e depois.
-   - **Tabela por item:** todos os valores lado a lado.
+   - **Tabela por item:** todos os valores lado a lado. Os embutidos no custo aparecem em itálico.
 
-Os tributos novos vêm da calculadora oficial. Os atuais são **estimativas** a partir das alíquotas da tela. Antes de usar os números, leia as premissas no fim da aba e o [ponto de atenção 14](pontos-de-atencao.md#14-antes-e-depois-é-uma-estimativa-com-premissas).
+Os tributos novos vêm da calculadora oficial. Os atuais são **estimativas** a partir das alíquotas da tela. Antes de usar os números, leia as premissas no fim da aba, os pontos de atenção [14](pontos-de-atencao.md#14-antes-e-depois-é-uma-estimativa-com-premissas), [15](pontos-de-atencao.md#15-a-cbs-e-o-ibs-podem-entrar-na-base-do-icms-a-partir-de-2027) e [16](pontos-de-atencao.md#16-o-total-não-é-a-carga-tributária-completa-do-produto), e o guia de [tributos e bases](tributos-e-bases.md).
 
 ## Acesso pela rede (por exemplo, de fora de uma máquina virtual)
 

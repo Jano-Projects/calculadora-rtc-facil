@@ -209,6 +209,15 @@
     <fieldset class="bloco">
       <legend>Tributos atuais (estimativa) <span class="escopo local">só nesta aba</span></legend>
       <div class="campos">
+        <label class="caixa larga"><span>Quem vende</span>
+          <select id="ad-vendedor">
+            <option value="comercio">Comércio (varejo ou atacado): IPI, Imposto Seletivo, PIS/Cofins monofásico e ICMS-ST vêm embutidos no custo</option>
+            <option value="industria">Indústria ou importador: destaca IPI e Imposto Seletivo na própria venda</option>
+          </select>
+        </label>
+        <label class="caixa" id="ad-fabrica-caixa"><span>Preço de fábrica (% do preço de venda)</span><input type="number" id="ad-fabrica" step="1" min="1" max="100" value="60"></label>
+      </div>
+      <div class="campos">
         <label class="caixa larga"><span>Regime de PIS/Cofins de quem vende</span>
           <select id="ad-regime">
             <option value="9.25">Não cumulativo (lucro real): 1,65% + 7,6% = 9,25%</option>
@@ -218,11 +227,20 @@
         <label class="caixa"><span>ICMS padrão % (<span id="ad-uf">UF</span>)</span><input type="number" id="ad-icms" step="0.01" min="0" max="40"></label>
         <label class="caixa"><span>ISS dos serviços %</span><input type="number" id="ad-iss" step="0.01" min="0" max="5" value="5"></label>
       </div>
+      <div class="campos">
+        <label class="caixa larga"><span>ICMS de 2027 em diante (ponto em aberto na lei)</span>
+          <select id="ad-icms-base">
+            <option value="fora">CBS e IBS fora da base do ICMS (como em 2026)</option>
+            <option value="dentro">CBS e IBS dentro da base do ICMS (se os estados incluírem)</option>
+          </select>
+        </label>
+      </div>
       <p class="nota" id="ad-padroes-nota"></p>
       <details id="ad-itens-det" open>
         <summary>Alíquotas atuais por item</summary>
         <div class="tabela-rolagem"><table id="ad-itens"></table></div>
-        <p class="nota">Os campos vêm preenchidos com os padrões. Ajuste os itens com alíquota própria, por exemplo ICMS reduzido da cesta básica no seu estado, IPI da TIPI ou substituição tributária. <button type="button" class="link-btn" id="ad-restaurar">Voltar todos aos padrões</button></p>
+        <p class="nota">Os campos vêm preenchidos com os padrões. Ajuste os itens com regra própria, por exemplo ICMS reduzido da cesta básica no seu estado, IPI da TIPI, FCP ou substituição tributária.
+          <strong>Mono.</strong>: PIS/Cofins monofásico, cobrado só na indústria (bebidas frias, perfumaria e higiene, medicamentos). <strong>ST</strong>: ICMS por substituição tributária, pago antecipado pela indústria. <button type="button" class="link-btn" id="ad-restaurar">Voltar todos aos padrões</button></p>
       </details>
     </fieldset>
 
@@ -238,8 +256,20 @@
         <li><strong>Margem constante e repasse integral:</strong> o valor do produto sem tributos é o mesmo antes e depois, e toda diferença de tributo vai para o preço. Na prática, empresas podem absorver ou repassar de outro jeito.</li>
         <li><strong>Hoje:</strong> ICMS/ISS "por dentro" do preço. PIS/Cofins sobre o preço sem ICMS, conforme a decisão do STF no Tema 69. IPI embutido no preço. A CBS e o IBS de teste de 2026 aparecem, mas não somam ao preço, porque são compensados com PIS/Cofins.</li>
         <li><strong>Depois:</strong> PIS/Cofins extintos. IPI zerado, sem considerar as exceções da Zona Franca de Manaus. ICMS/ISS mantidos até 2028 e reduzidos em 10% ao ano de 2029 a 2032. CBS e IBS "por fora", sobre a base sem ICMS/ISS e com o Imposto Seletivo, como na base de cálculo unificada oficial.</li>
-        <li><strong>Só a venda final:</strong> considera os tributos destacados nesta venda, e não os créditos e a carga das etapas anteriores da cadeia. Não modela Simples Nacional, substituição tributária, DIFAL, FCP nem regimes específicos (combustíveis, monofásicos).</li>
-        <li><strong>Padrões:</strong> ICMS pela alíquota geral (modal) do estado em 2026. PIS/Cofins zero nos itens de cesta básica e hortifrúti, o que é comum, mas não vale para todos (Lei 10.925/2004). IPI igual à alíquota do Imposto Seletivo nos produtos sujeitos a ele, porque a MP 1.399/2026 fixou o IS de 2027 com base no IPI atual. Nos demais produtos o IPI fica zero: confira a TIPI.</li>
+        <li><strong>Cadeia:</strong> nos tributos não cumulativos (ICMS, PIS/Cofins do lucro real, CBS e IBS), o valor destacado na venda final é a carga inteira daquele tributo, porque cada etapa abate o que pagou na anterior. Não modela Simples Nacional nem combustíveis.</li>
+        <li><strong>Comércio:</strong> IPI, Imposto Seletivo e PIS/Cofins monofásico incidem uma vez, na indústria, e são calculados sobre o preço de fábrica informado. O ICMS-ST foi pago antecipado pela indústria e é aproximado pela alíquota do ICMS sobre o preço de venda. Todos entram como custo embutido. A venda do comércio destaca só ICMS normal, PIS/Cofins normal, CBS e IBS.</li>
+        <li><strong>Padrões:</strong>
+          <ul>
+            <li>ICMS pela alíquota geral (modal) do estado em 2026.</li>
+            <li>PIS/Cofins zero nos itens de cesta básica e hortifrúti, o que é comum, mas não vale para todos (Lei 10.925/2004).</li>
+            <li>PIS/Cofins monofásico de 13% nas bebidas frias, 12,5% em perfumaria e higiene e 12% em medicamentos.</li>
+            <li>ICMS-ST nas bebidas.</li>
+            <li>IPI igual à alíquota do Imposto Seletivo nos produtos sujeitos a ele, porque a MP 1.399/2026 fixou o IS de 2027 com base no IPI atual. Nos demais produtos o IPI fica zero: confira a TIPI.</li>
+            <li>FCP zero.</li>
+          </ul>
+        </li>
+        <li><strong>ICMS de 2027 em diante:</strong> a lei não diz expressamente se a CBS e o IBS entram na base do ICMS. Em 2026 não entram. O padrão supõe que continue assim; a outra opção mostra o efeito se os estados incluírem.</li>
+        <li><strong>O que não entra:</strong> tributos sobre a renda e a folha das empresas da cadeia (IRPJ, CSLL, INSS patronal), resíduos de etapas sem crédito, DIFAL, tributos de importação e taxas. Por isso os valores ficam abaixo dos "tributos aproximados" impressos nos cupons fiscais (Lei 12.741/2012).</li>
       </ul>
     </aside>
   </section>
@@ -292,9 +322,11 @@
       <li>A classificação tributária depende da <strong>operação</strong> (quem vende, para quem, para quê), e não só do produto.</li>
       <li>Itens com erro <strong>ficam fora do total</strong>. Confira a coluna Situação.</li>
       <li>Anote a <strong>versão do motor</strong> ao registrar uma conferência: versões novas da Receita podem mudar resultados.</li>
+      <li>Nem a aba <strong>Antes e depois</strong> mostra a carga tributária completa: ela traz só os tributos sobre o consumo, destacados na venda ou embutidos no custo. Tributos sobre a renda e a folha das empresas da cadeia ficam de fora.</li>
     </ul>
     <p>Explicação completa de cada ponto: <a href="https://github.com/Jano-Projects/calculadora-rtc-facil/blob/main/docs/pontos-de-atencao.md" target="_blank" rel="noopener">pontos de atenção</a>,
       <a href="https://github.com/Jano-Projects/calculadora-rtc-facil/blob/main/docs/entenda-a-reforma.md" target="_blank" rel="noopener">entenda a reforma</a>,
+      <a href="https://github.com/Jano-Projects/calculadora-rtc-facil/blob/main/docs/tributos-e-bases.md" target="_blank" rel="noopener">tributos e bases</a>,
       <a href="https://github.com/Jano-Projects/calculadora-rtc-facil/blob/main/docs/diferencas.md" target="_blank" rel="noopener">diferenças que confundem</a> e
       <a href="https://github.com/Jano-Projects/calculadora-rtc-facil/blob/main/docs/perguntas-frequentes.md" target="_blank" rel="noopener">perguntas frequentes</a>.</p>
 

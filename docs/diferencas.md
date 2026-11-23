@@ -26,6 +26,16 @@ O que a ferramenta **acrescenta** são conveniências de entrada e leitura. Toda
 | Responde | "Como cada item passa a ser tributado?" | "Quanto pago hoje, quanto vou pagar, o que migra e o que fica?" |
 | Preço estimado | Não | Sim, com margem constante e repasse integral |
 
+## Destacado × embutido × não incluído
+
+| | O que é | Exemplos |
+|---|---|---|
+| **Destacado nesta venda** | Aparece na nota fiscal de quem vende | ICMS, PIS/Cofins normal, CBS, IBS |
+| **Embutido no custo** | Pago numa etapa anterior, sem crédito; vira custo e entra no preço | IPI e Imposto Seletivo (na venda do comércio), PIS/Cofins monofásico, ICMS-ST |
+| **Não incluído** | Faz parte do preço, mas a ferramenta não calcula | IRPJ, CSLL, INSS patronal, resíduos de etapas sem crédito, DIFAL, importação |
+
+Detalhes em [tributos e bases](tributos-e-bases.md).
+
 ## Calculado × Simulado × Erro
 
 | Situação | Quando aparece | Confiável para… |
