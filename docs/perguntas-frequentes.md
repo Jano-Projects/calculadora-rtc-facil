@@ -9,8 +9,17 @@ Não. Em 2027 a CBS substitui o PIS e a Cofins, que deixam de existir, mas a cal
 ### Por que o resultado de 2027 aparece como "Simulado"?
 Porque, a partir de 2027, a calculadora oficial exige que as alíquotas sejam informadas e marca o resultado como simulação. A base oficial ainda não traz as alíquotas de referência desses anos, então a tela preenche estimativas e mostra de onde vem cada uma.
 
-### De onde vêm os 8,8% de CBS?
-É a estimativa usada no exemplo da documentação oficial da calculadora. A alíquota de referência oficial ainda não foi publicada. Você pode trocar o valor no quadro de alíquotas.
+### De onde vêm os 11,2% de CBS?
+Em 28/10/2026, o Tribunal de Contas da União calculou a alíquota de referência da CBS para 2027 em 11,3%. Em 2027 e 2028 ela é reduzida em 0,1 ponto (LC 214, art. 347), o que dá 11,2%. O Senado tem até 15/12/2026 para fixar a referência por resolução; se não fixar, vale a do TCU. Você pode trocar o valor no quadro de alíquotas.
+
+### Os preços vão subir ou cair depois da reforma?
+Depende do produto, de quem vende e do ano. A reforma foi desenhada para manter a arrecadação total, então ela redistribui o peso entre setores.
+- **Tendem a cair ou ficar estáveis:** cesta básica e hortifrúti (alíquota zero), medicamentos da lista oficial, e bens industrializados de cadeia longa, que hoje acumulam imposto sobre imposto.
+- **Tendem a subir:** serviços, sobretudo de empresas do lucro presumido, cujo PIS/Cofins de 3,65% vira CBS de 11,2%; e produtos do Imposto Seletivo.
+- **Em 2027**, produtos comprados no comércio do lucro real tendem a ficar parecidos, porque a CBS de 11,2% sobre a base sem ICMS pesa quase o mesmo que o PIS/Cofins de 9,25% de hoje.
+- **O teste maior vem de 2029 a 2033**, quando o IBS cheio substitui o ICMS e o ISS.
+
+Repasse não é automático: as empresas podem absorver parte ou repassar de outro jeito. Use a aba *Antes e depois* para simular os seus itens, lembrando das [premissas](pontos-de-atencao.md#14-antes-e-depois-é-uma-estimativa-com-premissas).
 
 ### Qual alíquota de Imposto Seletivo devo usar?
 Para 2027, as da Medida Provisória 1.399/2026, que variam por produto (bebidas açucaradas 2,6%, cerveja de malte 4,2%, destilados 24%…). Confira o seu produto no texto da MP. Veja a [tabela](entenda-a-reforma.md#imposto-seletivo-em-2027).

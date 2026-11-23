@@ -1,5 +1,22 @@
 # Mudanças
 
+## 1.5.0 — 2026-11-23
+
+### Alíquota da CBS
+- **A estimativa padrão da CBS passa de 8,8% para 11,2% em 2027 e 2028.** O Tribunal de Contas da União calculou em 28/10/2026 a alíquota de referência da CBS para 2027 em 11,3%, pendente de resolução do Senado até 15/12/2026. Pela LC 214 (art. 347), em 2027 e 2028 ela é reduzida em 0,1 ponto. De 2029 em diante, a tela usa 11,3% como ponto de partida, porque a referência é recalculada a cada ano.
+- A nota ao lado das alíquotas explica a origem do valor. Quando a calculadora oficial trouxer a alíquota fixada pelo Senado, ela é usada no lugar da estimativa.
+- **Impacto:** com 11,2%, produtos comprados no comércio do lucro real ficam parecidos com hoje em 2027, e não mais baratos como sugeria a estimativa antiga. Serviços do lucro presumido sobem mais.
+
+### Começar do zero
+- **Novo botão no alto da tela** que apaga tudo o que a calculadora guardou no navegador (itens, local, datas, alíquotas e ajustes do *Antes e depois*) e recarrega a página. Útil para limpar restos de testes antigos.
+- A janela de confirmação mostra o que é apagado e o que continua (motor instalado, relação de NCM) e oferece salvar os itens num arquivo antes.
+- Se dados antigos travarem a tela, abrir o endereço com `?limpar` tem o mesmo efeito.
+
+### Documentação
+- Nova pergunta frequente: *Os preços vão subir ou cair depois da reforma?*
+- *Entenda a reforma* ganha a seção sobre a alíquota de referência da CBS em 2027, com as fontes.
+- Pontos de atenção, guia de uso, glossário e a aba *Ajuda* atualizados com a nova estimativa.
+
 ## 1.4.0 — 2026-11-23
 
 ### Novidades na aba "Antes e depois"

@@ -24,6 +24,7 @@ const cache = new Map(); // respostas de dados abertos
 
 /* ====================================================================== armazenamento local */
 const salvar = () => {
+  if (zerando) return;
   try {
     localStorage.setItem("calc-rtc", JSON.stringify({
       itens: estado.itens.map(({ verOpcoes, ...i }) => i), data: $("#op-data").value, uf: $("#op-uf").value, mun: $("#op-mun").value,
@@ -32,6 +33,18 @@ const salvar = () => {
     }));
   } catch { /* navegador sem armazenamento: segue sem salvar */ }
 };
+/* Começar do zero: apaga tudo o que esta tela guardou no navegador e recarrega.
+ * Também funciona abrindo a página com ?limpar (útil se dados antigos travarem a tela). */
+function zerarTudo() {
+  try {
+    for (const k of Object.keys(localStorage)) if (k.startsWith("calc-rtc")) localStorage.removeItem(k);
+  } catch { /* sem armazenamento: nada a apagar */ }
+  zerando = true;
+  location.replace(location.pathname);
+}
+let zerando = false; // impede que um salvar() pendente regrave os dados durante o recarregamento
+if (new URLSearchParams(location.search).has("limpar")) zerarTudo();
+
 const carregarSalvo = () => {
   try { return JSON.parse(localStorage.getItem("calc-rtc") || "null"); } catch { return null; }
 };
@@ -212,10 +225,13 @@ async function aliquotasReferencia(data, uf, mun) {
 }
 
 /** Estimativas usadas quando a base oficial não tem a alíquota de referência.
- *  IBS 2027–2028: 0,05% estadual + 0,05% municipal, fixados pela Emenda Constitucional 132 (ADCT, art. 127).
- *  CBS: 8,8%, a estimativa usada no exemplo da documentação oficial da calculadora. */
+ *  CBS: referência de 11,3% para 2027, calculada pelo TCU em 28/10/2026 (pendente de resolução do Senado
+ *       até 15/12/2026), menos 0,1 ponto em 2027 e 2028 (LC 214, art. 347) = 11,2%. Depois de 2028 a
+ *       referência é recalculada a cada ano; até haver valor, usamos 11,3%.
+ *  IBS 2027–2028: 0,05% estadual + 0,05% municipal, fixados pela Emenda Constitucional 132 (ADCT, art. 127). */
+const CBS_REFERENCIA_TCU = 11.3;
 const ESTIMATIVAS = (ano) => ({
-  cbs: 8.8,
+  cbs: ano <= 2028 ? Math.round((CBS_REFERENCIA_TCU - 0.1) * 100) / 100 : CBS_REFERENCIA_TCU,
   ...(ano <= 2028 ? { ibsEstadual: 0.05, ibsMunicipal: 0.05 } : {}),
 });
 const NOMES_ALIQ = { cbs: "CBS", ibsEstadual: "IBS estadual", ibsMunicipal: "IBS municipal" };
@@ -225,7 +241,9 @@ function notaAliquotas(ref, d) {
   const partes = [];
   if (ref.estimadas.length) {
     partes.push(`<strong>Estimativa:</strong> a base oficial não traz alíquota de referência de ${anoDe(d)} para ${ref.estimadas.map((k) => NOMES_ALIQ[k]).join(", ")}.`
-      + (ref.estimadas.includes("cbs") ? " CBS de 8,8%, como no exemplo da documentação oficial." : "")
+      + (ref.estimadas.includes("cbs") ? (anoDe(d) <= 2028
+        ? " CBS de 11,2%: a referência de 11,3% calculada pelo TCU (pendente de resolução do Senado até 15/12/2026), menos 0,1 ponto em 2027 e 2028."
+        : ` CBS de 11,3%: a referência calculada pelo TCU para 2027 (a de ${anoDe(d)} será recalculada).`) : "")
       + (ref.estimadas.some((k) => k !== "cbs") ? " IBS de 0,05% + 0,05%, fixado pela Emenda Constitucional 132 para 2027 e 2028." : ""));
   }
   if (ref.faltando.length) partes.push(`<strong>Informe ${ref.faltando.map((k) => NOMES_ALIQ[k]).join(" e ")}:</strong> ainda não há valor publicado para ${anoDe(d)}.`);
@@ -1333,6 +1351,14 @@ async function iniciarApp() {
 function ligarEventos() {
   $$(".abas button").forEach((b) => b.addEventListener("click", () => trocarAba(b.dataset.aba)));
   $("#chip-versao").addEventListener("click", () => trocarAba("ajuda"));
+  $("#btn-zerar").addEventListener("click", () => {
+    const n = estado.itens.length;
+    $("#zerar-qtd").textContent = n === 1 ? "1 item" : `${n} itens`;
+    $("#zerar-exportar").hidden = n === 0;
+    $("#dlg-zerar").showModal();
+  });
+  $("#zerar-exportar").addEventListener("click", exportarItens);
+  $("#zerar-confirmar").addEventListener("click", zerarTudo);
   $("#op-data").addEventListener("change", aoMudarData);
   $("#op-uf").addEventListener("change", async () => { await carregarMunicipios($("#op-uf").value); await preencherAliquotasReferencia(true); salvar(); });
   $("#op-mun").addEventListener("change", async () => { await preencherAliquotasReferencia(true); salvar(); });

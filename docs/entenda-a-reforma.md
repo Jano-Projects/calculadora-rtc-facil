@@ -18,11 +18,17 @@ CBS e IBS formam o chamado **IVA dual**: incidem sobre o valor da operação, co
 | Período | CBS | IBS | Tributos antigos | Na calculadora |
 |---|---|---|---|---|
 | **2026** | 0,9% (teste) | 0,1% estadual (teste) | Todos continuam integralmente | Alíquotas vêm da base oficial; resultado *Calculado*. Valores compensados com PIS/Cofins para quem cumpre as obrigações acessórias. |
-| **2027 e 2028** | Alíquota cheia, reduzida em 0,1 ponto percentual | 0,05% estadual + 0,05% municipal | PIS e Cofins **extintos**; IPI zerado, exceto produtos com industrialização incentivada na Zona Franca de Manaus; **IS começa**; ICMS e ISS continuam integralmente | Alíquotas informadas; resultado *Simulado* |
+| **2027 e 2028** | Alíquota cheia, reduzida em 0,1 ponto percentual (referência de 11,3% para 2027 calculada pelo TCU, pendente de resolução do Senado; cobrada: 11,2%) | 0,05% estadual + 0,05% municipal | PIS e Cofins **extintos**; IPI zerado, exceto produtos com industrialização incentivada na Zona Franca de Manaus; **IS começa**; ICMS e ISS continuam integralmente | Alíquotas informadas; resultado *Simulado* |
 | **2029 a 2032** | Alíquota cheia | Sobe a cada ano: 10%, 20%, 30% e 40% da alíquota cheia | ICMS e ISS caem na mesma proporção: 90%, 80%, 70% e 60% | Alíquotas informadas; IBS sem valor publicado |
 | **2033** | Alíquota cheia | Alíquota cheia | ICMS e ISS **extintos** | Alíquotas informadas |
 
 Fonte: Emenda Constitucional 132/2023 (ADCT, arts. 125 a 129) e Lei Complementar 214/2025.
+
+## Alíquota de referência da CBS em 2027
+
+Em 28/10/2026, o Tribunal de Contas da União calculou a alíquota de referência da CBS para 2027 em **11,3%**. O valor ficou acima dos 9,21% usados antes como estimativa. O Senado tem até 15/12/2026 para fixá-la por resolução; se não fixar, vale a do TCU. Em 2027 e 2028 a CBS cobrada é a referência menos 0,1 ponto, ou seja, **11,2%**, ao lado do IBS de teste de 0,1%. A referência é recalculada a cada ano durante a transição.
+
+Para a soma de CBS e IBS depois da transição (2033), as estimativas oficiais variam: 26,5% na aprovação da lei e cerca de 28% em estimativas posteriores do Comitê Gestor do IBS.
 
 ## Benefícios por tipo de produto
 
@@ -62,8 +68,8 @@ Pela MP, o IS começa a produzir efeitos em **2 de fevereiro de 2027**. A MP pre
 | **CST** | Código de Situação Tributária: o tipo de tratamento, por exemplo `000` tributação integral, `200` alíquota reduzida, `410` imunidade e não incidência. É preenchido sozinho a partir da classificação. |
 | **cClassTrib** | Classificação tributária: detalha o CST e diz qual benefício se aplica, por exemplo `200003` para cesta básica. |
 | **Base de cálculo** | Valor sobre o qual a alíquota incide. Na tela, é o campo *Valor* do item. |
-| **Alíquota nominal** | Alíquota antes de reduções, por exemplo CBS de 8,8%. |
-| **Alíquota efetiva** | Alíquota depois da redução. Com 8,8% e redução de 60%, a efetiva é 3,52%. |
+| **Alíquota nominal** | Alíquota antes de reduções, por exemplo CBS de 11,2%. |
+| **Alíquota efetiva** | Alíquota depois da redução. Com 11,2% e redução de 60%, a efetiva é 4,48%. |
 | **Fato gerador** | O momento da operação que define as regras aplicáveis. Na API é o campo `dhFatoGerador`. |
 | **Memória de cálculo** | Texto da calculadora oficial explicando a conta de cada item. Clique na linha do detalhamento para ver. |
 | **Calculado / Simulado** | *Calculado* usa só dados da base oficial (2026). *Simulado* usa alíquotas que você informou (2027 em diante). |
@@ -73,5 +79,7 @@ Pela MP, o IS começa a produzir efeitos em **2 de fevereiro de 2027**. A MP pre
 
 - [Senado: novos tributos começam a ser testados em 2026, e a transição vai até 2033](https://www12.senado.leg.br/noticias/materias/2024/12/16/novos-tributos-comecam-a-ser-testados-em-2026-e-transicao-vai-ate-2033)
 - [Receita Federal: material de apoio do curso sobre a Reforma Tributária do Consumo](https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/acoes-e-programas/programas-e-atividades/reforma-tributaria-do-consumo/curso/material-de-apoio/curso-cfc-rfb-modulo-1-mombelli_maio-2026-final.pdf)
+- [Mattos Filho: TCU propõe alíquota de referência de 11,35% para a CBS em 2027](https://www.mattosfilho.com.br/unico/tcu-aliquota-cbs-2027/)
+- [Congresso em Foco: TCU propõe alíquota de 11,3% para a CBS; Senado terá decisão final](https://www.congressoemfoco.com.br/noticia/129639/tcu-propoe-aliquota-de-11-3-para-cbs-senado-tera-decisao-final)
 - [TCU: painel da Reforma Tributária, cronograma](https://sites.tcu.gov.br/recursos/reforma-tributaria/Painel%20da%20Reforma%20Tribut%C3%A1ria_Cronograma_v5.pdf)
 - Emenda Constitucional 132/2023, Lei Complementar 214/2025 e Medida Provisória 1.399/2026 (Diário Oficial da União)

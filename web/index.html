@@ -40,6 +40,7 @@
     <button role="tab" aria-selected="false" data-aba="consultar">Consultar códigos</button>
     <button role="tab" aria-selected="false" data-aba="ajuda">Ajuda</button>
   </nav>
+  <button id="btn-zerar" class="chip chip-zerar" title="Apaga os itens e as escolhas salvas neste navegador">Começar do zero</button>
   <button id="chip-versao" class="chip" title="Versão do motor de cálculo oficial">motor —</button>
 </header>
 
@@ -300,6 +301,7 @@
       <li>Os <strong>itens</strong> e o <strong>local</strong> valem em todas as abas (marcados como <span class="escopo comum">vale em todas as abas</span>). A <strong>data</strong> e as <strong>alíquotas</strong> são de cada aba (<span class="escopo local">só nesta aba</span>): a nota pode estar em 2026 no cálculo e ser comparada com 2027 sem mudar nada.</li>
       <li>Clique em <strong>Calcular tributos</strong>. O cupom mostra o total de CBS, IBS e Imposto Seletivo, e o detalhamento mostra a conta de cada item.</li>
       <li>Para ver a carga de <strong>hoje</strong> (PIS/Cofins, ICMS/ISS, IPI) ao lado da de <strong>depois</strong> da reforma, use a aba <strong>Antes e depois</strong>. Ela mostra o que migra, o que fica e o preço estimado.</li>
+      <li>Tudo isso fica guardado neste navegador entre um uso e outro. Para limpar restos de testes antigos, use <strong>Começar do zero</strong>, no alto da tela. Antes de apagar, ele mostra o que sai e oferece salvar os itens num arquivo.</li>
     </ol>
 
     <h2>De onde vêm os cálculos</h2>
@@ -332,7 +334,7 @@
 
     <h2>Avisos importantes</h2>
     <ul>
-      <li>A partir de 2027, as alíquotas da CBS e do IBS precisam ser informadas, e os resultados aparecem como <em>cálculo simulado</em>. A base oficial ainda não traz alíquotas de referência para esses anos. Por isso a tela preenche estimativas e avisa quando faz isso: CBS de 8,8%, como no exemplo da documentação oficial, e IBS de 0,05% + 0,05% em 2027 e 2028, valores fixados pela Emenda Constitucional 132.</li>
+      <li>A partir de 2027, as alíquotas da CBS e do IBS precisam ser informadas, e os resultados aparecem como <em>cálculo simulado</em>. A base oficial ainda não traz alíquotas de referência para esses anos. Por isso a tela preenche estimativas e avisa quando faz isso: CBS de 11,2% em 2027 e 2028 (a referência de 11,3% calculada pelo TCU, pendente de resolução do Senado até 15/12/2026, menos 0,1 ponto) e IBS de 0,05% + 0,05% em 2027 e 2028, valores fixados pela Emenda Constitucional 132.</li>
       <li>As sugestões de classificação tributária vêm da base oficial: são as classificações às quais o NCM está vinculado nos anexos da LC 214. A escolha certa depende também da operação (quem compra, para quê). Em caso de dúvida, confira na NF-e do fornecedor (campo cClassTrib) ou com o contador.</li>
       <li>As alíquotas do Imposto Seletivo de 2027 foram fixadas pela Medida Provisória 1.399/2026, que ainda precisa virar lei. Pela MP, a cobrança começa em 2 de fevereiro de 2027. Os exemplos usam essas alíquotas e preços fictícios.</li>
       <li>Esta ferramenta serve para estudo e conferência. Ela não substitui a orientação de um contador.</li>
@@ -347,6 +349,36 @@
     <pre id="json-env"></pre>
     <h3>Recebido <button class="btn btn-sec btn-mini" data-copiar="json-rec">Copiar</button></h3>
     <pre id="json-rec"></pre>
+  </div>
+</dialog>
+
+<dialog id="dlg-zerar" class="dlg dlg-estreito" aria-labelledby="zerar-titulo">
+  <form method="dialog" class="dlg-topo"><strong id="zerar-titulo">Começar do zero</strong><button class="btn btn-sec">Cancelar</button></form>
+  <div class="dlg-corpo">
+    <p>A tela volta ao estado de quando foi aberta pela primeira vez. Isso vale só para este navegador.</p>
+    <div class="zerar-colunas">
+      <div>
+        <h3>É apagado</h3>
+        <ul>
+          <li>Todos os itens da nota (<span id="zerar-qtd">0 itens</span>)</li>
+          <li>Data, UF e município da operação</li>
+          <li>Datas e alíquotas da aba Comparar datas</li>
+          <li>Ajustes da aba Antes e depois (preço de fábrica, regime, ICMS, monofásico, ST)</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Continua como está</h3>
+        <ul>
+          <li>O motor de cálculo oficial instalado</li>
+          <li>A relação de NCM e classificações</li>
+          <li>Arquivos que você já salvou</li>
+        </ul>
+      </div>
+    </div>
+    <div class="zerar-acoes">
+      <button type="button" id="zerar-exportar" class="btn btn-sec">Salvar os itens antes</button>
+      <button type="button" id="zerar-confirmar" class="btn btn-apagar">Apagar e recarregar</button>
+    </div>
   </div>
 </dialog>
 

@@ -36,7 +36,7 @@ public class CalculadoraRTC {
 
     // ------------------------------------------------------------------ configuração
     static final String REPO_PADRAO = "https://github.com/ReceitaFederal/calculadora-rtc-regime-regular";
-    static final String VERSAO_PAINEL = "1.4.0";
+    static final String VERSAO_PAINEL = "1.5.0";
 
     static Path base, dados, dirWeb, dirMotores, dirFontes, dirLogs;
     static String repo = env("CALC_RTC_REPO", REPO_PADRAO);
@@ -340,7 +340,7 @@ public class CalculadoraRTC {
     static String calculoDeTeste() {
         LocalDate hoje = LocalDate.now();
         String aliquotas = hoje.getYear() >= 2027
-                ? ",\"aliquotasNominais\":{\"cbs\":8.8,\"ibsEstadual\":0.05,\"ibsMunicipal\":0.05}" : "";
+                ? ",\"aliquotasNominais\":{\"cbs\":11.2,\"ibsEstadual\":0.05,\"ibsMunicipal\":0.05}" : "";
         String corpo = "{\"id\":\"teste\",\"versao\":\"1.0.0\",\"dhFatoGerador\":\"" + hoje + "T12:00:00-03:00\","
                 + "\"municipio\":3550308,\"uf\":\"SP\",\"itens\":[{\"numero\":1,\"ncm\":\"10063021\",\"cst\":\"200\","
                 + "\"cClassTrib\":\"200003\",\"baseCalculo\":100.00,\"quantidade\":1,\"unidade\":\"KG\"" + aliquotas + "}]}";

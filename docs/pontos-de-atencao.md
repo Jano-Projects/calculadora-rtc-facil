@@ -30,13 +30,12 @@ Leia antes de usar os resultados para qualquer decisão. Cada item diz **o que p
 
 | Alíquota | Valor preenchido | De onde vem |
 |---|---|---|
-| CBS | 8,8% | Estimativa usada no exemplo da documentação oficial da calculadora. A alíquota de referência oficial ainda não foi publicada. |
+| CBS (2027 e 2028) | 11,2% | Referência de 11,3% calculada pelo TCU em 28/10/2026, menos 0,1 ponto em 2027 e 2028 (LC 214, art. 347). O Senado tem até 15/12/2026 para fixar a referência por resolução; se não fixar, vale a do TCU. |
+| CBS (2029 em diante) | 11,3% | A referência de 2027, só como ponto de partida: ela é recalculada a cada ano. |
 | IBS estadual e municipal (2027 e 2028) | 0,05% + 0,05% | Fixado pela Emenda Constitucional 132. |
 | IBS (2029 em diante) | em branco | Não há valor publicado; você informa. |
 
-Pela lei, em 2027 e 2028 a CBS ainda é reduzida em 0,1 ponto percentual para compensar o IBS de teste. Ajuste o campo se quiser considerar isso.
-
-**O que fazer.** Antes de usar um resultado de 2027 em diante, confira as alíquotas no quadro da tela, onde aparece a origem de cada uma. Quando a Receita publicar as alíquotas de referência, a calculadora oficial as traz numa versão nova, a ferramenta se atualiza sozinha e passa a usá-las.
+**O que fazer.** Antes de usar um resultado de 2027 em diante, confira as alíquotas no quadro da tela, onde aparece a origem de cada uma. Quando a resolução do Senado for publicada, a calculadora oficial deve trazer a alíquota numa versão nova, a ferramenta se atualiza sozinha e passa a usá-la no lugar da estimativa.
 
 ## 5. Imposto Seletivo: alíquotas provisórias e início em fevereiro de 2027
 

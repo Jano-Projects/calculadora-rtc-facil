@@ -27,7 +27,7 @@ Na tela, esses dados aparecem com os selos **vale em todas as abas** e **só nes
 
 - **Data da operação**: define as regras aplicadas. Na API ela corresponde ao campo `dhFatoGerador`.
   - **2026**: ano de teste. CBS de 0,9% e IBS de 0,1%, compensados com PIS/Cofins. As alíquotas vêm da base oficial, e a calculadora **não aceita** alíquotas informadas.
-  - **A partir de 2027**: a calculadora oficial **exige** que as alíquotas sejam informadas, e o resultado aparece como *cálculo simulado*. A partir da versão 1.7.2, a base oficial não traz alíquotas de referência para esses anos. Por isso a tela preenche **estimativas, sempre avisando**: CBS de 8,8% (a do exemplo da documentação oficial) e IBS de 0,05% + 0,05% em 2027 e 2028, fixados pela Emenda Constitucional 132. De 2029 em diante o IBS fica em branco para você informar. Se a Receita voltar a publicar referências, elas passam a ser usadas automaticamente.
+  - **A partir de 2027**: a calculadora oficial **exige** que as alíquotas sejam informadas, e o resultado aparece como *cálculo simulado*. A partir da versão 1.7.2, a base oficial não traz alíquotas de referência para esses anos. Por isso a tela preenche **estimativas, sempre avisando**: CBS de 11,2% em 2027 e 2028 (a referência de 11,3% calculada pelo TCU, pendente de resolução do Senado até 15/12/2026, menos 0,1 ponto) e IBS de 0,05% + 0,05% em 2027 e 2028, fixados pela Emenda Constitucional 132. De 2029 em diante o IBS fica em branco para você informar. Se a Receita voltar a publicar referências, elas passam a ser usadas automaticamente.
 - **UF e município**: local da operação. Importa para o IBS.
 
 ## Itens
@@ -64,6 +64,21 @@ A relação NCM × classificação é extraída do banco da versão instalada da
 ### Salvar e abrir
 
 **Salvar itens** gera um arquivo `.json` com a nota. **Abrir itens** aceita esse arquivo e também um JSON no formato da API oficial. Os itens também ficam salvos no navegador entre um uso e outro.
+
+### Começar do zero
+
+O botão **Começar do zero**, no alto da tela, apaga tudo o que a calculadora guardou neste navegador e recarrega a página:
+
+| É apagado | Continua como está |
+|---|---|
+| Itens da nota | Motor de cálculo oficial instalado |
+| Data, UF e município da operação | Relação de NCM e classificações |
+| Datas e alíquotas da aba Comparar datas | Arquivos que você já salvou |
+| Ajustes da aba Antes e depois (preço de fábrica, regime, ICMS, monofásico, ST) | |
+
+Antes de apagar, a janela mostra quantos itens existem e oferece **Salvar os itens antes**. O botão **Limpar**, ao lado de *Adicionar item*, é diferente: tira só os itens e mantém as outras escolhas.
+
+Se a tela travar por causa de dados antigos e o botão não responder, abra o endereço com `?limpar` no final, por exemplo `http://localhost:8090/?limpar`. O efeito é o mesmo.
 
 ## Resultado
 

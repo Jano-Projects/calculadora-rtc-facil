@@ -55,6 +55,16 @@ h3 { font-size: 1.05rem; }
 .chip.ok { border-color: var(--fiscal); color: var(--fiscal); }
 .chip.atualizando { border-color: var(--ambar); color: var(--ambar); background: var(--ambar-claro); }
 .chip.erro { border-color: var(--erro); color: var(--erro); }
+.chip-zerar:hover, .chip-zerar:focus-visible { border-color: var(--erro); color: var(--erro); }
+.dlg-estreito { width: min(620px, 94vw); }
+.dlg-estreito p { margin: 1rem 0 .5rem; }
+.zerar-colunas { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.zerar-colunas h3 { font-size: .9rem; margin: .75rem 0 .25rem; }
+.zerar-colunas ul { margin: 0; padding-left: 1.1rem; font-size: .9rem; }
+.zerar-acoes { display: flex; justify-content: flex-end; gap: .5rem; margin-top: 1.25rem; flex-wrap: wrap; }
+.btn.btn-apagar { background: var(--erro); border-color: var(--erro); color: #fff; }
+.btn.btn-apagar:hover { filter: brightness(.92); }
+@media (max-width: 560px) { .zerar-colunas { grid-template-columns: 1fr; } }
 
 main { max-width: 1320px; margin: 0 auto; padding: 1.5rem; }
 

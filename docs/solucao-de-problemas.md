@@ -34,5 +34,8 @@ Use `bash iniciar.sh`, ou dê permissão uma vez com `chmod +x iniciar.sh`.
 ### O motor parou ("O motor de cálculo parou inesperadamente")
 Veja `dados/logs/motor.log`. Feche a janela da calculadora e abra de novo. Se o problema continuar numa versão nova, volte para a anterior com `--versao <anterior>`.
 
-### Começar do zero
-Feche a calculadora e apague a pasta `dados/`. Na próxima abertura tudo é baixado de novo.
+### A tela mostra itens ou valores de testes antigos
+Clique em **Começar do zero**, no alto da tela. Isso apaga os itens e as escolhas guardadas neste navegador e não mexe no motor instalado. Se a tela nem chegar a abrir direito, acesse o endereço com `?limpar` no final (por exemplo `http://localhost:8090/?limpar`). Veja os detalhes no [guia de uso](guia-de-uso.md#começar-do-zero).
+
+### Reinstalar tudo
+Feche a calculadora e apague a pasta `dados/`. Na próxima abertura o Java, o motor oficial e a relação de NCM são baixados e preparados de novo. Os itens guardados no navegador não são afetados; para eles, use **Começar do zero**.
