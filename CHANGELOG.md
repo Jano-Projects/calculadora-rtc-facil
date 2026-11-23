@@ -1,5 +1,22 @@
 # Mudanças
 
+## 1.3.0 — 2026-11-23
+
+### Novidades
+- **Aba "Antes e depois".** Compara a carga de hoje com a de depois da reforma, item a item e no total.
+  - **Hoje:** PIS/Cofins, ICMS ou ISS e IPI, mais a CBS e o IBS de teste, destacados e compensados.
+  - **Depois:** CBS, IBS, Imposto Seletivo e o ICMS/ISS que continua.
+  - **O que migra:** PIS/Cofins → CBS; IPI → Imposto Seletivo ou zero.
+  - **O que fica:** ICMS/ISS, com a redução de 2029 a 2032.
+  - **Preço estimado:** com margem constante e repasse integral.
+  - **Composição do preço:** barras com cada tributo.
+- Os tributos novos vêm da calculadora oficial, com a base de cálculo pelas regras da base unificada: sem ICMS/ISS e PIS/Cofins, e com o Imposto Seletivo. Os tributos atuais são estimados a partir de padrões editáveis:
+  - ICMS pela alíquota geral de cada estado em 2026;
+  - PIS/Cofins pelo regime (9,25% ou 3,65%), com zero na cesta básica e no hortifrúti;
+  - ISS de 5% nos serviços;
+  - IPI igual ao Imposto Seletivo nos produtos sujeitos a ele.
+- Documentação: guia da aba nova, ponto de atenção 14 (premissas da estimativa) e a diferença entre *Comparar datas* e *Antes e depois*.
+
 ## 1.2.0 — 2026-11-23
 
 ### Documentação

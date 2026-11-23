@@ -7,6 +7,7 @@ Calcule **CBS, IBS e Imposto Seletivo** da Reforma Tributária do Consumo (LC 21
 - **Sempre na versão mais recente**: quando a Receita publica uma versão nova da [calculadora oficial](https://github.com/ReceitaFederal/calculadora-rtc-regime-regular), ela é baixada, compilada e colocada em uso automaticamente, sem fechar a tela.
 - **Tela amigável**: monte a nota item a item, com autocompletar de NCM e lista de classificações tributárias. O resultado sai em forma de cupom e com detalhamento por item.
 - **Compare datas**: veja a mesma nota em 2026 (ano de teste) e em 2027 (CBS para valer + Imposto Seletivo).
+- **Antes e depois**: a carga de hoje (PIS/Cofins, ICMS/ISS, IPI) ao lado da de depois da reforma, com o que migra (PIS/Cofins → CBS, IPI → Imposto Seletivo), o que fica (ICMS/ISS até 2028) e o preço estimado.
 - **Tudo local**: os cálculos rodam na sua máquina. Nenhum dado da sua nota sai do computador.
 - **100% código aberto** (licença MIT).
 

@@ -16,6 +16,16 @@ Coisas parecidas que funcionam de jeitos diferentes, lado a lado.
 
 O que a ferramenta **acrescenta** são conveniências de entrada e leitura. Toda conta, validação e mensagem de erro vem da calculadora oficial. O botão *Ver JSON* mostra exatamente o que foi enviado e recebido.
 
+## Comparar datas × Antes e depois
+
+| | Comparar datas | Antes e depois |
+|---|---|---|
+| Mostra | Só os tributos novos (CBS, IBS, IS) em duas datas | Os tributos de hoje (PIS/Cofins, ICMS/ISS, IPI) **e** os de depois (CBS, IBS, IS e o ICMS/ISS que fica) |
+| Valor do item | Usado como base de cálculo | Tratado como preço de hoje, com tributos embutidos |
+| De onde vêm os números | Todos da calculadora oficial | Os novos da calculadora oficial; os atuais são **estimados** pela tela |
+| Responde | "Como cada item passa a ser tributado?" | "Quanto pago hoje, quanto vou pagar, o que migra e o que fica?" |
+| Preço estimado | Não | Sim, com margem constante e repasse integral |
+
 ## Calculado × Simulado × Erro
 
 | Situação | Quando aparece | Confiável para… |

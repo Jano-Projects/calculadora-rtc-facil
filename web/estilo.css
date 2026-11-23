@@ -323,3 +323,36 @@ tfoot td { font-weight: 700; border-bottom: 0; }
 .item > .remover { grid-column: 3; grid-row: 1; }
 .item > .assistente-class { grid-row: 2; }
 .link-btn { font: inherit; background: none; border: 0; padding: 0; color: var(--fiscal); text-decoration: underline; cursor: pointer; margin-left: .35rem; }
+
+/* ---------------------------------------------------------------- antes e depois */
+.intro-ad { max-width: 90ch; margin-bottom: 1.25rem; }
+.ad-in { font: inherit; width: 5.5rem; border: 1px solid var(--regua-forte); border-radius: 2px; padding: .15rem .35rem; }
+.ad-in:focus { outline: 2px solid var(--fiscal); }
+#ad-itens td { vertical-align: middle; }
+#ad-itens-det summary { cursor: pointer; color: var(--fiscal); margin: .5rem 0; }
+.migracao { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem; margin-bottom: 1.25rem; }
+.mig { background: var(--branco); border: 1px solid var(--regua-forte); border-left: 4px solid var(--fiscal); border-radius: var(--raio); padding: .75rem 1rem; }
+.mig + .mig { border-left-color: var(--ambar); }
+.mig h3 { margin: 0 0 .4rem; font-size: 1rem; }
+.mig p { margin: .3rem 0; }
+.sub-ad { margin: 1.5rem 0 .6rem; }
+.composicao { background: var(--branco); border: 1px solid var(--regua-forte); border-radius: var(--raio); padding: 1rem; }
+.comp-linha { display: grid; grid-template-columns: 4.5rem 1fr 7rem; align-items: center; gap: .75rem; margin-bottom: .6rem; }
+.comp-linha .comp-barra { display: flex; height: 26px; border-radius: 3px; overflow: hidden; min-width: 2px; }
+.comp-rot { font-weight: 600; }
+.comp-val { text-align: right; font-weight: 600; }
+.comp-linha > div { justify-self: start; }
+.seg { display: inline-block; height: 100%; }
+.legenda-comp { display: flex; flex-wrap: wrap; gap: .35rem 1rem; align-items: center; font-size: .82rem; color: var(--tinta-2); margin: .75rem 0 0; }
+.legenda-comp .seg { width: .9rem; height: .9rem; border-radius: 2px; vertical-align: middle; margin-right: .3rem; }
+.s-liq { background: #C9D3D0; }
+.s-pc { background: #7A8B93; }
+.s-ipi { background: #B49A6B; }
+.s-icms { background: #3E6E8E; }
+.s-cbs { background: var(--fiscal); }
+.s-ibs { background: #6FB3A2; }
+.s-is { background: var(--seletivo); }
+.tab-ad th.grupo { text-align: center; color: var(--tinta); border-bottom: 2px solid var(--regua-forte); }
+.tab-ad td.forte, .tab-ad th:nth-child(7), .tab-ad th:nth-child(12) { font-weight: 700; }
+.aviso-leitura ul { padding-left: 1.2rem; }
+.aviso-leitura li { margin-bottom: .35rem; }

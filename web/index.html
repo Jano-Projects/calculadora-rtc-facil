@@ -36,6 +36,7 @@
   <nav class="abas" role="tablist">
     <button role="tab" aria-selected="true" data-aba="calcular">Calcular nota</button>
     <button role="tab" aria-selected="false" data-aba="comparar">Comparar datas</button>
+    <button role="tab" aria-selected="false" data-aba="antesdepois">Antes e depois</button>
     <button role="tab" aria-selected="false" data-aba="consultar">Consultar códigos</button>
     <button role="tab" aria-selected="false" data-aba="ajuda">Ajuda</button>
   </nav>
@@ -177,6 +178,72 @@
     </aside>
   </section>
 
+  <!-- ============================================================ ANTES E DEPOIS -->
+  <section id="aba-antesdepois" class="aba" role="tabpanel" hidden>
+    <p class="nota intro-ad">Compara a carga de hoje (PIS/Cofins, ICMS ou ISS e IPI) com a de depois da reforma (CBS, IBS e Imposto Seletivo, mais o ICMS/ISS que ainda fica). Mostra o que migra, o que fica e o preço estimado. Os tributos novos vêm da calculadora oficial. Os atuais são <strong>estimados</strong> a partir das alíquotas abaixo, que você pode ajustar.</p>
+
+    <fieldset class="bloco">
+      <legend>Nota <span class="escopo comum">vem da aba Calcular nota</span></legend>
+      <div class="resumo-nota">
+        <p id="ad-resumo">—</p>
+        <button class="btn btn-sec" data-ir="calcular">Editar itens e local</button>
+      </div>
+      <p class="nota">Aqui o <strong>Valor</strong> de cada item é tratado como o <strong>preço de venda de hoje</strong>, com os tributos atuais já embutidos.</p>
+    </fieldset>
+
+    <fieldset class="bloco">
+      <legend>Cenários <span class="escopo local">só nesta aba</span></legend>
+      <div class="cmp-datas">
+        <div class="cmp-data">
+          <h3>Antes: hoje</h3>
+          <p class="cmp-sem-aliq" id="ad-antes-texto"></p>
+        </div>
+        <div class="cmp-data" data-lado="ad">
+          <h3>Depois</h3>
+          <label class="caixa"><span>Data</span><input type="date" id="ad-data" min="2027-01-01"></label>
+          <div class="cmp-aliq" hidden></div>
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset class="bloco">
+      <legend>Tributos atuais (estimativa) <span class="escopo local">só nesta aba</span></legend>
+      <div class="campos">
+        <label class="caixa larga"><span>Regime de PIS/Cofins de quem vende</span>
+          <select id="ad-regime">
+            <option value="9.25">Não cumulativo (lucro real): 1,65% + 7,6% = 9,25%</option>
+            <option value="3.65">Cumulativo (lucro presumido): 0,65% + 3% = 3,65%</option>
+          </select>
+        </label>
+        <label class="caixa"><span>ICMS padrão % (<span id="ad-uf">UF</span>)</span><input type="number" id="ad-icms" step="0.01" min="0" max="40"></label>
+        <label class="caixa"><span>ISS dos serviços %</span><input type="number" id="ad-iss" step="0.01" min="0" max="5" value="5"></label>
+      </div>
+      <p class="nota" id="ad-padroes-nota"></p>
+      <details id="ad-itens-det" open>
+        <summary>Alíquotas atuais por item</summary>
+        <div class="tabela-rolagem"><table id="ad-itens"></table></div>
+        <p class="nota">Os campos vêm preenchidos com os padrões. Ajuste os itens com alíquota própria, por exemplo ICMS reduzido da cesta básica no seu estado, IPI da TIPI ou substituição tributária. <button type="button" class="link-btn" id="ad-restaurar">Voltar todos aos padrões</button></p>
+      </details>
+    </fieldset>
+
+    <div class="calcular-barra">
+      <button class="btn btn-grande" id="btn-antesdepois">Calcular antes e depois</button>
+      <span class="calc-status" id="ad-status" aria-live="polite"></span>
+    </div>
+    <div id="ad-resultado"></div>
+
+    <aside class="aviso-leitura">
+      <h3>Premissas da estimativa</h3>
+      <ul>
+        <li><strong>Margem constante e repasse integral:</strong> o valor do produto sem tributos é o mesmo antes e depois, e toda diferença de tributo vai para o preço. Na prática, empresas podem absorver ou repassar de outro jeito.</li>
+        <li><strong>Hoje:</strong> ICMS/ISS "por dentro" do preço. PIS/Cofins sobre o preço sem ICMS, conforme a decisão do STF no Tema 69. IPI embutido no preço. A CBS e o IBS de teste de 2026 aparecem, mas não somam ao preço, porque são compensados com PIS/Cofins.</li>
+        <li><strong>Depois:</strong> PIS/Cofins extintos. IPI zerado, sem considerar as exceções da Zona Franca de Manaus. ICMS/ISS mantidos até 2028 e reduzidos em 10% ao ano de 2029 a 2032. CBS e IBS "por fora", sobre a base sem ICMS/ISS e com o Imposto Seletivo, como na base de cálculo unificada oficial.</li>
+        <li><strong>Só a venda final:</strong> considera os tributos destacados nesta venda, e não os créditos e a carga das etapas anteriores da cadeia. Não modela Simples Nacional, substituição tributária, DIFAL, FCP nem regimes específicos (combustíveis, monofásicos).</li>
+        <li><strong>Padrões:</strong> ICMS pela alíquota geral (modal) do estado em 2026. PIS/Cofins zero nos itens de cesta básica e hortifrúti, o que é comum, mas não vale para todos (Lei 10.925/2004). IPI igual à alíquota do Imposto Seletivo nos produtos sujeitos a ele, porque a MP 1.399/2026 fixou o IS de 2027 com base no IPI atual. Nos demais produtos o IPI fica zero: confira a TIPI.</li>
+      </ul>
+    </aside>
+  </section>
+
   <!-- ============================================================ CONSULTAR -->
   <section id="aba-consultar" class="aba" role="tabpanel" hidden>
     <div class="grade-consulta">
@@ -202,6 +269,7 @@
       <li>Adicione os itens. Para cada um, informe o <strong>NCM</strong> (produto) ou a <strong>NBS</strong> (serviço), o valor e a quantidade. Abaixo do item aparecem as <strong>classificações tributárias vinculadas ao NCM</strong> na base oficial, com o trecho do anexo da lei; é só clicar na que corresponde à operação. Comece por um exemplo se preferir.</li>
       <li>Os <strong>itens</strong> e o <strong>local</strong> valem em todas as abas (marcados como <span class="escopo comum">vale em todas as abas</span>). A <strong>data</strong> e as <strong>alíquotas</strong> são de cada aba (<span class="escopo local">só nesta aba</span>): a nota pode estar em 2026 no cálculo e ser comparada com 2027 sem mudar nada.</li>
       <li>Clique em <strong>Calcular tributos</strong>. O cupom mostra o total de CBS, IBS e Imposto Seletivo, e o detalhamento mostra a conta de cada item.</li>
+      <li>Para ver a carga de <strong>hoje</strong> (PIS/Cofins, ICMS/ISS, IPI) ao lado da de <strong>depois</strong> da reforma, use a aba <strong>Antes e depois</strong>. Ela mostra o que migra, o que fica e o preço estimado.</li>
     </ol>
 
     <h2>De onde vêm os cálculos</h2>

@@ -7,7 +7,8 @@
 | Aba | Para que serve |
 |---|---|
 | **Calcular nota** | Montar uma nota com seus itens e calcular CBS, IBS e Imposto Seletivo. |
-| **Comparar datas** | Calcular a mesma nota em duas datas e ver a diferença item a item. |
+| **Comparar datas** | Calcular a mesma nota em duas datas e ver a diferença nos tributos novos, item a item. |
+| **Antes e depois** | Comparar a carga de hoje (PIS/Cofins, ICMS/ISS, IPI) com a de depois da reforma (CBS, IBS, IS e o ICMS/ISS que fica), com o preço estimado. |
 | **Consultar códigos** | Procurar NCM por código ou descrição e ver as classificações tributárias vigentes. |
 | **Ajuda** | Versão em uso, botão de atualização, registro técnico e acesso à API (Swagger). |
 
@@ -80,6 +81,21 @@ A relação NCM × classificação é extraída do banco da versão instalada da
 Usa os itens, a UF e o município da aba *Calcular nota*. O resumo da nota aparece no topo, com um botão para voltar e editar. As datas e as alíquotas são próprias desta aba: para datas a partir de 2027, os campos de CBS e IBS aparecem ao lado da data, já preenchidos (com estimativa, quando a base oficial não tem o valor). Se algum item paga Imposto Seletivo, aparece também o quadro **Imposto Seletivo**, com a alíquota estimada de cada um. O mesmo valor fica guardado no item.
 
 **Atenção ao interpretar**: a calculadora mostra só os tributos **novos**. PIS, Cofins, ICMS, ISS e IPI não aparecem. Em 2027 a CBS **substitui** o PIS e a Cofins, então o aumento que aparece na comparação não é o aumento de preço para o consumidor. O que é realmente novo é o **Imposto Seletivo**.
+
+## Antes e depois
+
+Esta aba responde "quanto pago hoje, quanto vou pagar e o que muda de lugar". Ela usa os itens e o local da aba *Calcular nota* e trata o **Valor** de cada item como o **preço de venda de hoje**, com os tributos atuais embutidos.
+
+1. **Cenários.** *Antes* usa as regras de 2026, na data de hoje. *Depois* é a data que você escolher, de 2027 em diante, e traz o mesmo quadro de alíquotas de CBS e IBS da comparação.
+2. **Tributos atuais.** Escolha o regime de PIS/Cofins de quem vende: não cumulativo (lucro real, 9,25%) ou cumulativo (lucro presumido, 3,65%). O ICMS vem preenchido com a alíquota geral do estado em 2026, e o ISS dos serviços com 5%. Na tabela por item, ajuste o que for diferente: ICMS reduzido da cesta básica no seu estado, IPI da TIPI, alíquota própria.
+3. **Resultado.**
+   - **Cartões:** a carga de hoje, a de depois e o preço estimado.
+   - **Migra:** o PIS/Cofins virando CBS, e o IPI virando Imposto Seletivo ou zero.
+   - **Fica:** o ICMS/ISS, que continua até 2028 e cai de 2029 a 2032.
+   - **Composição do preço:** barras com o valor sem tributos e cada tributo, hoje e depois.
+   - **Tabela por item:** todos os valores lado a lado.
+
+Os tributos novos vêm da calculadora oficial. Os atuais são **estimativas** a partir das alíquotas da tela. Antes de usar os números, leia as premissas no fim da aba e o [ponto de atenção 14](pontos-de-atencao.md#14-antes-e-depois-é-uma-estimativa-com-premissas).
 
 ## Acesso pela rede (por exemplo, de fora de uma máquina virtual)
 

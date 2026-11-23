@@ -98,3 +98,23 @@ Qual delas vale depende de **quem vende, para quem e com que finalidade**.
 **O que pode enganar.** Com a opção `--rede`, qualquer computador da rede local consegue abrir a calculadora.
 
 **O que fazer.** Use `--rede` só em redes de confiança (sua casa, uma VM no seu computador). Sem essa opção, a calculadora só aceita acessos do próprio computador.
+
+## 14. "Antes e depois" é uma estimativa com premissas
+
+**O que pode enganar.** A aba *Antes e depois* mostra a carga de hoje, a de depois e um preço estimado. Os tributos novos vêm da calculadora oficial, mas os atuais (PIS/Cofins, ICMS/ISS, IPI) são **estimados** pela tela a partir de alíquotas padrão:
+- ICMS pela alíquota geral do estado;
+- PIS/Cofins pelo regime escolhido (zero na cesta básica e no hortifrúti);
+- IPI igual ao Imposto Seletivo nos produtos sujeitos a ele, e zero nos demais.
+
+Além disso, o modelo supõe:
+- **margem constante e repasse integral:** o valor sem tributos não muda e toda diferença vai para o preço;
+- **só a venda final:** considera só os tributos desta venda, sem os créditos e a carga das etapas anteriores.
+
+Não modela Simples Nacional, substituição tributária, DIFAL, fundo de pobreza, exceções da Zona Franca de Manaus nem regimes específicos (combustíveis, monofásicos).
+
+Os padrões podem errar muito em alguns itens. Itens da cesta básica, por exemplo, costumam ter ICMS reduzido ou isento no estado, e com a alíquota geral a carga de hoje sai alta demais.
+
+**O que fazer.**
+- Ajuste as alíquotas por item na tabela *Alíquotas atuais por item*, com os valores que a empresa realmente aplica (veja no ERP ou na nota de venda).
+- Leia o preço estimado como "o que aconteceria se nada além dos tributos mudasse", e não como previsão de preço.
+- Para conferência fiscal, use os valores de CBS, IBS e IS, que vêm da calculadora oficial. Os dos tributos atuais são aproximações.
