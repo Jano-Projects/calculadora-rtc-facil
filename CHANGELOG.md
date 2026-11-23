@@ -13,6 +13,7 @@
 ### Correções
 - **IPI e Imposto Seletivo eram calculados sobre o preço de venda.** Na venda do comércio isso superestimava os dois, porque eles incidem uma vez, na indústria, sobre o preço de fábrica.
 - **Diferenças de arredondamento.** Diferenças menores que 2 centavos entre o tributo antigo e o novo aparecem como "sem mudança".
+- **Instalação mais resistente a falhas de rede.** O programa baixa por conta própria o Maven Wrapper da calculadora oficial, com até 3 tentativas, e repete uma vez cada etapa do Maven que falhar. Antes, uma queda no download desse arquivo fazia a instalação falhar com "MavenWrapperMain não encontrado".
 
 ### Documentação
 - **Novo: [Tributos e bases](docs/tributos-e-bases.md).** A base de cada tributo hoje e depois, o que é "por dentro" e "por fora", indústria × comércio, destacado × embutido × não incluído, e por que o destacado na venda final representa a cadeia nos tributos não cumulativos.

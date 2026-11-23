@@ -272,6 +272,7 @@ public class CalculadoraRTC {
         // O repositório oficial guarda o mvnw.cmd com quebras de linha LF. Quem clona com o Git para Windows
         // recebe CRLF, mas o ZIP do GitHub vem com LF, e o cmd.exe se perde nos "goto" e nas linhas com "^".
         if (windows()) converterParaCrlf(raiz);
+        garantirWrapperJar(raiz, log);
         executar(raiz, log, List.of("flyway:migrate", "-Dflyway.configFiles=./flyway/flyway-pro.conf", "--batch-mode", "--errors"));
         Path db = raiz.resolve("calculadora/db/calculadora-pro.db");
         if (tamanho(db) <= 0) throw new IOException("o banco de dados não foi gerado (veja " + log + ")");
@@ -503,7 +504,55 @@ public class CalculadoraRTC {
     }
 
     // ================================================================== Maven / arquivos
+    /** Roda o Maven Wrapper; se falhar (em geral, download interrompido), tenta mais uma vez. */
     static void executar(Path dir, Path log, List<String> argsMaven) throws Exception {
+        try {
+            executarUmaVez(dir, log, argsMaven);
+        } catch (IOException primeira) {
+            if (primeira.getMessage() != null && primeira.getMessage().contains("demorou demais")) throw primeira;
+            log("O Maven falhou; tentando de novo em 10 segundos (falhas de download costumam ser passageiras)...");
+            Files.writeString(log, "\n--- nova tentativa ---\n", StandardOpenOption.APPEND);
+            Thread.sleep(10_000);
+            garantirWrapperJar(dir, log);
+            executarUmaVez(dir, log, argsMaven);
+        }
+    }
+
+    /**
+     * O mvnw baixa o .mvn/wrapper/maven-wrapper.jar na primeira execução. Se esse download falha,
+     * o script apaga o arquivo e o erro só aparece depois ("MavenWrapperMain" não encontrado).
+     * Aqui o arquivo é baixado antes, pelo Java, com até 3 tentativas (e sem depender do PowerShell no Windows).
+     */
+    static void garantirWrapperJar(Path raiz, Path log) throws Exception {
+        Path jar = raiz.resolve(".mvn/wrapper/maven-wrapper.jar");
+        if (tamanho(jar) > 0) return;
+        String url = "https://repo.maven.apache.org/maven2/org/apache/maven/wrapper/maven-wrapper/3.2.0/maven-wrapper-3.2.0.jar";
+        Path props = raiz.resolve(".mvn/wrapper/maven-wrapper.properties");
+        if (Files.exists(props)) {
+            for (String linha : Files.readAllLines(props)) {
+                if (linha.startsWith("wrapperUrl=")) url = linha.substring("wrapperUrl=".length()).trim();
+            }
+        }
+        Files.createDirectories(jar.getParent());
+        IOException ultimo = null;
+        for (int tentativa = 1; tentativa <= 3; tentativa++) {
+            try {
+                baixar(url, jar);
+                if (tamanho(jar) > 0) {
+                    Files.writeString(log, "maven-wrapper.jar baixado de " + url + "\n", StandardOpenOption.APPEND);
+                    return;
+                }
+            } catch (IOException e) {
+                ultimo = e;
+                Files.deleteIfExists(jar);
+                log("Download do Maven Wrapper falhou (tentativa " + tentativa + " de 3): " + descrever(e));
+                Thread.sleep(5_000L * tentativa);
+            }
+        }
+        throw new IOException("não foi possível baixar o Maven Wrapper de " + url + ": " + (ultimo != null ? descrever(ultimo) : "arquivo vazio"));
+    }
+
+    static void executarUmaVez(Path dir, Path log, List<String> argsMaven) throws Exception {
         List<String> cmd = new ArrayList<>();
         if (windows()) {
             cmd.addAll(List.of("cmd.exe", "/c", "mvnw.cmd"));
