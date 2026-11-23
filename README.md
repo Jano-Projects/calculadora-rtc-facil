@@ -18,7 +18,7 @@ Calcule **CBS, IBS e Imposto Seletivo** da Reforma Tributária do Consumo (LC 21
 
 ### 1. Baixe
 
-Pelo GitHub: botão verde **Code → Download ZIP**. Depois extraia o ZIP numa pasta de sua preferência, por exemplo `Documentos\calculadora-rtc-facil`.
+Na página de **[Releases](https://github.com/Jano-Projects/calculadora-rtc-facil/releases/latest)**, baixe o arquivo **`calculadora-rtc-facil-<versão>.zip`** e extraia numa pasta de sua preferência, por exemplo `Documentos\calculadora-rtc-facil`.
 
 Se você usa Git, pode clonar:
 
@@ -57,7 +57,7 @@ Veja o [guia de uso](docs/guia-de-uso.md) para entender cada campo e o resultado
 | O que atualiza | Como |
 |---|---|
 | **Calculadora oficial** (motor de cálculo) | Sozinha. Ao abrir e depois a cada 6 horas, o programa consulta as versões (tags) publicadas no repositório da Receita. Se houver uma nova, ele baixa, gera o banco, compila, sobe a versão nova e só então desliga a antiga, sem interromper quem está usando. Se algo falhar, a versão anterior continua funcionando. |
-| **Esta ferramenta** (tela e scripts) | Se você clonou com Git: `git pull`. Se baixou o ZIP: baixe de novo e copie a pasta `dados/` antiga para não recompilar. |
+| **Esta ferramenta** (tela e scripts) | Se você clonou com Git: `git pull`. Se baixou o ZIP: baixe a release nova e copie a pasta `dados/` antiga para dentro dela, assim nada é baixado nem compilado de novo. |
 
 A versão em uso aparece no canto superior direito da tela. Clique nela para ver detalhes ou forçar uma verificação.
 
