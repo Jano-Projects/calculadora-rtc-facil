@@ -406,8 +406,14 @@ public class CalculadoraRTC {
         ProcessBuilder pb = new ProcessBuilder(cmd).directory(dir.toFile()).redirectErrorStream(true)
                 .redirectOutput(ProcessBuilder.Redirect.appendTo(log.toFile()));
         String javaHome = System.getProperty("java.home");
-        pb.environment().put("JAVA_HOME", javaHome);
-        pb.environment().put("PATH", Paths.get(javaHome, "bin") + File.pathSeparator + pb.environment().getOrDefault("PATH", ""));
+        Map<String, String> ambiente = pb.environment();
+        ambiente.put("JAVA_HOME", javaHome);
+        // No Windows a variável se chama "Path" (no Linux, "PATH"); o mapa do Java diferencia maiúsculas.
+        // Procura sem diferenciar, para acrescentar o Java sem perder o resto do caminho (onde está o PowerShell).
+        String chavePath = ambiente.keySet().stream().filter(k -> k.equalsIgnoreCase("PATH")).findFirst().orElse("PATH");
+        String caminhoAtual = ambiente.getOrDefault(chavePath, "");
+        ambiente.keySet().removeIf(k -> k.equalsIgnoreCase("PATH"));
+        ambiente.put(chavePath, Paths.get(javaHome, "bin") + (caminhoAtual.isEmpty() ? "" : File.pathSeparator + caminhoAtual));
         Files.writeString(log, "\n$ " + String.join(" ", cmd) + "\n", StandardOpenOption.APPEND);
         Process p = pb.start();
         if (!p.waitFor(60, TimeUnit.MINUTES)) {
