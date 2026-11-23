@@ -26,7 +26,7 @@ const cache = new Map(); // respostas de dados abertos
 const salvar = () => {
   try {
     localStorage.setItem("calc-rtc", JSON.stringify({
-      itens: estado.itens, data: $("#op-data").value, uf: $("#op-uf").value, mun: $("#op-mun").value,
+      itens: estado.itens.map(({ verOpcoes, ...i }) => i), data: $("#op-data").value, uf: $("#op-uf").value, mun: $("#op-mun").value,
       cmpA: $("#cmp-a").value, cmpB: $("#cmp-b").value,
     }));
   } catch { /* navegador sem armazenamento: segue sem salvar */ }
@@ -193,7 +193,43 @@ async function aliquotasReferencia(data, uf, mun) {
     if (a.formaAplicacao === "DECRESCIMO") return (ref || 0) - prop;
     return ref;
   };
-  return { cbs: valor(cbs), ibsEstadual: valor(ibsuf), ibsMunicipal: valor(ibsmun) };
+  const ref = { cbs: valor(cbs), ibsEstadual: valor(ibsuf), ibsMunicipal: valor(ibsmun) };
+  // A partir da versão 1.7.2 a base oficial não traz mais alíquotas de referência de 2027 em diante
+  // (por isso a API passou a exigir que sejam informadas). Sem referência, usamos uma estimativa marcada.
+  const estimadas = [];
+  const ano = anoDe(data);
+  for (const k of ["cbs", "ibsEstadual", "ibsMunicipal"]) {
+    if (ano >= ANO_ALIQ_OBRIGATORIA && !ref[k]) {
+      const e = ESTIMATIVAS(ano)[k];
+      ref[k] = e ?? null;
+      if (e !== undefined) estimadas.push(k);
+    }
+  }
+  ref.estimadas = estimadas;
+  ref.faltando = ["cbs", "ibsEstadual", "ibsMunicipal"].filter((k) => ref[k] === null);
+  return ref;
+}
+
+/** Estimativas usadas quando a base oficial não tem a alíquota de referência.
+ *  IBS 2027–2028: 0,05% estadual + 0,05% municipal, fixados pela Emenda Constitucional 132 (ADCT, art. 127).
+ *  CBS: 8,8%, a estimativa usada no exemplo da documentação oficial da calculadora. */
+const ESTIMATIVAS = (ano) => ({
+  cbs: 8.8,
+  ...(ano <= 2028 ? { ibsEstadual: 0.05, ibsMunicipal: 0.05 } : {}),
+});
+const NOMES_ALIQ = { cbs: "CBS", ibsEstadual: "IBS estadual", ibsMunicipal: "IBS municipal" };
+
+/** Texto explicando de onde vieram as alíquotas preenchidas. */
+function notaAliquotas(ref, d) {
+  const partes = [];
+  if (ref.estimadas.length) {
+    partes.push(`<strong>Estimativa:</strong> a base oficial não traz alíquota de referência de ${anoDe(d)} para ${ref.estimadas.map((k) => NOMES_ALIQ[k]).join(", ")}.`
+      + (ref.estimadas.includes("cbs") ? " CBS de 8,8%, como no exemplo da documentação oficial." : "")
+      + (ref.estimadas.some((k) => k !== "cbs") ? " IBS de 0,05% + 0,05%, fixado pela Emenda Constitucional 132 para 2027 e 2028." : ""));
+  }
+  if (ref.faltando.length) partes.push(`<strong>Informe ${ref.faltando.map((k) => NOMES_ALIQ[k]).join(" e ")}:</strong> ainda não há valor publicado para ${anoDe(d)}.`);
+  if (!partes.length) partes.push(`Preenchidas com as alíquotas de referência da base oficial para ${new Date(d + "T12:00").toLocaleDateString("pt-BR")}.`);
+  return partes.join(" ") + " Altere se quiser simular outro cenário.";
 }
 
 async function preencherAliquotasReferencia(forcar) {
@@ -201,37 +237,86 @@ async function preencherAliquotasReferencia(forcar) {
   if (anoDe(d) < ANO_ALIQ_OBRIGATORIA) return;
   const a = await aliquotasReferencia(d, $("#op-uf").value, $("#op-mun").value);
   for (const [id, v] of [["#aliq-cbs", a.cbs], ["#aliq-ibsuf", a.ibsEstadual], ["#aliq-ibsmun", a.ibsMunicipal]]) {
-    if (v !== null && (forcar || $(id).value === "")) $(id).value = v;
+    if (forcar || $(id).value === "") $(id).value = v ?? "";
   }
+  $("#aliq-nota").innerHTML = notaAliquotas(a, d);
 }
 
 /* ====================================================================== classificações e NCM */
-let classificacoes = []; // [{codigo, descricao, cst, cstDescricao}]
+let classificacoes = []; // [{codigo, descricao, cst, cstDescricao, reducao}]
 async function carregarClassificacoes(data) {
-  const lista = await dadoAberto("/situacoes-tributarias/cbs-ibs?data=" + data);
+  const [lista, detalhes] = await Promise.all([
+    dadoAberto("/situacoes-tributarias/cbs-ibs?data=" + data),
+    dadoAberto("/classificacoes-tributarias/cbs-ibs?data=" + data).catch(() => []),
+  ]);
+  const det = new Map((detalhes || []).map((d) => [d.codigo, d]));
   const out = [];
   for (const sit of lista || []) {
     for (const c of sit.classificacoesTributarias || []) {
-      out.push({ codigo: c.codigo, descricao: c.descricao, cst: sit.codigo, cstDescricao: sit.descricao });
+      const d = det.get(c.codigo) || {};
+      out.push({ codigo: c.codigo, descricao: c.descricao, cst: sit.codigo, cstDescricao: sit.descricao,
+        reducao: d.possuiPercentualReducao ? num(d.percentualReducaoCbs) : null });
     }
   }
   out.sort((a, b) => a.codigo.localeCompare(b.codigo));
   classificacoes = out;
 }
+const classificacao = (codigo) => classificacoes.find((c) => c.codigo === codigo);
 
-function opcoesClassificacao(selecionada) {
+/* ---------------------------------------------------------------- relação NCM × classificação (base oficial)
+ * Gerada pelo gerenciador a partir do banco da versão instalada (tabela NCM_APLICAVEL + anexos da LC 214).
+ * regras: [id, prefixoNcm, cClassTrib, inicio, fim, idAnexo]; excecoes: [idRegra, prefixoNcm, inicio, fim] */
+let relacao = null;
+async function carregarRelacao() {
+  try {
+    const r = await fetch("/painel/ncm-classificacoes", { cache: "no-cache" });
+    if (!r.ok) return;
+    const d = await r.json();
+    const excecoes = new Map();
+    for (const [id, ncm, ini, fim] of d.excecoes || []) {
+      if (!excecoes.has(id)) excecoes.set(id, []);
+      excecoes.get(id).push({ ncm, ini, fim });
+    }
+    relacao = { regras: d.regras || [], excecoes, anexos: d.anexos || {},
+      comLista: new Set((d.regras || []).map((r) => r[2])) };
+  } catch { relacao = null; }
+}
+const vigente = (data, ini, fim) => (!ini || ini <= data) && (!fim || fim >= data);
+
+/** Classificações às quais o NCM está vinculado na data, com o item do anexo que justifica. */
+function classificacoesDoNcm(ncm, data) {
+  if (!relacao || !/^\d{8}$/.test(ncm)) return [];
+  const porCodigo = new Map();
+  for (const [id, prefixo, codigo, ini, fim, anexo] of relacao.regras) {
+    if (!ncm.startsWith(prefixo) || !vigente(data, ini, fim)) continue;
+    const exc = relacao.excecoes.get(id) || [];
+    if (exc.some((e) => ncm.startsWith(e.ncm) && vigente(data, e.ini, e.fim))) continue;
+    const a = relacao.anexos[String(anexo)];
+    if (!porCodigo.has(codigo)) porCodigo.set(codigo, { codigo, anexos: [] });
+    if (a) porCodigo.get(codigo).anexos.push({ numero: a[0], item: a[1], texto: a[2] });
+  }
+  // só o que existe para CBS/IBS nesta data
+  return [...porCodigo.values()].filter((s) => classificacao(s.codigo)).sort((x, y) => x.codigo.localeCompare(y.codigo));
+}
+
+function opcoesClassificacao(selecionada, sugeridas = []) {
   const grupos = new Map();
+  if (sugeridas.length) grupos.set("sug", { rotulo: "Vinculadas a este NCM na base oficial", itens: sugeridas.map((s) => classificacao(s.codigo)) });
   for (const c of classificacoes) {
-    if (!grupos.has(c.cst)) grupos.set(c.cst, { desc: c.cstDescricao, itens: [] });
+    if (!grupos.has(c.cst)) grupos.set(c.cst, { rotulo: `CST ${c.cst} — ${c.cstDescricao}`, itens: [] });
     grupos.get(c.cst).itens.push(c);
   }
+  let marcada = false;
   let html = `<option value="">Escolha a classificação...</option>`;
   if (selecionada && !classificacoes.some((c) => c.codigo === selecionada)) {
     html += `<option value="${esc(selecionada)}" selected>${esc(selecionada)} (não vigente nesta data)</option>`;
   }
-  for (const [cst, g] of grupos) {
-    html += `<optgroup label="CST ${esc(cst)} — ${esc(g.desc)}">` + g.itens.map((c) =>
-      `<option value="${esc(c.codigo)}"${c.codigo === selecionada ? " selected" : ""}>${esc(c.codigo)} · ${esc(c.descricao)}</option>`).join("") + "</optgroup>";
+  for (const g of grupos.values()) {
+    html += `<optgroup label="${esc(g.rotulo)}">` + g.itens.map((c) => {
+      const sel = c.codigo === selecionada && !marcada;
+      if (sel) marcada = true;
+      return `<option value="${esc(c.codigo)}"${sel ? " selected" : ""}>${esc(c.codigo)} · ${esc(c.descricao)}</option>`;
+    }).join("") + "</optgroup>";
   }
   return html;
 }
@@ -273,8 +358,10 @@ function renderizarItens() {
     for (const campo of $$("[data-c]", el)) {
       const c = campo.dataset.c;
       if (c === "cClassTrib") {
-        if (!opcoesPorItem.has(it.cClassTrib)) opcoesPorItem.set(it.cClassTrib, opcoesClassificacao(it.cClassTrib));
-        campo.innerHTML = opcoesPorItem.get(it.cClassTrib);
+        const sug = it.tipo === "ncm" ? classificacoesDoNcm(it.codigo, dataOp()) : [];
+        const chave = it.cClassTrib + "|" + sug.map((x) => x.codigo).join(",");
+        if (!opcoesPorItem.has(chave)) opcoesPorItem.set(chave, opcoesClassificacao(it.cClassTrib, sug));
+        campo.innerHTML = opcoesPorItem.get(chave);
       }
       campo.value = it[c] ?? "";
     }
@@ -289,26 +376,92 @@ function atualizarRotulosItem(el, it) {
   $("[data-c=codigo]", el).maxLength = it.tipo === "nbs" ? 9 : 8;
 }
 
+/** Data usada para saber se o produto paga Imposto Seletivo: o IS só existe a partir de 2027. */
+const dataReferenciaIS = (d) => (anoDe(d) >= ANO_ALIQ_OBRIGATORIA ? d : `${ANO_ALIQ_OBRIGATORIA}-01-01`);
+
+async function pagaImpostoSeletivo(ncm, data) {
+  if (!/^\d{8}$/.test(ncm)) return null;
+  const det = await detalheNcm(ncm, dataReferenciaIS(data));
+  return det && det.tributadoPeloImpostoSeletivo ? det : null;
+}
+
 async function atualizarDescricaoCodigo(el, it) {
   const desc = $(".desc-codigo", el);
   const caixaIS = $(".caixa.is", el);
   desc.textContent = "";
   caixaIS.hidden = true;
+  renderizarAssistente(el, it);
   if (it.tipo !== "ncm" || !/^\d{8}$/.test(it.codigo)) return;
   const d = dataOp();
+  const select = $("[data-c=cClassTrib]", el);
+  if (document.activeElement !== select) select.innerHTML = opcoesClassificacao(it.cClassTrib, classificacoesDoNcm(it.codigo, d));
   const lista = await listaNcm(d);
   const achado = lista.find((n) => n.ncm === it.codigo);
-  desc.textContent = achado ? achado.descricao : "NCM não encontrado nesta data";
-  if (anoDe(d) >= ANO_ALIQ_OBRIGATORIA) {
-    const det = await detalheNcm(it.codigo, d);
-    if (det && det.tributadoPeloImpostoSeletivo) {
-      caixaIS.hidden = false;
-      if (it.aliqIS === "" && det.aliquotaAdValorem !== null && det.aliquotaAdValorem !== undefined) {
-        it.aliqIS = det.aliquotaAdValorem;
-        $("[data-c=aliqIS]", el).value = it.aliqIS;
-      }
+  desc.textContent = achado ? achado.descricao.replace(/<[^>]+>/g, "") : "NCM não encontrado nesta data";
+  // O campo do IS aparece sempre que o produto paga IS (mesmo com a data em 2026): ele é usado nas datas de 2027 em diante
+  const det = await pagaImpostoSeletivo(it.codigo, d);
+  if (det) {
+    caixaIS.hidden = false;
+    if (it.aliqIS === "" && det.aliquotaAdValorem !== null && det.aliquotaAdValorem !== undefined) {
+      it.aliqIS = det.aliquotaAdValorem;
+      $("[data-c=aliqIS]", el).value = it.aliqIS;
     }
+    caixaIS.title = anoDe(d) < ANO_ALIQ_OBRIGATORIA
+      ? "Não entra no cálculo desta data (o Imposto Seletivo começa em 2027), mas é usado na aba Comparar datas."
+      : "Alíquota do Imposto Seletivo: a lei ainda não definiu, informe uma estimativa.";
   }
+}
+
+/** Mostra, abaixo do item, as classificações que a base oficial vincula ao NCM, e avisa sobre combinações inválidas. */
+function renderizarAssistente(el, it) {
+  const box = $(".assistente-class", el);
+  box.innerHTML = "";
+  if (it.tipo !== "ncm") {
+    if (/^\d{9}$/.test(it.codigo) && !it.cClassTrib) box.innerHTML = `<p>Para serviços, escolha a classificação na lista. Em geral, <code>000001</code> (tributação integral) quando não há benefício.</p>`;
+    return;
+  }
+  if (!/^\d{8}$/.test(it.codigo)) return;
+  if (!relacao) {
+    box.innerHTML = `<p>Sugestões automáticas indisponíveis nesta instalação. Escolha a classificação na lista.</p>`;
+    return;
+  }
+  const d = dataOp();
+  const sug = classificacoesDoNcm(it.codigo, d);
+  const integral = classificacao("000001");
+  const botao = (codigo, titulo, detalhe, dica) => `<button type="button" class="sug" data-class="${esc(codigo)}" aria-pressed="${it.cClassTrib === codigo}" title="${esc(dica || "")}">
+      <code>${esc(codigo)}</code>${esc(titulo)}${detalhe}</button>`;
+  let html = "";
+  const escolhida = sug.find((s) => s.codigo === it.cClassTrib);
+  if (escolhida && !it.verOpcoes) {
+    // já escolheu uma classificação vinculada: só confirma, sem ocupar espaço
+    const a = escolhida.anexos[0];
+    html += `<p class="ok-class">✓ ${esc(it.cClassTrib)} está vinculada a este NCM${a ? ` (Anexo ${esc(a.numero)}, item ${esc(a.item)})` : ""}.
+      <button type="button" class="link-btn" data-ver-opcoes>${sug.length > 1 ? `Ver as outras ${sug.length - 1} opções` : "Ver detalhes"}</button></p>`;
+  } else if (sug.length) {
+    html += `<p>Classificações vinculadas a este NCM na base oficial. Escolha a que corresponde à sua operação:</p><div class="sugs">`;
+    for (const s of sug) {
+      const c = classificacao(s.codigo);
+      const red = c.reducao ? ` <span class="red">redução de ${pct(c.reducao, 0)}</span>` : "";
+      const a = s.anexos[0];
+      const anexo = a ? `<span class="anexo">Anexo ${esc(a.numero)}, item ${esc(a.item)}: ${esc(a.texto.length > 110 ? a.texto.slice(0, 110) + "…" : a.texto)}</span>` : "";
+      html += botao(s.codigo, c.descricao, red + anexo, s.anexos.map((x) => `Anexo ${x.numero}, item ${x.item}: ${x.texto}`).join("\n"));
+    }
+    if (integral) html += botao("000001", "Tributação integral", `<span class="anexo">quando a operação não se enquadra em nenhum benefício acima</span>`);
+    html += `</div>`;
+  } else if (integral) {
+    if (!it.cClassTrib) {
+      it.cClassTrib = "000001";
+      const sel = $("[data-c=cClassTrib]", el);
+      sel.innerHTML = opcoesClassificacao("000001");
+      salvar();
+    }
+    html += `<p class="${it.cClassTrib === "000001" ? "ok-class" : ""}">Este NCM não tem benefício vinculado na base oficial, então o normal é <code>000001</code> (tributação integral). Mude só se a operação tiver outro tratamento, por exemplo imunidade ou exportação.</p>`;
+  }
+  // classificação escolhida que exige uma lista de NCMs da qual este não faz parte → a calculadora recusa (REG-011)
+  if (it.cClassTrib && relacao.comLista.has(it.cClassTrib) && !sug.some((s) => s.codigo === it.cClassTrib)) {
+    html += `<p class="alerta-class">A classificação ${esc(it.cClassTrib)} vale só para os NCMs listados no anexo dela, e este NCM não está na lista. A calculadora vai recusar o item (erro REG-011).</p>`;
+  }
+  box.innerHTML = html;
 }
 
 function itemDoElemento(el) {
@@ -340,9 +493,30 @@ function ligarEditor() {
       atualizarRotulosItem(el, it);
       atualizarDescricaoCodigo(el, it);
     }
+    if (ev.target.dataset.c === "cClassTrib") renderizarAssistente(el, it);
     salvar();
   });
   lista.addEventListener("click", (ev) => {
+    if (ev.target.closest("[data-ver-opcoes]")) {
+      const el = ev.target.closest(".item");
+      const it = itemDoElemento(el);
+      it.verOpcoes = true;
+      renderizarAssistente(el, it);
+      return;
+    }
+    const sug = ev.target.closest(".sug");
+    if (sug) {
+      const el = sug.closest(".item");
+      const it = itemDoElemento(el);
+      it.cClassTrib = sug.dataset.class;
+      it.verOpcoes = false;
+      const select = $("[data-c=cClassTrib]", el);
+      select.innerHTML = opcoesClassificacao(it.cClassTrib, classificacoesDoNcm(it.codigo, dataOp()));
+      select.closest(".caixa").classList.remove("invalida");
+      renderizarAssistente(el, it);
+      salvar();
+      return;
+    }
     if (!ev.target.classList.contains("remover")) return;
     const el = ev.target.closest(".item");
     estado.itens = estado.itens.filter((i) => String(i.id) !== el.dataset.id);
@@ -435,12 +609,12 @@ async function montarOperacao(data, opcoes = {}) {
     if (aliq) {
       item.aliquotasNominais = { cbs: aliq.cbs, ibsEstadual: aliq.ibsEstadual, ibsMunicipal: aliq.ibsMunicipal };
       if (it.tipo === "ncm" && /^\d{8}$/.test(it.codigo)) {
-        const det = await detalheNcm(it.codigo, data);
-        if (det && det.tributadoPeloImpostoSeletivo) {
+        const det = await pagaImpostoSeletivo(it.codigo, data);
+        if (det) {
           let a = num(it.aliqIS);
           if (a === null && det.aliquotaAdValorem !== null && det.aliquotaAdValorem !== undefined) a = Number(det.aliquotaAdValorem);
           if (a === null) {
-            erros.push(`${rot}: este produto paga Imposto Seletivo a partir de 2027. Informe a alíquota do IS (a lei ainda não definiu o valor; use uma estimativa).`);
+            erros.push(`${rot}: este produto paga Imposto Seletivo a partir de 2027. Informe uma alíquota estimada no campo "Imposto Seletivo %" do item (a lei ainda não definiu o valor).`);
           } else if (valor !== null) {
             const imposto = arred2(valor * a / 100);
             delete item.baseCalculo; // a calculadora soma base do IS + IS para chegar à base de CBS/IBS
@@ -616,23 +790,93 @@ function renderizarDetalhe(r) {
 }
 
 /* ====================================================================== comparar */
+const fmtData = (d) => new Date(d + "T12:00").toLocaleDateString("pt-BR");
+const ladosCmp = { a: "#cmp-a", b: "#cmp-b" };
+const refAliqCmp = {}; // lado -> chave (data|uf|mun) das alíquotas já preenchidas
+
+/** Atualiza o resumo da nota (que vem da aba Calcular), as alíquotas de cada data e o quadro do IS. */
+async function renderizarPainelComparacao() {
+  const uf = $("#op-uf").value, munNome = $("#op-mun").selectedOptions[0]?.textContent || "", mun = $("#op-mun").value;
+  const total = estado.itens.reduce((a, i) => a + (num(i.valor) || 0), 0);
+  $("#cmp-resumo").innerHTML = estado.itens.length
+    ? `<strong>${estado.itens.length} ${estado.itens.length === 1 ? "item" : "itens"}</strong> · ${esc(munNome)} / ${esc(uf)} · ${brl(total)}`
+    : `Nenhum item na nota. Adicione itens na aba <strong>Calcular nota</strong>.`;
+  $("#cmp-itens").innerHTML = `<thead><tr><th>#</th><th>Item</th><th>Código</th><th>Classificação</th><th class="n">Valor</th></tr></thead><tbody>`
+    + estado.itens.map((i, n) => `<tr><td>${n + 1}</td><td>${esc(i.descricao)}</td><td>${esc(i.codigo)}</td>
+      <td>${esc(i.cClassTrib)} ${esc((classificacao(i.cClassTrib) || {}).descricao || "")}</td><td class="n">${brl(i.valor)}</td></tr>`).join("") + "</tbody>";
+
+  let algumaPos2027 = false;
+  for (const [lado, sel] of Object.entries(ladosCmp)) {
+    const d = $(sel).value;
+    const box = $(`.cmp-data[data-lado="${lado}"] .cmp-aliq`);
+    box.hidden = !d;
+    if (!d) continue;
+    if (anoDe(d) < ANO_ALIQ_OBRIGATORIA) {
+      box.innerHTML = `<p class="cmp-sem-aliq">Antes de 2027 as alíquotas vêm da base oficial. Não há nada a informar.</p>`;
+      delete refAliqCmp[lado];
+      continue;
+    }
+    algumaPos2027 = true;
+    const chave = `${d}|${uf}|${mun}`;
+    if (refAliqCmp[lado] !== chave) {
+      const ref = await aliquotasReferencia(d, uf, mun);
+      refAliqCmp[lado] = chave;
+      box.innerHTML = `<div class="campos">
+          <label class="caixa"><span>CBS %</span><input type="number" step="0.0001" min="0" data-aliq="cbs" value="${ref.cbs ?? ""}"></label>
+          <label class="caixa"><span>IBS estadual %</span><input type="number" step="0.0001" min="0" data-aliq="ibsEstadual" value="${ref.ibsEstadual ?? ""}"></label>
+          <label class="caixa"><span>IBS municipal %</span><input type="number" step="0.0001" min="0" data-aliq="ibsMunicipal" value="${ref.ibsMunicipal ?? ""}"></label>
+        </div>
+        <p class="nota">Obrigatórias a partir de 2027. ${notaAliquotas(ref, d)}</p>`;
+    }
+  }
+
+  // Imposto Seletivo: o valor fica no item (compartilhado com a aba Calcular nota)
+  const blocoIS = $("#cmp-bloco-is");
+  const itensIS = [];
+  if (algumaPos2027) {
+    for (const it of estado.itens) {
+      if (it.tipo === "ncm" && await pagaImpostoSeletivo(it.codigo, $(ladosCmp.b).value || dataOp())) itensIS.push(it);
+    }
+  }
+  blocoIS.hidden = !itensIS.length;
+  $("#cmp-is").innerHTML = itensIS.map((it) => `<label class="caixa is"><span>${esc(it.descricao || it.codigo)} — IS %</span>
+      <input type="number" step="0.01" min="0" data-is="${it.id}" value="${esc(it.aliqIS)}" placeholder="estimativa"></label>`).join("");
+}
+
+function aliquotasDoLado(lado) {
+  const box = $(`.cmp-data[data-lado="${lado}"] .cmp-aliq`);
+  const v = (k) => num($(`[data-aliq="${k}"]`, box)?.value);
+  return { cbs: v("cbs"), ibsEstadual: v("ibsEstadual"), ibsMunicipal: v("ibsMunicipal") };
+}
+
 async function comparar() {
   const st = $("#cmp-status");
   const a = $("#cmp-a").value, b = $("#cmp-b").value;
-  st.className = "calc-status";
+  st.className = "calc-status erro";
   if (!a || !b) { st.textContent = "Escolha as duas datas."; return; }
+  if (!estado.itens.length) { st.textContent = "A nota está vazia. Adicione itens na aba Calcular nota."; return; }
+  await renderizarPainelComparacao();
+  st.className = "calc-status";
   st.textContent = "Calculando as duas datas...";
   $("#btn-comparar").disabled = true;
   try {
-    const uf = $("#op-uf").value, mun = $("#op-mun").value;
-    const rodar = async (d) => {
-      const aliquotas = anoDe(d) >= ANO_ALIQ_OBRIGATORIA ? await aliquotasReferencia(d, uf, mun) : null;
+    const rodar = async (d, lado) => {
+      let aliquotas = null;
+      if (anoDe(d) >= ANO_ALIQ_OBRIGATORIA) {
+        aliquotas = aliquotasDoLado(lado);
+        if (aliquotas.cbs === null || aliquotas.ibsEstadual === null || aliquotas.ibsMunicipal === null) {
+          throw new Error(`Preencha as alíquotas de ${fmtData(d)} no quadro "Datas e alíquotas", acima.`);
+        }
+      }
       const { erros, operacao } = await montarOperacao(d, { aliquotas });
-      if (erros.length) throw new Error(`Em ${new Date(d + "T12:00").toLocaleDateString("pt-BR")}: ${erros[0]}`);
+      if (erros.length) {
+        const msg = erros[0].replace(`no campo "Imposto Seletivo %" do item`, `no quadro "Imposto Seletivo", acima`);
+        throw new Error(`Em ${fmtData(d)}: ${msg}`);
+      }
       const r = await api("/observabilidade/regime-geral", { method: "POST", body: JSON.stringify(operacao) });
       return interpretar(r.corpo, operacao);
     };
-    const [ra, rb] = await Promise.all([rodar(a), rodar(b)]);
+    const [ra, rb] = await Promise.all([rodar(a, "a"), rodar(b, "b")]);
     renderizarComparacao(a, b, ra, rb);
     st.textContent = "";
     salvar();
@@ -678,7 +922,11 @@ async function buscarNcm() {
   const lista = await listaNcm(d);
   const so = q.replace(/\D/g, "");
   const achados = lista.filter((n) => (so && so === q ? n.ncm.startsWith(so) : n.descricao.toLowerCase().includes(q))).slice(0, 60);
-  ul.innerHTML = achados.length ? achados.map((n) => `<li><code>${esc(n.ncm)}</code><span>${esc(n.descricao.replace(/<[^>]+>/g, ""))}<small data-ncm="${esc(n.ncm)}"></small></span>
+  const vinculos = (ncm) => {
+    const v = classificacoesDoNcm(ncm, d);
+    return v.length ? `<small>Vinculado a: ${v.map((x) => `<code>${esc(x.codigo)}</code> ${esc(classificacao(x.codigo).descricao)}`).join("; ")}</small>` : "";
+  };
+  ul.innerHTML = achados.length ? achados.map((n) => `<li><code>${esc(n.ncm)}</code><span>${esc(n.descricao.replace(/<[^>]+>/g, ""))}${vinculos(n.ncm)}<small data-ncm="${esc(n.ncm)}"></small></span>
     <button class="btn btn-sec btn-mini acao" data-add="${esc(n.ncm)}">Adicionar à nota</button></li>`).join("")
     : "<li>Nada encontrado. Tente outra palavra ou só os primeiros dígitos do código.</li>";
   if (anoDe(d) >= ANO_ALIQ_OBRIGATORIA) {
@@ -721,7 +969,7 @@ function exportarCsv() {
 
 function exportarItens() {
   const dados = { formato: "calculadora-rtc-facil/itens@1", uf: $("#op-uf").value, municipio: $("#op-mun").value, data: dataOp(),
-    itens: estado.itens.map(({ id, ...resto }) => resto) };
+    itens: estado.itens.map(({ id, verOpcoes, ...resto }) => resto) };
   baixarArquivo("itens-nota.json", JSON.stringify(dados, null, 2), "application/json");
 }
 
@@ -762,7 +1010,9 @@ async function carregarExemplo(chave) {
 function trocarAba(nome) {
   $$(".abas button").forEach((b) => b.setAttribute("aria-selected", b.dataset.aba === nome));
   $$(".aba").forEach((s) => { s.hidden = s.id !== "aba-" + nome; });
+  if (nome === "calcular") renderizarItens();
   if (nome === "consultar") { buscarClassificacao(); buscarNcm(); }
+  if (nome === "comparar") renderizarPainelComparacao();
 }
 
 async function iniciarApp() {
@@ -783,6 +1033,7 @@ async function iniciarApp() {
   if (salvo?.itens?.length) {
     estado.itens = salvo.itens.map((i) => novoItem(i));
   }
+  await carregarRelacao();
   await aoMudarData();
   listaNcm(dataOp()); // pré-carrega a lista de NCM para o autocompletar
 }
@@ -808,6 +1059,12 @@ function ligarEventos() {
   $("#inp-importar").addEventListener("change", (ev) => { if (ev.target.files[0]) importarItens(ev.target.files[0]); ev.target.value = ""; });
   $("#btn-calcular").addEventListener("click", calcular);
   $("#btn-comparar").addEventListener("click", comparar);
+  for (const sel of Object.values(ladosCmp)) $(sel).addEventListener("change", () => { renderizarPainelComparacao(); salvar(); });
+  $("#btn-editar-nota").addEventListener("click", () => trocarAba("calcular"));
+  $("#cmp-is").addEventListener("input", (ev) => {
+    const it = estado.itens.find((i) => String(i.id) === ev.target.dataset.is);
+    if (it) { it.aliqIS = ev.target.value; salvar(); }
+  });
   $("#btn-csv").addEventListener("click", exportarCsv);
   $("#btn-imprimir").addEventListener("click", () => window.print());
   $("#btn-json").addEventListener("click", () => {

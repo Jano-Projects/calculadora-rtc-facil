@@ -9,6 +9,8 @@ PORTA_MOTOR=18181
 PORTA=18190
 LOGS="$(mktemp -d)"
 
+python3 "$DIR/dev/gerar_relacao_dev.py" "$DB" "$LOGS/relacao.json" >/dev/null
+export CALC_RTC_RELACAO="$LOGS/relacao.json"
 python3 "$DIR/dev/motor_simulado.py" --db "$DB" --porta $PORTA_MOTOR >"$LOGS/motor.log" 2>&1 &
 PID_MOTOR=$!
 bash "$DIR/iniciar.sh" --sem-navegador --porta $PORTA --api-externa "http://127.0.0.1:$PORTA_MOTOR" >"$LOGS/painel.log" 2>&1 &
@@ -26,6 +28,7 @@ for c in "/../app/CalculadoraRTC.java" "/%2e%2e/app/CalculadoraRTC.java" "/..%2f
     curl -fs --path-as-is "$URL$c" >/dev/null 2>&1 && falhar "path traversal permitido: $c"
 done
 curl -fs "$URL/api/calculadora/dados-abertos/ufs" | grep -q '"SP"' || falhar "proxy /api não repassou GET"
+curl -fs "$URL/painel/ncm-classificacoes" | grep -q '"200003"' || falhar "relação NCM × classificação indisponível"
 
 RESP=$(curl -fs -X POST -H 'Content-Type: application/json' "$URL/api/calculadora/observabilidade/regime-geral" -d '{
   "id":"fumaca","versao":"1.0.0","dhFatoGerador":"2026-11-23T12:00:00-03:00","municipio":3533403,"uf":"SP",

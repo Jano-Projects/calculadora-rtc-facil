@@ -72,7 +72,9 @@ def ncm_vinculado(ncm, cltr_id, data):
 
 def ncm_is(ncm, data):
     r = q(f"""select count(*) from NCM_APLICAVEL a join CLASSIFICACAO_TRIBUTARIA c on c.CLTR_ID=a.NCMA_CLTR_ID
-              where c.CLTR_ID=139 and ? like a.NCMA_NCM_CD || '%' and {vigente('a.NCMA', data)}""", ncm)
+              join SITUACAO_TRIBUTARIA s on s.SITR_ID=c.CLTR_SITR_ID
+              where s.SITR_DESCRICAO like '%Imposto Seletivo%' and c.CLTR_CD='000001'
+              and ? like a.NCMA_NCM_CD || '%' and {vigente('a.NCMA', data)}""", ncm)
     return r[0][0] > 0
 
 
@@ -186,6 +188,18 @@ class H(BaseHTTPRequestHandler):
                 if cls and not (cd == "000" and sid != 1):
                     out.append({"id": sid, "codigo": cd, "descricao": desc,
                                 "classificacoesTributarias": [{"codigo": c, "descricao": d} for c, d in cls]})
+            return self.responder(200, out)
+        if p == "/classificacoes-tributarias/cbs-ibs":
+            r = q(f"""select c.CLTR_CD, c.CLTR_DESCRICAO, c.CLTR_NOMENCLATURA,
+                      (select PERE_VALOR from PERCENTUAL_REDUCAO p where p.PERE_CLTR_ID=c.CLTR_ID and p.PERE_TBTO_ID=2 limit 1)
+                      from CLASSIFICACAO_TRIBUTARIA c where {vigente('c.CLTR', data)} order by c.CLTR_ID""")
+            vistos, out = set(), []
+            for cd, desc, nom, red in r:
+                if cd in vistos:
+                    continue
+                vistos.add(cd)
+                out.append({"codigo": cd, "descricao": desc, "nomenclatura": nom,
+                            "possuiPercentualReducao": red is not None, "percentualReducaoCbs": red})
             return self.responder(200, out)
         if p == "/ncm/vigentes":
             r = q(f"select NCM_CD, NCM_DESCRICAO from NCM where length(NCM_CD)=8 and {vigente('NCM', data)}")

@@ -37,6 +37,10 @@ Se qualquer passo falhar, a versão em uso continua ativa e o erro aparece na te
 
 A verificação roda ao iniciar e a cada `CALC_RTC_HORAS_VERIFICACAO` horas (padrão 6). Para fixar uma versão use `--versao 1.7.2`. Para não procurar novidades use `--sem-atualizacao`.
 
+## Sugestões de classificação tributária
+
+Ao subir cada versão do motor, o gerenciador lê do banco oficial a relação entre NCMs e classificações tributárias: a tabela `NCM_APLICAVEL`, com as exceções e o texto dos anexos da LC 214. Ele grava essa relação em `dados/motor/<versão>/ncm-classificacoes.json`, servida em `/painel/ncm-classificacoes`. Para ler o SQLite, usa o driver que já vem dentro do JAR oficial (`BOOT-INF/lib/sqlite-jdbc-*.jar`), então nenhuma dependência extra é baixada. Se algo falhar, a calculadora funciona normalmente, só sem as sugestões.
+
 ## Onde ficam os arquivos
 
 ```
@@ -44,7 +48,7 @@ dados/
 ├── jdk/                       Java 25 portátil
 ├── motor/
 │   ├── atual                  versão em uso
-│   ├── 1.7.2/                 JAR + banco de cada versão instalada
+│   ├── 1.7.2/                 JAR + banco + relação NCM × classificação de cada versão
 │   └── ...
 ├── fontes/                    temporário durante a compilação
 └── logs/
@@ -61,3 +65,4 @@ As dependências do Maven ficam no cache padrão do usuário (`~/.m2`). Para "ze
 | `GET /painel/status` | Estado (`verificando`, `baixando`, `compilando`, `subindo`, `pronto`, `erro`), versão instalada e disponível, última verificação e erro. |
 | `POST /painel/atualizar` | Procura versão nova agora. Se o motor estiver parado, tenta subir de novo. |
 | `GET /painel/log` | Últimas 200 linhas do log mais recente. |
+| `GET /painel/ncm-classificacoes` | Relação NCM × classificação tributária da versão em uso (base das sugestões da tela). |

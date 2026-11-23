@@ -79,4 +79,4 @@ elif ! java_ok "$JDK"; then
 fi
 
 # ---------------------------------------------------------------- inicia o gerenciador
-exec "$JDK/bin/java" -Xshare:auto -Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8 "$DIR/app/CalculadoraRTC.java" --base "$DIR" "$@"
+exec "$JDK/bin/java" -Xshare:auto --enable-native-access=ALL-UNNAMED -Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8 "$DIR/app/CalculadoraRTC.java" --base "$DIR" "$@"

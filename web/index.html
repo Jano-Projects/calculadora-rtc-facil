@@ -47,13 +47,13 @@
   <section id="aba-calcular" class="aba" role="tabpanel">
     <div class="grade">
       <div class="coluna-form">
+        <p class="legenda-escopo">
+          <span class="escopo comum">vale em todas as abas</span> itens e local da operação
+          <span class="escopo local">só nesta aba</span> data e alíquotas
+        </p>
         <fieldset class="bloco">
-          <legend>Operação</legend>
+          <legend>Local da operação <span class="escopo comum">vale em todas as abas</span></legend>
           <div class="campos">
-            <label class="caixa">
-              <span>Data da operação</span>
-              <input type="date" id="op-data" required>
-            </label>
             <label class="caixa">
               <span>UF</span>
               <select id="op-uf"></select>
@@ -63,21 +63,32 @@
               <select id="op-mun"></select>
             </label>
           </div>
+        </fieldset>
+
+        <fieldset class="bloco">
+          <legend>Data do cálculo <span class="escopo local">só nesta aba</span></legend>
+          <div class="campos">
+            <label class="caixa">
+              <span>Data da operação</span>
+              <input type="date" id="op-data" required>
+            </label>
+          </div>
           <p class="fase" id="op-fase"></p>
         </fieldset>
 
         <fieldset class="bloco" id="bloco-aliquotas" hidden>
-          <legend>Alíquotas</legend>
-          <p class="nota">A partir de 2027 a calculadora oficial pede que você informe as alíquotas. Já preenchemos com as alíquotas de referência da base oficial; altere se quiser simular outro cenário.</p>
+          <legend>Alíquotas <span class="escopo local">só nesta aba</span></legend>
+          <p class="nota">A partir de 2027 a calculadora oficial exige que as alíquotas sejam informadas.</p>
           <div class="campos">
             <label class="caixa"><span>CBS (federal) %</span><input type="number" id="aliq-cbs" step="0.0001" min="0"></label>
             <label class="caixa"><span>IBS estadual %</span><input type="number" id="aliq-ibsuf" step="0.0001" min="0"></label>
             <label class="caixa"><span>IBS municipal %</span><input type="number" id="aliq-ibsmun" step="0.0001" min="0"></label>
           </div>
+          <p class="nota" id="aliq-nota"></p>
         </fieldset>
 
         <fieldset class="bloco">
-          <legend>Itens da nota</legend>
+          <legend>Itens da nota <span class="escopo comum">vale em todas as abas</span></legend>
           <div class="acoes-itens">
             <button class="btn" id="btn-add">Adicionar item</button>
             <label class="btn btn-sec seletor">
@@ -121,15 +132,43 @@
   <!-- ============================================================ COMPARAR -->
   <section id="aba-comparar" class="aba" role="tabpanel" hidden>
     <fieldset class="bloco">
-      <legend>Comparar a mesma nota em duas datas</legend>
-      <p class="nota">Usa os itens, a UF e o município da aba "Calcular nota". Escolha duas datas para ver como os tributos novos mudam com a transição.</p>
-      <div class="campos">
-        <label class="caixa"><span>Antes</span><input type="date" id="cmp-a"></label>
-        <label class="caixa"><span>Depois</span><input type="date" id="cmp-b"></label>
-        <button class="btn btn-grande" id="btn-comparar">Comparar</button>
+      <legend>Nota comparada <span class="escopo comum">vem da aba Calcular nota</span></legend>
+      <div class="resumo-nota">
+        <p id="cmp-resumo">—</p>
+        <button class="btn btn-sec" id="btn-editar-nota">Editar itens e local</button>
       </div>
-      <p class="calc-status" id="cmp-status" aria-live="polite"></p>
+      <details id="cmp-itens-det">
+        <summary>Ver os itens</summary>
+        <div class="tabela-rolagem"><table id="cmp-itens"></table></div>
+      </details>
     </fieldset>
+
+    <fieldset class="bloco">
+      <legend>Datas e alíquotas <span class="escopo local">só nesta aba</span></legend>
+      <div class="cmp-datas">
+        <div class="cmp-data" data-lado="a">
+          <h3>Antes</h3>
+          <label class="caixa"><span>Data</span><input type="date" id="cmp-a"></label>
+          <div class="cmp-aliq" hidden></div>
+        </div>
+        <div class="cmp-data" data-lado="b">
+          <h3>Depois</h3>
+          <label class="caixa"><span>Data</span><input type="date" id="cmp-b"></label>
+          <div class="cmp-aliq" hidden></div>
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset class="bloco" id="cmp-bloco-is" hidden>
+      <legend>Imposto Seletivo <span class="escopo comum">vale em todas as abas</span></legend>
+      <p class="nota">Estes itens pagam Imposto Seletivo a partir de 2027. A lei ainda não definiu as alíquotas, então informe uma estimativa. O valor fica guardado no item e vale também na aba Calcular nota.</p>
+      <div class="campos" id="cmp-is"></div>
+    </fieldset>
+
+    <div class="calcular-barra">
+      <button class="btn btn-grande" id="btn-comparar">Comparar</button>
+      <span class="calc-status" id="cmp-status" aria-live="polite"></span>
+    </div>
     <div id="cmp-resultado"></div>
     <aside class="aviso-leitura">
       <h3>Como ler a comparação</h3>
@@ -160,7 +199,8 @@
     <h2>Como usar</h2>
     <ol>
       <li>Em <strong>Operação</strong>, escolha a data e o local da venda. A data define as regras aplicadas: 2026 é o ano de teste, e a CBS passa a valer de verdade em 2027.</li>
-      <li>Adicione os itens. Para cada um, informe o <strong>NCM</strong> (produto) ou a <strong>NBS</strong> (serviço), a <strong>classificação tributária</strong>, o valor e a quantidade. Comece por um exemplo se preferir.</li>
+      <li>Adicione os itens. Para cada um, informe o <strong>NCM</strong> (produto) ou a <strong>NBS</strong> (serviço), o valor e a quantidade. Abaixo do item aparecem as <strong>classificações tributárias vinculadas ao NCM</strong> na base oficial, com o trecho do anexo da lei; é só clicar na que corresponde à operação. Comece por um exemplo se preferir.</li>
+      <li>Os <strong>itens</strong> e o <strong>local</strong> valem em todas as abas (marcados como <span class="escopo comum">vale em todas as abas</span>). A <strong>data</strong> e as <strong>alíquotas</strong> são de cada aba (<span class="escopo local">só nesta aba</span>): a nota pode estar em 2026 no cálculo e ser comparada com 2027 sem mudar nada.</li>
       <li>Clique em <strong>Calcular tributos</strong>. O cupom mostra o total de CBS, IBS e Imposto Seletivo, e o detalhamento mostra a conta de cada item.</li>
     </ol>
 
@@ -178,7 +218,8 @@
 
     <h2>Avisos importantes</h2>
     <ul>
-      <li>A partir de 2027, as alíquotas da CBS e do IBS precisam ser informadas. Os resultados aparecem como <em>cálculo simulado</em> até que as alíquotas definitivas sejam publicadas.</li>
+      <li>A partir de 2027, as alíquotas da CBS e do IBS precisam ser informadas, e os resultados aparecem como <em>cálculo simulado</em>. A base oficial ainda não traz alíquotas de referência para esses anos. Por isso a tela preenche estimativas e avisa quando faz isso: CBS de 8,8%, como no exemplo da documentação oficial, e IBS de 0,05% + 0,05% em 2027 e 2028, valores fixados pela Emenda Constitucional 132.</li>
+      <li>As sugestões de classificação tributária vêm da base oficial: são as classificações às quais o NCM está vinculado nos anexos da LC 214. A escolha certa depende também da operação (quem compra, para quê). Em caso de dúvida, confira na NF-e do fornecedor (campo cClassTrib) ou com o contador.</li>
       <li>As alíquotas reais do Imposto Seletivo ainda dependem de lei. Os valores dos exemplos são ilustrativos.</li>
       <li>Esta ferramenta serve para estudo e conferência. Ela não substitui a orientação de um contador.</li>
     </ul>
@@ -210,8 +251,9 @@
       <label class="caixa estreita"><span>Unidade</span>
         <select data-c="unidade"><option>UN</option><option>KG</option><option>LT</option><option>M3</option><option>VN</option></select>
       </label>
-      <label class="caixa estreita is" hidden><span>Imposto Seletivo %</span><input data-c="aliqIS" type="number" step="0.01" min="0"></label>
+      <label class="caixa estreita is" hidden><span>Imposto Seletivo % (a partir de 2027)</span><input data-c="aliqIS" type="number" step="0.01" min="0" placeholder="estimativa"></label>
     </div>
+    <div class="assistente-class" aria-live="polite"></div>
     <button class="remover" title="Remover item" aria-label="Remover item">×</button>
   </div>
 </template>

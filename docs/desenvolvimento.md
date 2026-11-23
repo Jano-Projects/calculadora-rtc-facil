@@ -8,6 +8,7 @@ app/CalculadoraRTC.java                         gerenciador: atualização, moto
 web/                                            front-end (HTML, CSS e JS puros, sem build)
 dev/motor_simulado.py                           motor falso para trabalhar no front sem compilar o oficial
 dev/gerar_banco_dev.sh                          gera o banco SQLite a partir dos scripts oficiais
+dev/gerar_relacao_dev.py                        gera a relação NCM × classificação a partir desse banco
 .github/workflows/                              CI
 ```
 
@@ -19,11 +20,14 @@ Não há etapa de build: o Java roda direto do código-fonte (`java app/Calculad
 # 1. banco de desenvolvimento (precisa de git e sqlite3)
 bash dev/gerar_banco_dev.sh /tmp/calc-dev.db
 
-# 2. motor simulado (contas aproximadas, mas com os códigos e as alíquotas reais da base)
+# 2. relação NCM × classificação (as sugestões da tela)
+python3 dev/gerar_relacao_dev.py /tmp/calc-dev.db /tmp/ncm-classificacoes.json
+
+# 3. motor simulado (contas aproximadas, mas com os códigos e as alíquotas reais da base)
 python3 dev/motor_simulado.py --db /tmp/calc-dev.db --porta 18080
 
-# 3. painel usando o motor simulado
-bash iniciar.sh --api-externa http://127.0.0.1:18080
+# 4. painel usando o motor simulado
+CALC_RTC_RELACAO=/tmp/ncm-classificacoes.json bash iniciar.sh --api-externa http://127.0.0.1:18080
 ```
 
 Edite os arquivos em `web/` e recarregue o navegador.

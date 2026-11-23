@@ -36,7 +36,7 @@ public class CalculadoraRTC {
 
     // ------------------------------------------------------------------ configuração
     static final String REPO_PADRAO = "https://github.com/ReceitaFederal/calculadora-rtc-regime-regular";
-    static final String VERSAO_PAINEL = "1.0.0";
+    static final String VERSAO_PAINEL = "1.1.0";
 
     static Path base, dados, dirWeb, dirMotores, dirFontes, dirLogs;
     static String repo = env("CALC_RTC_REPO", REPO_PADRAO);
@@ -303,8 +303,9 @@ public class CalculadoraRTC {
     static void trocarMotor(String versao) throws Exception {
         boolean primeira = motor == null;
         definirSe(primeira, "subindo", "Iniciando o motor de cálculo " + versao + "...");
-        int porta = portaLivre();
         Path dir = dirMotores.resolve(versao);
+        if (!Files.exists(dir.resolve(ARQ_RELACAO))) gerarRelacaoNcm(dir);
+        int porta = portaLivre();
         Path log = dirLogs.resolve("motor.log");
         ultimoLog.set(log);
         List<String> cmd = List.of(javaExe(), "-Xms128m", "-Dspring.profiles.active=offline",
@@ -356,6 +357,113 @@ public class CalculadoraRTC {
         } catch (Exception e) {
             return "cálculo de teste falhou: " + descrever(e);
         }
+    }
+
+    // ================================================================== relação NCM × classificação
+    static final String ARQ_RELACAO = "ncm-classificacoes.json";
+
+    /**
+     * Lê do banco oficial a relação "quais NCMs estão vinculados a cada classificação tributária"
+     * (tabela NCM_APLICAVEL, com o texto do anexo da LC 214) e grava em JSON para o front sugerir
+     * a classificação de cada item. Usa o driver SQLite que já vem dentro do JAR oficial, então
+     * a relação acompanha cada versão instalada. Se falhar, a calculadora funciona sem as sugestões.
+     */
+    static void gerarRelacaoNcm(Path dirMotor) {
+        Path jar = dirMotor.resolve("api-regime-geral.jar");
+        Path db = dirMotor.resolve("calculadora/db/calculadora-pro.db");
+        Path dirDriver = dirMotor.resolve("driver-sqlite");
+        try {
+            // O driver SQLite e a biblioteca de log que ele usa (slf4j-api) vêm dentro do JAR oficial
+            List<URL> urls = new ArrayList<>();
+            Files.createDirectories(dirDriver);
+            try (ZipFile z = new ZipFile(jar.toFile())) {
+                for (ZipEntry e : Collections.list(z.entries())) {
+                    String n = e.getName();
+                    if (!n.matches("BOOT-INF/lib/(sqlite-jdbc|slf4j-api)-[^/]*\\.jar")) continue;
+                    Path destino = dirDriver.resolve(n.substring(n.lastIndexOf('/') + 1));
+                    try (InputStream in = z.getInputStream(e)) {
+                        Files.copy(in, destino, StandardCopyOption.REPLACE_EXISTING);
+                    }
+                    urls.add(destino.toUri().toURL());
+                }
+            }
+            if (urls.stream().noneMatch(u -> u.getPath().contains("sqlite-jdbc"))) {
+                throw new IOException("driver SQLite não encontrado no JAR oficial");
+            }
+            String json;
+            PrintStream errOriginal = System.err; // o driver e o slf4j escrevem avisos sem importância no terminal
+            System.setErr(new PrintStream(OutputStream.nullOutputStream()));
+            try (URLClassLoader cl = new URLClassLoader(urls.toArray(URL[]::new), CalculadoraRTC.class.getClassLoader())) {
+                java.sql.Driver driver = (java.sql.Driver) Class.forName("org.sqlite.JDBC", true, cl).getDeclaredConstructor().newInstance();
+                Properties props = new Properties();
+                props.setProperty("open_mode", "1"); // somente leitura
+                try (java.sql.Connection c = driver.connect("jdbc:sqlite:" + db.toAbsolutePath(), props)) {
+                    json = montarRelacaoJson(c);
+                }
+            } finally {
+                System.setErr(errOriginal);
+            }
+            Files.writeString(dirMotor.resolve(ARQ_RELACAO), json, StandardCharsets.UTF_8);
+            log("Relação NCM × classificação tributária gerada para as sugestões da tela.");
+        } catch (Throwable t) {
+            log("Aviso: não foi possível gerar as sugestões de classificação (" + descrever(t) + "). A calculadora funciona normalmente sem elas.");
+        }
+    }
+
+    static String montarRelacaoJson(java.sql.Connection c) throws java.sql.SQLException {
+        StringBuilder sb = new StringBuilder("{\"regras\":[");
+        // Só classificações de CBS/IBS (o Imposto Seletivo tem classificações próprias com os mesmos códigos)
+        String sqlRegras = """
+                select a.NCMA_ID, a.NCMA_NCM_CD, c.CLTR_CD, a.NCMA_INICIO_VIGENCIA, a.NCMA_FIM_VIGENCIA, a.NCMA_ANXO_ID
+                from NCM_APLICAVEL a join CLASSIFICACAO_TRIBUTARIA c on c.CLTR_ID = a.NCMA_CLTR_ID
+                where exists (select 1 from TRIBUTO_SITUACAO_TRIBUTARIA t
+                              where t.TRST_SITR_ID = c.CLTR_SITR_ID and t.TRST_TBTO_ID = 2)
+                order by a.NCMA_NCM_CD""";
+        Set<Long> anexosUsados = new TreeSet<>();
+        try (var st = c.createStatement(); var rs = st.executeQuery(sqlRegras)) {
+            boolean primeiro = true;
+            while (rs.next()) {
+                long anexo = rs.getLong(6);
+                boolean temAnexo = !rs.wasNull();
+                if (temAnexo) anexosUsados.add(anexo);
+                sb.append(primeiro ? "" : ",").append('[').append(rs.getLong(1)).append(',').append(q(rs.getString(2)))
+                        .append(',').append(q(rs.getString(3))).append(',').append(q(dataCurta(rs.getString(4))))
+                        .append(',').append(q(dataCurta(rs.getString(5)))).append(',').append(temAnexo ? anexo : "null").append(']');
+                primeiro = false;
+            }
+        }
+        sb.append("],\"excecoes\":[");
+        try (var st = c.createStatement(); var rs = st.executeQuery(
+                "select ENCM_NCMA_ID, ENCM_NCM_CD, ENCM_INICIO_VIGENCIA, ENCM_FIM_VIGENCIA from EXCECAO_NCM_APLICAVEL")) {
+            boolean primeiro = true;
+            while (rs.next()) {
+                sb.append(primeiro ? "" : ",").append('[').append(rs.getLong(1)).append(',').append(q(rs.getString(2)))
+                        .append(',').append(q(dataCurta(rs.getString(3)))).append(',').append(q(dataCurta(rs.getString(4)))).append(']');
+                primeiro = false;
+            }
+        }
+        sb.append("],\"anexos\":{");
+        try (var st = c.createStatement(); var rs = st.executeQuery(
+                "select ANXO_ID, ANXO_NUMERO, ANXO_NUMERO_ITEM, ANXO_TEXTO_ITEM from ANEXO")) {
+            boolean primeiro = true;
+            while (rs.next()) {
+                if (!anexosUsados.contains(rs.getLong(1))) continue;
+                sb.append(primeiro ? "" : ",").append(q(String.valueOf(rs.getLong(1)))).append(":[")
+                        .append(q(rs.getString(2))).append(',').append(q(rs.getString(3))).append(',').append(q(rs.getString(4))).append(']');
+                primeiro = false;
+            }
+        }
+        return sb.append("}}").toString();
+    }
+
+    static String dataCurta(String s) {
+        return s == null ? null : s.length() >= 10 ? s.substring(0, 10) : s;
+    }
+
+    static Path arquivoRelacao() {
+        String dev = env("CALC_RTC_RELACAO", null); // desenvolvimento com motor externo/simulado
+        if (dev != null) return Paths.get(dev);
+        return versaoInstalada == null ? null : dirMotores.resolve(versaoInstalada).resolve(ARQ_RELACAO);
     }
 
     static boolean respondendo(int porta) {
@@ -551,6 +659,15 @@ public class CalculadoraRTC {
                     if (!parado && (semAtualizacao || versaoFixa != null)) { responderJson(ex, 409, "{\"erro\":\"atualização automática desativada\"}"); return; }
                     if (!atualizando) agendador.execute(parado ? CalculadoraRTC::prepararNaInicializacao : () -> verificarEAtualizar(false));
                     responderJson(ex, 202, statusJson());
+                }
+                case "/painel/ncm-classificacoes" -> {
+                    Path a = arquivoRelacao();
+                    if (a == null || !Files.isRegularFile(a)) { responderJson(ex, 404, "{\"erro\":\"relação indisponível\"}"); return; }
+                    byte[] b = Files.readAllBytes(a);
+                    ex.getResponseHeaders().set("Content-Type", "application/json; charset=utf-8");
+                    ex.getResponseHeaders().set("Cache-Control", "no-cache");
+                    ex.sendResponseHeaders(200, b.length);
+                    ex.getResponseBody().write(b);
                 }
                 case "/painel/log" -> {
                     Path l = ultimoLog.get();

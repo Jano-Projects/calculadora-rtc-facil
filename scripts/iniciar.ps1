@@ -85,7 +85,7 @@ elseif (-not (Test-Jdk $Jdk)) {
 # ---------------------------------------------------------------- inicia o gerenciador
 $java = Join-Path $Jdk 'bin\java.exe'
 $app = Join-Path $Dir 'app\CalculadoraRTC.java'
-$argumentos = @('-Dfile.encoding=UTF-8', '-Dstdout.encoding=UTF-8', $app, '--base', $Dir)
+$argumentos = @('--enable-native-access=ALL-UNNAMED', '-Dfile.encoding=UTF-8', '-Dstdout.encoding=UTF-8', $app, '--base', $Dir)
 if ($Resto.Count -gt 0) { $argumentos += $Resto }
 & $java @argumentos
 # 130 / -1073741510 = encerrada com Ctrl+C (normal)

@@ -276,3 +276,50 @@ tfoot td { font-weight: 700; border-bottom: 0; }
   .cupom { filter: none; -webkit-mask: none; mask: none; border: 1px dashed #999; max-width: 380px; }
   main { padding: 0; }
 }
+
+/* ---------------------------------------------------------------- escopo dos dados (o que vale em todas as abas × só nesta) */
+.escopo {
+  display: inline-block; font-size: .7rem; font-weight: 500; padding: .05rem .5rem; border-radius: 999px;
+  vertical-align: middle; margin-left: .35rem; white-space: nowrap;
+}
+.escopo.comum { background: #E6EEF7; color: #24507A; border: 1px solid #B9CDE3; }
+.escopo.local { background: var(--papel); color: var(--tinta-2); border: 1px dashed var(--regua-forte); }
+.legenda-escopo { font-size: .85rem; color: var(--tinta-2); margin: 0 0 1rem; display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .4rem; }
+.legenda-escopo .escopo { margin-left: 0; }
+.legenda-escopo .escopo.local { margin-left: .75rem; }
+
+/* ---------------------------------------------------------------- assistente de classificação do item */
+.assistente-class { grid-column: 2 / 3; font-size: .84rem; }
+.assistente-class:empty { display: none; }
+.assistente-class p { margin: .1rem 0 .35rem; color: var(--tinta-2); }
+.assistente-class p.alerta-class { color: var(--erro); }
+.assistente-class p.ok-class { color: var(--fiscal); }
+.sugs { display: flex; flex-wrap: wrap; gap: .35rem; }
+.sug {
+  font: inherit; font-size: .8rem; text-align: left; cursor: pointer; max-width: 100%;
+  border: 1px solid var(--regua-forte); background: var(--branco); color: var(--tinta);
+  border-radius: var(--raio); padding: .25rem .55rem; line-height: 1.3;
+}
+.sug:hover { border-color: var(--fiscal); }
+.sug[aria-pressed="true"] { border-color: var(--fiscal); background: var(--fiscal-claro); box-shadow: inset 3px 0 0 var(--fiscal); }
+.sug code { font-family: var(--mono); font-weight: 700; margin-right: .3rem; }
+.sug .red { color: var(--fiscal); font-weight: 600; white-space: nowrap; }
+.sug .anexo { display: block; color: var(--tinta-2); font-size: .76rem; }
+
+/* ---------------------------------------------------------------- comparar: nota, datas e alíquotas */
+.resumo-nota { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.resumo-nota p { margin: 0; font-size: 1.02rem; }
+#cmp-itens-det { margin-top: .75rem; }
+#cmp-itens-det summary { cursor: pointer; color: var(--fiscal); }
+#cmp-itens-det .tabela-rolagem { margin-top: .5rem; }
+.cmp-datas { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
+.cmp-data { border: 1px solid var(--regua); border-radius: var(--raio); padding: .75rem; }
+.cmp-data h3 { margin: 0 0 .5rem; font-size: .95rem; }
+.cmp-aliq { margin-top: .6rem; }
+.cmp-aliq .campos { margin-top: .35rem; }
+.cmp-aliq .nota { margin: .25rem 0 0; font-size: .8rem; }
+.cmp-sem-aliq { font-size: .82rem; color: var(--tinta-2); margin: .5rem 0 0; }
+.item > .item-num { grid-column: 1; grid-row: 1; }
+.item > .remover { grid-column: 3; grid-row: 1; }
+.item > .assistente-class { grid-row: 2; }
+.link-btn { font: inherit; background: none; border: 0; padding: 0; color: var(--fiscal); text-decoration: underline; cursor: pointer; margin-left: .35rem; }
