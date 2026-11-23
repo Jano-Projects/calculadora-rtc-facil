@@ -1,5 +1,7 @@
 # Guia de uso
 
+> Antes de usar os resultados, leia os [pontos de atenção](pontos-de-atencao.md). Para entender CBS, IBS, Imposto Seletivo e o cronograma, veja [entenda a reforma](entenda-a-reforma.md).
+
 ## A tela
 
 | Aba | Para que serve |
@@ -37,7 +39,7 @@ Na tela, esses dados aparecem com os selos **vale em todas as abas** e **só nes
 | Classificação tributária | O `cClassTrib`. Define o tratamento, por exemplo `000001` tributação integral, `200003` cesta básica (redução de 100%) ou `200035` higiene e limpeza (redução de 60%). O CST é preenchido automaticamente. Veja como escolher logo abaixo. |
 | Valor | Valor do item (base de cálculo). |
 | Quantidade e unidade | Opcionais para a maioria dos itens. |
-| Imposto Seletivo % | Aparece só a partir de 2027 e só para produtos sujeitos ao IS (bebidas açucaradas, alcoólicas, cigarros, veículos...). As alíquotas definitivas ainda dependem de lei. Quando a base oficial não tem um valor, informe uma estimativa. |
+| Imposto Seletivo % (a partir de 2027) | Aparece só nos produtos sujeitos ao IS (bebidas açucaradas e alcoólicas, cigarros, veículos...), mesmo com a data em 2026, porque é usado na comparação com 2027. As alíquotas de 2027 estão na MP 1.399/2026 e variam por produto: veja a [tabela](entenda-a-reforma.md#imposto-seletivo-em-2027). |
 
 ### Como escolher a classificação tributária
 

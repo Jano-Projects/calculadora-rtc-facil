@@ -408,7 +408,7 @@ async function atualizarDescricaoCodigo(el, it) {
     }
     caixaIS.title = anoDe(d) < ANO_ALIQ_OBRIGATORIA
       ? "Não entra no cálculo desta data (o Imposto Seletivo começa em 2027), mas é usado na aba Comparar datas."
-      : "Alíquota do Imposto Seletivo: a lei ainda não definiu, informe uma estimativa.";
+      : "Alíquota do Imposto Seletivo do produto. Para 2027, veja a MP 1.399/2026 (ex.: bebidas açucaradas 2,6%, cerveja de malte 4,2%).";
   }
 }
 
@@ -614,7 +614,7 @@ async function montarOperacao(data, opcoes = {}) {
           let a = num(it.aliqIS);
           if (a === null && det.aliquotaAdValorem !== null && det.aliquotaAdValorem !== undefined) a = Number(det.aliquotaAdValorem);
           if (a === null) {
-            erros.push(`${rot}: este produto paga Imposto Seletivo a partir de 2027. Informe uma alíquota estimada no campo "Imposto Seletivo %" do item (a lei ainda não definiu o valor).`);
+            erros.push(`${rot}: este produto paga Imposto Seletivo a partir de 2027. Informe a alíquota no campo "Imposto Seletivo %" do item (para 2027, veja a MP 1.399/2026: bebidas açucaradas 2,6%, cerveja de malte 4,2%...).`);
           } else if (valor !== null) {
             const imposto = arred2(valor * a / 100);
             delete item.baseCalculo; // a calculadora soma base do IS + IS para chegar à base de CBS/IBS
@@ -870,7 +870,7 @@ async function comparar() {
       }
       const { erros, operacao } = await montarOperacao(d, { aliquotas });
       if (erros.length) {
-        const msg = erros[0].replace(`no campo "Imposto Seletivo %" do item`, `no quadro "Imposto Seletivo", acima`);
+        const msg = erros[0].replace(`no campo "Imposto Seletivo %" do item`, `no quadro "Imposto Seletivo", acima,`);
         throw new Error(`Em ${fmtData(d)}: ${msg}`);
       }
       const r = await api("/observabilidade/regime-geral", { method: "POST", body: JSON.stringify(operacao) });

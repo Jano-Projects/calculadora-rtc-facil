@@ -1,5 +1,17 @@
 # Mudanças
 
+## 1.2.0 — 2026-11-23
+
+### Documentação
+- **Novo: [Pontos de atenção](docs/pontos-de-atencao.md).** Treze situações em que o resultado pode enganar, cada uma com o que fazer. Entre elas: o cupom mostra só os tributos novos; a comparação 2026 × 2027 não é aumento de preço; os valores de 2026 são de teste; as alíquotas de 2027 em diante são estimativas; a classificação depende da operação; itens com erro ficam fora do total; a versão do motor muda resultados.
+- **Novo: [Entenda a reforma](docs/entenda-a-reforma.md).** Os tributos, o cronograma de 2026 a 2033, os benefícios por anexo, o Imposto Seletivo de 2027 e um glossário dos termos da tela.
+- **Novo: [Diferenças que confundem](docs/diferencas.md).** Comparações lado a lado, como calculado × simulado, redução de 100% × imunidade × isenção, NCM × NBS, CST × cClassTrib e o que vale em todas as abas × o que é de cada aba.
+- **Novo: [Perguntas frequentes](docs/perguntas-frequentes.md).**
+- README e aba *Ajuda* destacam os pontos de atenção antes do uso.
+
+### Imposto Seletivo
+- Textos da tela e exemplos atualizados com as alíquotas de 2027 da **Medida Provisória 1.399/2026** (bebidas açucaradas 2,6%, cerveja de malte 4,2%…) e com o início da cobrança em 2 de fevereiro de 2027. Antes, a tela dizia que a lei ainda não havia definido as alíquotas, e os exemplos usavam 10%.
+
 ## 1.1.0 — 2026-11-23
 
 ### Novidades

@@ -86,7 +86,16 @@ Variáveis de ambiente: `CALC_RTC_PORTA`, `CALC_RTC_HORAS_VERIFICACAO` (0 deslig
 
 ## Documentação
 
+> **Antes de usar os resultados, leia os [pontos de atenção](docs/pontos-de-atencao.md).** O cupom mostra só os tributos novos, a comparação 2026 × 2027 não é aumento de preço, e de 2027 em diante as alíquotas são estimativas.
+
+**Para quem usa**
+- [Pontos de atenção](docs/pontos-de-atencao.md): o que pode enganar nos resultados e o que fazer.
+- [Entenda a reforma](docs/entenda-a-reforma.md): CBS, IBS, Imposto Seletivo, cronograma de 2026 a 2033 e glossário.
+- [Diferenças que confundem](docs/diferencas.md): calculado × simulado, redução × imunidade × isenção, NCM × NBS, CST × cClassTrib e outras.
+- [Perguntas frequentes](docs/perguntas-frequentes.md).
 - [Guia de uso](docs/guia-de-uso.md): a tela, os campos e como ler o resultado.
+
+**Técnico**
 - [Como funciona](docs/como-funciona.md): a arquitetura, o processo de atualização e onde ficam os arquivos.
 - [Solução de problemas](docs/solucao-de-problemas.md): o que fazer quando algo não abre.
 - [Desenvolvimento](docs/desenvolvimento.md): como contribuir, testar com o motor simulado e a CI.

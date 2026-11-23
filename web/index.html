@@ -161,7 +161,7 @@
 
     <fieldset class="bloco" id="cmp-bloco-is" hidden>
       <legend>Imposto Seletivo <span class="escopo comum">vale em todas as abas</span></legend>
-      <p class="nota">Estes itens pagam Imposto Seletivo a partir de 2027. A lei ainda não definiu as alíquotas, então informe uma estimativa. O valor fica guardado no item e vale também na aba Calcular nota.</p>
+      <p class="nota">Estes itens pagam Imposto Seletivo a partir de 2027. As alíquotas de 2027 estão na Medida Provisória 1.399/2026 e variam por produto (bebidas açucaradas 2,6%, cerveja de malte 4,2%, vinhos 8%, destilados 24%…). Pela MP, a cobrança começa em 2 de fevereiro de 2027. O valor fica guardado no item e vale também na aba Calcular nota.</p>
       <div class="campos" id="cmp-is"></div>
     </fieldset>
 
@@ -216,11 +216,25 @@
       <a class="btn btn-sec" href="/api/swagger-ui.html" target="_blank">Abrir a API (Swagger)</a>
     </p>
 
+    <h2>Antes de usar os resultados</h2>
+    <ul>
+      <li>O resultado mostra <strong>só os tributos novos</strong> (CBS, IBS e Imposto Seletivo). PIS, Cofins, ICMS, ISS e IPI não aparecem, então o total não é o imposto do produto nem a variação de preço.</li>
+      <li>Em 2027 a CBS <strong>substitui</strong> o PIS e a Cofins. O salto que aparece entre 2026 e 2027 é essa troca, e não um aumento de preço. O que é novo de verdade é o Imposto Seletivo.</li>
+      <li>Em 2026 os valores são <strong>de teste</strong>: são destacados na nota, mas compensados com PIS/Cofins por quem cumpre as obrigações acessórias.</li>
+      <li>A classificação tributária depende da <strong>operação</strong> (quem vende, para quem, para quê), e não só do produto.</li>
+      <li>Itens com erro <strong>ficam fora do total</strong>. Confira a coluna Situação.</li>
+      <li>Anote a <strong>versão do motor</strong> ao registrar uma conferência: versões novas da Receita podem mudar resultados.</li>
+    </ul>
+    <p>Explicação completa de cada ponto: <a href="https://github.com/Jano-Projects/calculadora-rtc-facil/blob/main/docs/pontos-de-atencao.md" target="_blank" rel="noopener">pontos de atenção</a>,
+      <a href="https://github.com/Jano-Projects/calculadora-rtc-facil/blob/main/docs/entenda-a-reforma.md" target="_blank" rel="noopener">entenda a reforma</a>,
+      <a href="https://github.com/Jano-Projects/calculadora-rtc-facil/blob/main/docs/diferencas.md" target="_blank" rel="noopener">diferenças que confundem</a> e
+      <a href="https://github.com/Jano-Projects/calculadora-rtc-facil/blob/main/docs/perguntas-frequentes.md" target="_blank" rel="noopener">perguntas frequentes</a>.</p>
+
     <h2>Avisos importantes</h2>
     <ul>
       <li>A partir de 2027, as alíquotas da CBS e do IBS precisam ser informadas, e os resultados aparecem como <em>cálculo simulado</em>. A base oficial ainda não traz alíquotas de referência para esses anos. Por isso a tela preenche estimativas e avisa quando faz isso: CBS de 8,8%, como no exemplo da documentação oficial, e IBS de 0,05% + 0,05% em 2027 e 2028, valores fixados pela Emenda Constitucional 132.</li>
       <li>As sugestões de classificação tributária vêm da base oficial: são as classificações às quais o NCM está vinculado nos anexos da LC 214. A escolha certa depende também da operação (quem compra, para quê). Em caso de dúvida, confira na NF-e do fornecedor (campo cClassTrib) ou com o contador.</li>
-      <li>As alíquotas reais do Imposto Seletivo ainda dependem de lei. Os valores dos exemplos são ilustrativos.</li>
+      <li>As alíquotas do Imposto Seletivo de 2027 foram fixadas pela Medida Provisória 1.399/2026, que ainda precisa virar lei. Pela MP, a cobrança começa em 2 de fevereiro de 2027. Os exemplos usam essas alíquotas e preços fictícios.</li>
       <li>Esta ferramenta serve para estudo e conferência. Ela não substitui a orientação de um contador.</li>
     </ul>
   </section>

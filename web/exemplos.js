@@ -1,5 +1,6 @@
 /* Exemplos prontos. Os códigos (NCM × cClassTrib) foram conferidos na base oficial da calculadora.
- * Os preços são estimativas de mercado; troque pelos seus. */
+ * Os preços são estimativas de mercado; troque pelos seus.
+ * Imposto Seletivo: alíquotas de 2027 da MP 1.399/2026 (bebidas açucaradas 2,6%; cerveja de malte 4,2%). */
 window.EXEMPLOS = {
   cesta: {
     nome: "Cesta básica completa",
@@ -43,8 +44,8 @@ window.EXEMPLOS = {
       ["Creme dental 90 g", "33061000", "200035", 4.99, 1, "UN"],
       ["Sabonete", "34011190", "200035", 2.49, 1, "UN"],
       ["Papel higiênico 12 rolos", "48181000", "200035", 21.90, 12, "UN"],
-      ["Refrigerante 2 L", "22021000", "000001", 10.00, 2, "LT", 10],
-      ["Cerveja 12 latas 350 ml", "22030000", "000001", 42.00, 4.2, "LT", 10]
+      ["Refrigerante 2 L", "22021000", "000001", 10.00, 2, "LT", 2.6],
+      ["Cerveja 12 latas 350 ml", "22030000", "000001", 42.00, 4.2, "LT", 4.2]
     ]
   },
   oficial: {
@@ -52,7 +53,7 @@ window.EXEMPLOS = {
     local: { uf: "RS", municipio: 4314902 },
     itens: [
       ["Arroz (cesta básica)", "10063021", "200003", 100.00, 20, "KG"],
-      ["Cerveja (com Imposto Seletivo)", "22030000", "000001", 150.00, 12, "LT", 10],
+      ["Cerveja (com Imposto Seletivo)", "22030000", "000001", 150.00, 12, "LT", 4.2],
       ["Serviço de educação", "122011200", "200028", 1200.00, null, null, null, "nbs"]
     ]
   }
