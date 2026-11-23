@@ -269,6 +269,9 @@ public class CalculadoraRTC {
         Path mvnw = raiz.resolve(windows() ? "mvnw.cmd" : "mvnw");
         if (!Files.exists(mvnw)) throw new IOException("o pacote baixado não contém o Maven Wrapper (" + mvnw.getFileName() + ")");
         mvnw.toFile().setExecutable(true);
+        // O repositório oficial guarda o mvnw.cmd com quebras de linha LF. Quem clona com o Git para Windows
+        // recebe CRLF, mas o ZIP do GitHub vem com LF, e o cmd.exe se perde nos "goto" e nas linhas com "^".
+        if (windows()) converterParaCrlf(raiz);
         executar(raiz, log, List.of("flyway:migrate", "-Dflyway.configFiles=./flyway/flyway-pro.conf", "--batch-mode", "--errors"));
         Path db = raiz.resolve("calculadora/db/calculadora-pro.db");
         if (tamanho(db) <= 0) throw new IOException("o banco de dados não foi gerado (veja " + log + ")");
@@ -412,8 +415,25 @@ public class CalculadoraRTC {
             throw new IOException("o Maven demorou demais (veja " + log + ")");
         }
         if (p.exitValue() != 0) {
+            log("Últimas linhas de " + log.getFileName() + ":\n" + ultimasLinhas(log, 25));
             throw new IOException("falha ao executar 'mvnw " + String.join(" ", argsMaven.subList(0, 1))
                     + "' (código " + p.exitValue() + "). Detalhes em " + log);
+        }
+    }
+
+    /** Converte as quebras de linha de todos os .cmd e .bat da pasta para CRLF (exigência do cmd.exe). */
+    static void converterParaCrlf(Path raiz) throws IOException {
+        List<Path> scripts;
+        try (Stream<Path> s = Files.walk(raiz)) {
+            scripts = s.filter(Files::isRegularFile).filter(p -> {
+                String n = p.getFileName().toString().toLowerCase(Locale.ROOT);
+                return n.endsWith(".cmd") || n.endsWith(".bat");
+            }).toList();
+        }
+        for (Path p : scripts) {
+            String texto = Files.readString(p, StandardCharsets.ISO_8859_1); // preserva os bytes como estão
+            String crlf = texto.replace("\r\n", "\n").replace("\n", "\r\n");
+            if (!crlf.equals(texto)) Files.writeString(p, crlf, StandardCharsets.ISO_8859_1);
         }
     }
 
