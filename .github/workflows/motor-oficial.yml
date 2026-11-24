@@ -76,7 +76,7 @@ jobs:
     steps:
       - name: Pacotes que já vêm numa instalação desktop
         run: ${{ matrix.preparar }}
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Instalar a última versão oficial e calcular
         run: bash iniciar.sh --instalar-e-sair
       - name: Logs
@@ -89,7 +89,7 @@ jobs:
     if: needs.verificar.outputs.testar == 'true'
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Instalar a última versão oficial e calcular
         shell: cmd
         run: call iniciar.bat --instalar-e-sair
@@ -104,7 +104,7 @@ jobs:
     if: needs.verificar.outputs.testar == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
