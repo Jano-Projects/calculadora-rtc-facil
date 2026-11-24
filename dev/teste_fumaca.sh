@@ -44,3 +44,8 @@ assert cbs(1) == 0.0, "cesta básica deveria ter CBS zero"
 assert cbs(2) == 0.9, "item integral em 2026 deveria ter CBS de 0,9%%"
 ' || falhar "valores inesperados"
 echo "Teste de fumaça OK"
+
+# Com TESTE_TELA=1, também usa a tela num navegador sem janela (requer o Playwright para Python)
+if [[ "${TESTE_TELA:-0}" == "1" ]]; then
+    python3 "$DIR/dev/teste_tela.py" "$URL" || falhar "teste de tela"
+fi

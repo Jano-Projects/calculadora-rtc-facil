@@ -110,12 +110,38 @@ def calcular(op):
                                      f"#/itens/{idx}/ncm"))
             continue
         trib = {}
+        comp = it.get("gComponentesBC") or {}
+        if comp:
+            # mesmo catálogo da calculadora oficial (ElementoBaseCalculo)
+            bens = bool(it.get("ncm"))
+            rg, bis_c = bases_componentes(comp, ano, bens, op.get("tpDoc") or 55)
+            if it.get("impostoSeletivo"):
+                g = it["impostoSeletivo"]
+                if g.get("baseCalculo") is not None and Decimal(str(g["baseCalculo"])) != bis_c:
+                    objetos.append(erro_item(n, "REG-034", "Base de cálculo inconsistente",
+                                             f"A base de cálculo declarada ({g['baseCalculo']}) diverge da base calculada a partir dos componentes informados ({bis_c})",
+                                             f"#/itens/{idx}/impostoSeletivo/baseCalculo"))
+                    continue
+                g["baseCalculo"] = float(bis_c)
+            else:
+                if it.get("baseCalculo") is not None and Decimal(str(it["baseCalculo"])) != rg:
+                    objetos.append(erro_item(n, "REG-034", "Base de cálculo inconsistente",
+                                             f"A base de cálculo declarada ({it['baseCalculo']}) diverge da base calculada a partir dos componentes informados ({rg})",
+                                             f"#/itens/{idx}/baseCalculo"))
+                    continue
+                it["baseCalculo"] = float(rg)
         base = Decimal(str(it.get("baseCalculo") or 0))
         if it.get("impostoSeletivo"):
             g = it["impostoSeletivo"]
             bis = Decimal(str(g["baseCalculo"]))
             pis = Decimal(str((an or {}).get("impostoSeletivo", {}).get("adValorem") or 0))
             vis = (bis * pis / 100).quantize(D2, ROUND_HALF_UP)
+            inf = g.get("impostoInformado")
+            if it.get("baseCalculo") is not None and inf is not None and Decimal(str(it["baseCalculo"])) != bis + Decimal(str(inf)):
+                objetos.append(erro_item(n, "REG-016", "Base de cálculo inconsistente",
+                                         f"A base de cálculo ({it['baseCalculo']}) deve ser a base do Imposto Seletivo ({bis}) mais o imposto informado ({inf})",
+                                         f"#/itens/{idx}/baseCalculo"))
+                continue
             trib["IS"] = {"CSTIS": g["cst"], "cClassTribIS": g["cClassTrib"], "vBCIS": dinheiro(bis), "pIS": dinheiro(pis),
                           "vIS": dinheiro(vis),
                           "memoriaCalculo": f"[SIMULADO] Base R$ {bis}, alíquota ad valorem de {pis}%."}
@@ -152,6 +178,36 @@ def calcular(op):
     if tot["is"]:
         total["tribCalc"]["ISTot"] = {"vIS": dinheiro(tot["is"])}
     return {"objetos": objetos, "total": total}
+
+
+# (tag, soma?, bases, natureza: None/"bem"/"servico", ano inicial, ano final, modelos)
+CATALOGO_BASE = [
+    ("vProd", 1, "RG IS SN", None, 2026, 2033, (55, 65)), ("vFrete", 1, "RG IS SN", None, 2026, 2033, (55, 65)),
+    ("vSeg", 1, "RG IS SN", None, 2026, 2033, (55, 65)), ("vOutro", 1, "RG IS SN", None, 2026, 2033, (55, 65)),
+    ("vII", 1, "RG IS", "bem", 2026, 2033, (55,)), ("vIS", 1, "RG SN", None, 2027, 2033, (55, 65)),
+    ("vDesc", -1, "RG IS SN", None, 2026, 2033, (55, 65)),
+    ("vPIS", -1, "RG IS", None, 2026, 2026, (55, 65)), ("vCOFINS", -1, "RG IS", None, 2026, 2026, (55, 65)),
+    ("vICMS", -1, "RG IS", "bem", 2026, 2032, (55, 65)), ("vICMSUFDest", -1, "RG IS", "bem", 2026, 2032, (55,)),
+    ("vFCP", -1, "RG IS", "bem", 2026, 2032, (55, 65)), ("vFCPUFDest", -1, "RG IS", "bem", 2026, 2032, (55,)),
+    ("vICMSMono", -1, "RG IS", "bem", 2026, 2032, (55, 65)), ("vISSQN", -1, "RG IS", "servico", 2026, 2032, (55, 65)),
+]
+
+
+def bases_componentes(comp, ano, bens, modelo):
+    """Base do regime geral (RG) e do Imposto Seletivo (IS) a partir dos componentes."""
+    rg = bis = Decimal(0)
+    for tag, sinal, bases, nat, de, ate, mods in CATALOGO_BASE:
+        v = comp.get(tag)
+        if v is None or not (de <= ano <= ate) or modelo not in mods:
+            continue
+        if nat and nat != ("bem" if bens else "servico"):
+            continue
+        v = Decimal(str(v)) * sinal
+        if "RG" in bases:
+            rg += v
+        if "IS" in bases:
+            bis += v
+    return rg.quantize(D2), bis.quantize(D2)
 
 
 class H(BaseHTTPRequestHandler):
@@ -219,6 +275,12 @@ class H(BaseHTTPRequestHandler):
         return self.responder(404, {"title": "não implementado no simulador", "detail": p})
 
     def do_POST(self):
+        if self.path.startswith("/api/calculadora/base-calculo/base-calculo-unificada"):
+            e = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))))
+            rg, bis = bases_componentes(e, int(e["anoFatoGerador"]), str(e.get("natureza", "BEM")).upper() == "BEM", int(e["tipoDocumento"]))
+            avisos = [f"Campo {t} não compõe as bases para o ano {e['anoFatoGerador']} (vigência {de}–{ate}) e foi ignorado no cálculo"
+                      for t, _, _, _, de, ate, _ in CATALOGO_BASE if e.get(t) is not None and not (de <= int(e["anoFatoGerador"]) <= ate)]
+            return self.responder(200, {"baseRG": float(rg), "baseIS": float(bis), "baseSN": None, "avisos": avisos})
         if not self.path.startswith("/api/calculadora/observabilidade/regime-geral"):
             return self.responder(404, {"title": "não implementado no simulador"})
         op = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))))

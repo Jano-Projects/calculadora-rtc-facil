@@ -48,6 +48,17 @@ window.EXEMPLOS = {
       ["Cerveja 12 latas 350 ml", "22030000", "000001", 42.00, 4.2, "LT", 4.2]
     ]
   },
+  servicos: {
+    nome: "Serviços de uma empresa do lucro presumido",
+    local: { uf: "SP", municipio: 3533403 },
+    // PIS/Cofins cumulativo (3,65%) e ISS: é o caso em que a troca por CBS mais pesa
+    antesDepois: { regime: "3.65", iss: 5 },
+    itens: [
+      ["Consultoria em TI (8 horas)", "115011000", "000001", 1600.00, null, null, null, "nbs"],
+      ["Limpeza do escritório (mensal)", "118031000", "000001", 900.00, null, null, null, "nbs"],
+      ["Manutenção de veículo (mão de obra)", "120013110", "000001", 450.00, null, null, null, "nbs"]
+    ]
+  },
   oficial: {
     nome: "Exemplo da documentação oficial",
     local: { uf: "RS", municipio: 4314902 },

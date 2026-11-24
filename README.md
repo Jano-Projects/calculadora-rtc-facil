@@ -7,7 +7,9 @@ Calcule **CBS, IBS e Imposto Seletivo** da Reforma Tributária do Consumo (LC 21
 - **Sempre na versão mais recente**: quando a Receita publica uma versão nova da [calculadora oficial](https://github.com/ReceitaFederal/calculadora-rtc-regime-regular), ela é baixada, compilada e colocada em uso automaticamente, sem fechar a tela.
 - **Tela amigável**: monte a nota item a item, com autocompletar de NCM e lista de classificações tributárias. O resultado sai em forma de cupom e com detalhamento por item.
 - **Compare datas**: veja a mesma nota em 2026 (ano de teste) e em 2027 (CBS para valer + Imposto Seletivo).
-- **Antes e depois**: os tributos sobre o consumo de hoje (PIS/Cofins, ICMS/ISS, FCP, IPI, monofásico, ICMS-ST) ao lado dos de depois da reforma. Mostra o que migra (PIS/Cofins → CBS, IPI → Imposto Seletivo), o que fica (ICMS/ISS até 2028), o que é destacado na venda e o que vem embutido no custo, e o preço estimado. Funciona para venda da indústria ou do comércio.
+- **Antes e depois**: os tributos sobre o consumo de hoje (PIS/Cofins, ICMS/ISS, FCP, IPI, monofásico, ICMS-ST) ao lado dos de depois da reforma. Mostra o que migra (PIS/Cofins → CBS, IPI → Imposto Seletivo), o que fica (ICMS/ISS até 2028), o que é destacado na venda e o que vem embutido no custo, e o preço estimado. Funciona para venda da indústria ou do comércio, no lucro real, no presumido ou no **Simples Nacional**, com a comparação entre recolher CBS e IBS dentro ou fora do DAS.
+- **Conferir NF-e**: abra o XML de uma NF-e ou NFC-e e confira, item por item, se a base, a CBS, o IBS e o Imposto Seletivo destacados batem com a calculadora oficial. Os itens também vão para as outras abas com os tributos reais da nota.
+- **Compartilhe e imprima**: um link leva a mesma nota para outra Calculadora RTC Fácil, e cada aba imprime ou vira PDF com as premissas usadas.
 - **Tudo local**: os cálculos rodam na sua máquina. Nenhum dado da sua nota sai do computador.
 - **100% código aberto** (licença MIT).
 
@@ -46,7 +48,7 @@ O navegador abre sozinho em **http://localhost:8090**. **Deixe a janela preta (t
 ### 4. Calcule
 
 1. Escolha a **data** e o **local** da operação.
-2. Adicione os itens (NCM ou NBS, classificação tributária, valor e quantidade). Se preferir, comece por um exemplo: *Cesta básica*, *Compras do dia a dia* ou *Exemplo da documentação oficial*.
+2. Adicione os itens (NCM ou NBS, classificação tributária, valor e quantidade). Se preferir, comece por um exemplo (*Cesta básica*, *Compras do dia a dia*, *Serviços de uma empresa do lucro presumido* ou *Exemplo da documentação oficial*) ou abra o XML de uma NF-e.
 3. Clique em **Calcular tributos**.
 
 Veja o [guia de uso](docs/guia-de-uso.md) para entender cada campo e o resultado.
@@ -58,6 +60,7 @@ Veja o [guia de uso](docs/guia-de-uso.md) para entender cada campo e o resultado
 | O que atualiza | Como |
 |---|---|
 | **Calculadora oficial** (motor de cálculo) | Sozinha. Ao abrir e depois a cada 6 horas, o programa consulta as versões (tags) publicadas no repositório da Receita. Se houver uma nova, ele baixa, gera o banco, compila, sobe a versão nova e só então desliga a antiga, sem interromper quem está usando. Se algo falhar, a versão anterior continua funcionando. |
+| **Verificação semanal** | No GitHub, um teste instala a última versão da Receita em Windows, Ubuntu, Debian e Fedora e usa a tela como uma pessoa usaria. Quando a Receita publica uma versão nova, o teste roda no dia seguinte, e uma falha abre um aviso (*issue*) neste repositório. |
 | **Esta ferramenta** (tela e scripts) | Se você clonou com Git: `git pull`. Se baixou o ZIP: baixe a release nova e copie a pasta `dados/` antiga para dentro dela, assim nada é baixado nem compilado de novo. |
 
 A versão em uso aparece no canto superior direito da tela. Clique nela para ver detalhes ou forçar uma verificação.

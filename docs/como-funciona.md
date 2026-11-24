@@ -16,6 +16,18 @@
         dados/motor/<versão>/calculadora/db/calculadora-pro.db
 ```
 
+## Conferência de NF-e
+
+O XML é lido no navegador (`web/nfe.js`). Para cada item, a tela:
+
+1. chama `POST /api/calculadora/base-calculo/base-calculo-unificada` com os componentes da nota (`vProd`, `vFrete`, `vSeg`, `vOutro`, `vDesc`, `vII`, `vPIS`, `vCOFINS`, `vICMS`, `vICMSUFDest`, `vFCP`, `vFCPUFDest`, `vICMSMono`, `vISSQN`, `vIS`), o ano de emissão e o modelo (55 ou 65). A calculadora oficial devolve a base de CBS e IBS (`baseRG`) e a do Imposto Seletivo (`baseIS`), aplicando a vigência de cada componente;
+2. manda a operação para `POST /api/calculadora/observabilidade/regime-geral` com `tpDoc`, a data e o local da nota, o CST e a classificação de cada item e essas bases. Nos itens com Imposto Seletivo, envia o grupo `impostoSeletivo` com a base do IS e o valor informado na nota, e a calculadora troca o informado pelo que ela calcula;
+3. compara base, CBS, IBS e Imposto Seletivo com o que a nota destacou.
+
+## Link da nota
+
+**Copiar link** grava o estado da tela (o mesmo do `localStorage`, sem a NF-e) em JSON, comprime com `deflate-raw` (`CompressionStream` do navegador) e põe no endereço depois de `#nota=`. A parte depois de `#` não é enviada a nenhum servidor. Ao abrir, a tela descomprime, grava no `localStorage` e recarrega.
+
 ## Por que assim
 
 - **Uma só lógica para todos os sistemas.** Toda a inteligência (descobrir versões, baixar, compilar, subir, trocar) está em Java, que roda igual no Windows e no Linux. Os scripts só cuidam do Java portátil.

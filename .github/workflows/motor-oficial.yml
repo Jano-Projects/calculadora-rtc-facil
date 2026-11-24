@@ -1,23 +1,63 @@
 name: Motor oficial
 
 # Instala de verdade a última versão da calculadora da Receita Federal, do jeito que o usuário faria
-# (baixando o JDK portátil), em cada sistema suportado, e faz um cálculo de teste.
-# Roda toda semana para avisar se uma versão nova da Receita quebrar a instalação.
+# (baixando o JDK portátil), em cada sistema suportado, e usa a tela como uma pessoa usaria.
+#
+# Quando roda:
+#   - todo dia: só se a Receita publicou uma versão que ainda não foi testada;
+#   - toda segunda-feira: sempre, mesmo sem versão nova;
+#   - quando muda o código de instalação, ou à mão (Actions > Motor oficial > Run workflow).
+# Se algo falhar numa execução agendada, abre um aviso (issue) no repositório.
 
 on:
   schedule:
-    - cron: '17 9 * * 1'   # segundas, 06:17 em Brasília
+    - cron: '17 9 * * *'   # todo dia, 06:17 em Brasília
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['app/**', 'iniciar.sh', 'iniciar.bat', 'scripts/**', '.github/workflows/motor-oficial.yml']
+    paths: ['app/**', 'web/**', 'iniciar.sh', 'iniciar.bat', 'scripts/**', 'dev/teste_tela.py', '.github/workflows/motor-oficial.yml']
 
 permissions:
   contents: read
 
+env:
+  REPO_RECEITA: https://github.com/ReceitaFederal/calculadora-rtc-regime-regular
+
 jobs:
+  verificar:
+    name: Versão da Receita
+    runs-on: ubuntu-latest
+    outputs:
+      versao: ${{ steps.tag.outputs.versao }}
+      testar: ${{ steps.decidir.outputs.testar }}
+    steps:
+      - name: Última versão publicada
+        id: tag
+        run: |
+          v=$(git ls-remote --tags --refs "$REPO_RECEITA" | sed 's#.*refs/tags/##' | sort -V | tail -n1)
+          [ -n "$v" ] || { echo "Não consegui ler as versões da Receita"; exit 1; }
+          echo "versao=$v" >> "$GITHUB_OUTPUT"
+          echo "Última versão da Receita: $v" >> "$GITHUB_STEP_SUMMARY"
+      - name: Já foi testada?
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .motor-testado
+          key: motor-testado-${{ steps.tag.outputs.versao }}
+          lookup-only: true
+      - name: Decidir
+        id: decidir
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ] || [ "$(date -u +%u)" = "1" ] || [ "${{ steps.cache.outputs.cache-hit }}" != "true" ]; then
+            echo "testar=true" >> "$GITHUB_OUTPUT"; echo "Vai testar." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "testar=false" >> "$GITHUB_OUTPUT"; echo "Versão já testada; nada a fazer hoje." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
   linux:
     name: ${{ matrix.nome }}
+    needs: verificar
+    if: needs.verificar.outputs.testar == 'true'
     runs-on: ubuntu-latest
     container: ${{ matrix.imagem }}
     strategy:
@@ -45,6 +85,8 @@ jobs:
 
   windows:
     name: Windows
+    needs: verificar
+    if: needs.verificar.outputs.testar == 'true'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -55,3 +97,73 @@ jobs:
         if: always()
         shell: pwsh
         run: Get-ChildItem dados/logs -Filter *.log | ForEach-Object { Write-Host "=== $($_.Name)"; Get-Content $_.FullName -Tail 80 }
+
+  tela:
+    name: Tela com o motor oficial
+    needs: verificar
+    if: needs.verificar.outputs.testar == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Navegador para o teste
+        run: |
+          pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: Instalar a última versão oficial
+        run: bash iniciar.sh --instalar-e-sair
+      - name: Abrir a calculadora
+        run: |
+          nohup bash iniciar.sh --sem-navegador --sem-atualizacao --porta 8090 > painel.log 2>&1 &
+          for i in $(seq 120); do
+            curl -fs http://localhost:8090/painel/status | grep -q '"pronto":true' && exit 0
+            sleep 2
+          done
+          cat painel.log; exit 1
+      - name: Usar as abas como uma pessoa
+        run: python dev/teste_tela.py http://localhost:8090 --motor-real
+      - name: Logs
+        if: always()
+        run: tail -n 80 painel.log dados/logs/*.log || true
+
+  registrar:
+    name: Registrar versão testada
+    needs: [verificar, linux, windows, tela]
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "${{ needs.verificar.outputs.versao }}" > .motor-testado
+      - uses: actions/cache/save@v4
+        with:
+          path: .motor-testado
+          key: motor-testado-${{ needs.verificar.outputs.versao }}
+        continue-on-error: true   # a chave já existe quando a versão foi testada antes
+
+  avisar:
+    name: Avisar falha
+    needs: [verificar, linux, windows, tela]
+    if: failure() && github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      VERSAO: ${{ needs.verificar.outputs.versao }}
+      EXECUCAO: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: Abrir ou comentar o aviso
+        run: |
+          titulo="Calculadora oficial ${VERSAO:-?}: teste automático falhou"
+          corpo="O teste automático com a versão **${VERSAO:-?}** da calculadora da Receita falhou.
+
+          Execução: $EXECUCAO
+
+          O que fazer: abra a execução, veja qual etapa falhou (instalação em algum sistema ou o teste de tela) e confira os logs. Enquanto não houver correção, quem já usa a ferramenta pode continuar na versão anterior do motor com \`--versao <anterior>\`."
+          existente=$(gh issue list --state open --search "in:title \"$titulo\"" --json number --jq '.[0].number')
+          if [ -n "$existente" ]; then
+            gh issue comment "$existente" --body "Falhou de novo: $EXECUCAO"
+          else
+            gh issue create --title "$titulo" --body "$corpo"
+          fi

@@ -1,5 +1,37 @@
 # Mudanças
 
+## 1.6.0 — 2026-11-24
+
+### Conferir NF-e (aba nova)
+- **Abra o XML de uma NF-e ou NFC-e** e confira, item por item, se a base, a CBS, o IBS e o Imposto Seletivo destacados batem com a calculadora oficial. A base de cada item é montada pela própria calculadora oficial com os valores da nota (produto, frete, seguro, outras despesas, desconto, ICMS, FCP, PIS/Cofins quando vigentes, Imposto Seletivo), pelas regras do ano de emissão.
+- Cada item sai como *Confere*, *Diverge* (com o valor da nota e o oficial), *Erro* (com a mensagem da calculadora oficial) ou *Sem destaque*. Também há totais, avisos sobre a base, **Exportar CSV** e **Ver JSON**.
+- Os itens, a data de emissão e o local vão para as outras abas. No *Antes e depois*, cada item já chega com os tributos de hoje que a nota traz: ICMS, FCP, PIS/Cofins, monofásico, substituição tributária e IPI.
+- **Abrir itens ou NF-e**, na aba *Calcular nota*, também aceita o XML.
+- Nota de exemplo (fictícia) de 2027, com um item calculado errado de propósito.
+
+### Simples Nacional no Antes e depois
+- Novo regime **Simples Nacional**, com anexo (comércio, indústria ou serviços), alíquota efetiva do DAS e a escolha de recolher CBS e IBS **dentro ou fora do DAS** a partir de 2027.
+- O quadro novo compara as duas opções: preço, crédito que um cliente empresa aproveita e custo para esse cliente depois de descontar o crédito.
+- A conta considera que a empresa do Simples não aproveita crédito do que compra: o PIS/Cofins, o ICMS e, dentro do DAS, a CBS e o IBS do fornecedor ficam no custo.
+
+### Compartilhar e imprimir
+- **Copiar link**: gera um endereço com a nota inteira dentro dele (itens, local, datas, alíquotas e ajustes). Os dados não passam por nenhum servidor.
+- **Imprimir ou salvar PDF** nas abas *Comparar datas*, *Antes e depois* e *Conferir NF-e*. A impressão sai sem botões e com data e versão do motor no topo. O *Antes e depois* ganha o quadro **Premissas deste cálculo**.
+
+### Alíquota oficial da CBS
+- Quando a base da calculadora oficial trouxer a alíquota de referência, a tela usa a oficial e avisa se ela for diferente da estimativa desta ferramenta. Depois de 15/12/2026, a nota da estimativa passa a pedir que se confira a decisão do Senado.
+
+### Verificação automática da versão do governo
+- A verificação com o motor oficial passa a rodar **todo dia** e só testa quando a Receita publicou uma versão ainda não testada. Às segundas-feiras, testa sempre.
+- Novo **teste de tela** (`dev/teste_tela.py`): usa as abas num navegador sem janela, com a calculadora oficial de verdade, e confere, por exemplo, o Imposto Seletivo do refrigerante e a conferência da nota de exemplo. Ele também roda a cada push, com o motor simulado.
+- Se uma execução agendada falhar, um aviso (*issue*) é aberto no repositório.
+
+### Outros
+- Novo exemplo: **Serviços de uma empresa do lucro presumido**, o caso em que a troca de PIS/Cofins por CBS mais pesa.
+- Celular: as abas ficam numa linha só, com rolagem lateral, e o cabeçalho ocupa menos espaço.
+- *Começar do zero* também apaga a NF-e aberta.
+- Documentação: guia de uso (Conferir NF-e, Simples Nacional, link, impressão), pontos de atenção 17 e 18, perguntas frequentes, *Entenda a reforma* (Simples Nacional), como funciona, desenvolvimento e solução de problemas.
+
 ## 1.5.0 — 2026-11-23
 
 ### Alíquota da CBS

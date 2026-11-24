@@ -34,6 +34,13 @@ Use `bash iniciar.sh`, ou dê permissão uma vez com `chmod +x iniciar.sh`.
 ### O motor parou ("O motor de cálculo parou inesperadamente")
 Veja `dados/logs/motor.log`. Feche a janela da calculadora e abra de novo. Se o problema continuar numa versão nova, volte para a anterior com `--versao <anterior>`.
 
+### "Não consegui ler a nota"
+- **"o arquivo não é um XML válido"**: o arquivo está incompleto ou não é XML. Baixe o XML de novo no sistema emissor ou no portal da NF-e. O PDF (DANFE) não serve.
+- **"não encontrei uma NF-e ou NFC-e neste XML"**: o arquivo é outro documento, como um evento de cancelamento, uma CT-e ou uma NFS-e. Abra o XML da nota.
+
+### Conferência da NF-e com todos os itens em "Erro"
+Veja a mensagem embaixo de cada item. As mais comuns são a classificação tributária sem vínculo com o NCM (REG-011) ou com o tipo de documento, e a falta de alíquota a partir de 2027. Para notas de 2027 em diante, confira se o quadro *Alíquotas da conferência* está preenchido.
+
 ### A tela mostra itens ou valores de testes antigos
 Clique em **Começar do zero**, no alto da tela. Isso apaga os itens e as escolhas guardadas neste navegador e não mexe no motor instalado. Se a tela nem chegar a abrir direito, acesse o endereço com `?limpar` no final (por exemplo `http://localhost:8090/?limpar`). Veja os detalhes no [guia de uso](guia-de-uso.md#começar-do-zero).
 

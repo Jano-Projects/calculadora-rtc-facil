@@ -130,3 +130,20 @@ A regra de base de cada tributo está em [tributos e bases](tributos-e-bases.md)
 **O que pode enganar.** Mesmo na aba *Antes e depois*, o total inclui só os **tributos sobre o consumo**, destacados na venda ou embutidos no custo. Não entram os tributos sobre a renda e a folha das empresas da cadeia (IRPJ, CSLL, INSS patronal), os resíduos de etapas sem crédito, o DIFAL nem os tributos de importação. Por isso o valor fica abaixo dos "tributos aproximados" impressos nos cupons fiscais.
 
 **O que fazer.** Use a ferramenta para entender a **troca de tributos sobre o consumo** na reforma, e não como medida da carga total.
+
+## 17. Simples Nacional: dentro ou fora do DAS é uma decisão com o contador
+
+**O que pode enganar.** O quadro do Simples no *Antes e depois* usa a partilha do DAS da **1ª faixa** do anexo escolhido, considera **fornecedores do lucro real** e aplica a mesma margem nas duas opções. Faixas maiores mudam um pouco a divisão da guia. A divisão de 2027 e 2028 do Anexo I é a da LC 214/2025, e a dos Anexos II e III é estimada na mesma proporção. A conta não inclui o custo de apurar CBS e IBS por fora (obrigações acessórias, sistema, contador) nem o efeito no fluxo de caixa.
+
+**O que fazer.** Use o quadro para ver o **sentido e a ordem de grandeza** da escolha: quem vende a consumidor final tende a ficar melhor dentro do DAS, e quem vende a empresas do regime regular tende a ficar melhor por fora, porque o cliente aproveita o crédito cheio. A opção é feita por semestre, nos prazos do Comitê Gestor do Simples Nacional. Decida com o seu contador, com os números reais da empresa.
+
+## 18. Conferir NF-e: o que a conferência não pega
+
+**O que pode enganar.**
+- A conferência usa as alíquotas de **referência** da data da nota. Enquanto a referência de 2027 for uma estimativa (veja o [item 4](#4-de-2027-em-diante-o-cálculo-é-simulado-e-as-alíquotas-são-estimativas)), uma nota correta com outra alíquota aparece como *Diverge*.
+- A calculadora oficial calcula pelas regras do **regime regular**. Para emitente do Simples Nacional, a conferência só mostra o que seria devido no regime regular.
+- Os grupos de diferimento, crédito presumido, devolução de tributo, Zona Franca de Manaus e compra governamental não são conferidos. Só o valor final de CBS, IBS e Imposto Seletivo de cada item é comparado.
+- O local da operação é o do **destinatário**. Em operações em que a lei manda usar outro local (alguns serviços, operações com bens imóveis, exportação), confira a aba *Calcular nota* com o local correto.
+- No *Antes e depois*, os tributos de hoje vêm da própria nota. Uma nota de 2027 em diante não traz PIS/Cofins, e por isso o "antes" volta para os padrões da tela.
+
+**O que fazer.** Trate *Diverge* como um sinal para investigar, não como um erro certo. Veja o valor oficial, abra **Ver JSON** e compare com as regras da nota técnica (NT 2025.002) e da LC 214/2025.

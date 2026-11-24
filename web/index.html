@@ -37,6 +37,7 @@
     <button role="tab" aria-selected="true" data-aba="calcular">Calcular nota</button>
     <button role="tab" aria-selected="false" data-aba="comparar">Comparar datas</button>
     <button role="tab" aria-selected="false" data-aba="antesdepois">Antes e depois</button>
+    <button role="tab" aria-selected="false" data-aba="nfe">Conferir NF-e</button>
     <button role="tab" aria-selected="false" data-aba="consultar">Consultar códigos</button>
     <button role="tab" aria-selected="false" data-aba="ajuda">Ajuda</button>
   </nav>
@@ -45,6 +46,7 @@
 </header>
 
 <main>
+  <div class="cabecalho-impressao" id="cabecalho-impressao"></div>
   <!-- ============================================================ CALCULAR -->
   <section id="aba-calcular" class="aba" role="tabpanel">
     <div class="grade">
@@ -100,7 +102,8 @@
               </select>
             </label>
             <button class="btn btn-sec" id="btn-exportar" title="Salvar os itens num arquivo .json">Salvar itens</button>
-            <label class="btn btn-sec" title="Abrir itens de um arquivo .json">Abrir itens<input type="file" id="inp-importar" accept=".json,application/json" hidden></label>
+            <label class="btn btn-sec" title="Abrir itens de um arquivo .json salvo antes, ou de um XML de NF-e ou NFC-e">Abrir itens ou NF-e<input type="file" id="inp-importar" accept=".json,application/json,.xml,text/xml,application/xml" hidden></label>
+            <button class="btn btn-sec" data-link title="Gera um endereço que abre esta mesma nota em outra Calculadora RTC Fácil">Copiar link</button>
             <button class="btn btn-sec btn-perigo" id="btn-limpar">Limpar</button>
           </div>
           <div id="lista-itens" class="lista-itens"></div>
@@ -169,6 +172,8 @@
 
     <div class="calcular-barra">
       <button class="btn btn-grande" id="btn-comparar">Comparar</button>
+      <button class="btn btn-sec" data-imprimir>Imprimir ou salvar PDF</button>
+      <button class="btn btn-sec" data-link>Copiar link</button>
       <span class="calc-status" id="cmp-status" aria-live="polite"></span>
     </div>
     <div id="cmp-resultado"></div>
@@ -223,10 +228,27 @@
           <select id="ad-regime">
             <option value="9.25">Não cumulativo (lucro real): 1,65% + 7,6% = 9,25%</option>
             <option value="3.65">Cumulativo (lucro presumido): 0,65% + 3% = 3,65%</option>
+            <option value="simples">Simples Nacional: PIS/Cofins e ICMS ou ISS dentro do DAS</option>
           </select>
         </label>
         <label class="caixa"><span>ICMS padrão % (<span id="ad-uf">UF</span>)</span><input type="number" id="ad-icms" step="0.01" min="0" max="40"></label>
         <label class="caixa"><span>ISS dos serviços %</span><input type="number" id="ad-iss" step="0.01" min="0" max="5" value="5"></label>
+      </div>
+      <div class="campos" id="ad-sn" hidden>
+        <label class="caixa larga"><span>Anexo do Simples (atividade principal)</span>
+          <select id="ad-sn-anexo">
+            <option value="I">Anexo I: comércio</option>
+            <option value="II">Anexo II: indústria</option>
+            <option value="III">Anexo III: serviços</option>
+          </select>
+        </label>
+        <label class="caixa"><span>Alíquota efetiva do DAS %</span><input type="number" id="ad-sn-aliq" step="0.01" min="0" max="33" value="4"></label>
+        <label class="caixa larga"><span>De 2027 em diante, CBS e IBS</span>
+          <select id="ad-sn-opcao">
+            <option value="dentro">Dentro do DAS (padrão)</option>
+            <option value="fora">Por fora, pelo regime regular (Simples híbrido)</option>
+          </select>
+        </label>
       </div>
       <div class="campos">
         <label class="caixa larga"><span>ICMS de 2027 em diante (ponto em aberto na lei)</span>
@@ -247,6 +269,8 @@
 
     <div class="calcular-barra">
       <button class="btn btn-grande" id="btn-antesdepois">Calcular antes e depois</button>
+      <button class="btn btn-sec" data-imprimir>Imprimir ou salvar PDF</button>
+      <button class="btn btn-sec" data-link>Copiar link</button>
       <span class="calc-status" id="ad-status" aria-live="polite"></span>
     </div>
     <div id="ad-resultado"></div>
@@ -257,7 +281,8 @@
         <li><strong>Margem constante e repasse integral:</strong> o valor do produto sem tributos é o mesmo antes e depois, e toda diferença de tributo vai para o preço. Na prática, empresas podem absorver ou repassar de outro jeito.</li>
         <li><strong>Hoje:</strong> ICMS/ISS "por dentro" do preço. PIS/Cofins sobre o preço sem ICMS, conforme a decisão do STF no Tema 69. IPI embutido no preço. A CBS e o IBS de teste de 2026 aparecem, mas não somam ao preço, porque são compensados com PIS/Cofins.</li>
         <li><strong>Depois:</strong> PIS/Cofins extintos. IPI zerado, sem considerar as exceções da Zona Franca de Manaus. ICMS/ISS mantidos até 2028 e reduzidos em 10% ao ano de 2029 a 2032. CBS e IBS "por fora", sobre a base sem ICMS/ISS e com o Imposto Seletivo, como na base de cálculo unificada oficial.</li>
-        <li><strong>Cadeia:</strong> nos tributos não cumulativos (ICMS, PIS/Cofins do lucro real, CBS e IBS), o valor destacado na venda final é a carga inteira daquele tributo, porque cada etapa abate o que pagou na anterior. Não modela Simples Nacional nem combustíveis.</li>
+        <li><strong>Cadeia:</strong> nos tributos não cumulativos (ICMS, PIS/Cofins do lucro real, CBS e IBS), o valor destacado na venda final é a carga inteira daquele tributo, porque cada etapa abate o que pagou na anterior. Não modela combustíveis.</li>
+        <li><strong>Simples Nacional:</strong> usa a partilha do DAS da 1ª faixa do anexo escolhido (faixas maiores mudam um pouco a divisão) e supõe fornecedores do lucro real. Como a empresa do Simples não aproveita crédito do que compra, o PIS/Cofins e o ICMS do fornecedor ficam no custo; de 2027 em diante, dentro do DAS, a CBS e o IBS do fornecedor também. A divisão de 2027 e 2028 do Anexo I é a da LC 214/2025; a dos Anexos II e III é estimada na mesma proporção.</li>
         <li><strong>Comércio:</strong> IPI, Imposto Seletivo e PIS/Cofins monofásico incidem uma vez, na indústria, e são calculados sobre o preço de fábrica informado. O ICMS-ST foi pago antecipado pela indústria e é aproximado pela alíquota do ICMS sobre o preço de venda. Todos entram como custo embutido. A venda do comércio destaca só ICMS normal, PIS/Cofins normal, CBS e IBS.</li>
         <li><strong>Padrões:</strong>
           <ul>
@@ -273,6 +298,42 @@
         <li><strong>O que não entra:</strong> tributos sobre a renda e a folha das empresas da cadeia (IRPJ, CSLL, INSS patronal), resíduos de etapas sem crédito, DIFAL, tributos de importação e taxas. Por isso os valores ficam abaixo dos "tributos aproximados" impressos nos cupons fiscais (Lei 12.741/2012).</li>
       </ul>
     </aside>
+  </section>
+
+  <!-- ============================================================ CONFERIR NF-E -->
+  <section id="aba-nfe" class="aba" role="tabpanel" hidden>
+    <fieldset class="bloco">
+      <legend>Nota fiscal <span class="escopo comum">os itens, a data e o local vão para todas as abas</span></legend>
+      <div class="nfe-abrir">
+        <label class="btn">Abrir XML da NF-e ou NFC-e<input type="file" id="inp-nfe" accept=".xml,text/xml,application/xml" hidden></label>
+        <button class="btn btn-sec" id="btn-nfe-exemplo">Usar uma nota de exemplo</button>
+        <span class="calc-status" id="nfe-status" aria-live="polite"></span>
+      </div>
+      <div id="nfe-vazio">
+        <p>Abra o XML de uma nota emitida para:</p>
+        <ul>
+          <li><strong>conferir</strong> se a CBS, o IBS e o Imposto Seletivo destacados batem com a calculadora oficial, item por item, incluindo a base de cálculo e a classificação tributária;</li>
+          <li>levar os itens para as outras abas com os <strong>tributos de hoje que a nota traz</strong> (ICMS, PIS/Cofins, IPI, substituição tributária), em vez de estimativas.</li>
+        </ul>
+        <p class="nota">O XML é lido aqui no seu computador e não é enviado para nenhum lugar fora dele.</p>
+      </div>
+      <div id="nfe-conteudo" hidden>
+        <div id="nfe-resumo"></div>
+      </div>
+    </fieldset>
+
+    <fieldset class="bloco" id="nfe-bloco-aliq">
+      <legend>Alíquotas da conferência <span class="escopo local">só nesta aba</span></legend>
+      <div class="cmp-data" data-lado="nfe"><div class="cmp-aliq" id="nfe-aliq"><p class="cmp-sem-aliq">Abra uma nota.</p></div></div>
+    </fieldset>
+
+    <div class="calcular-barra">
+      <button class="btn btn-grande" id="btn-conferir">Conferir com a calculadora oficial</button>
+      <button class="btn btn-sec" id="btn-nfe-csv">Exportar CSV</button>
+      <button class="btn btn-sec" id="btn-nfe-json">Ver JSON</button>
+      <button class="btn btn-sec" data-imprimir>Imprimir ou salvar PDF</button>
+    </div>
+    <div id="nfe-resultado"></div>
   </section>
 
   <!-- ============================================================ CONSULTAR -->
@@ -300,7 +361,9 @@
       <li>Adicione os itens. Para cada um, informe o <strong>NCM</strong> (produto) ou a <strong>NBS</strong> (serviço), o valor e a quantidade. Abaixo do item aparecem as <strong>classificações tributárias vinculadas ao NCM</strong> na base oficial, com o trecho do anexo da lei; é só clicar na que corresponde à operação. Comece por um exemplo se preferir.</li>
       <li>Os <strong>itens</strong> e o <strong>local</strong> valem em todas as abas (marcados como <span class="escopo comum">vale em todas as abas</span>). A <strong>data</strong> e as <strong>alíquotas</strong> são de cada aba (<span class="escopo local">só nesta aba</span>): a nota pode estar em 2026 no cálculo e ser comparada com 2027 sem mudar nada.</li>
       <li>Clique em <strong>Calcular tributos</strong>. O cupom mostra o total de CBS, IBS e Imposto Seletivo, e o detalhamento mostra a conta de cada item.</li>
-      <li>Para ver a carga de <strong>hoje</strong> (PIS/Cofins, ICMS/ISS, IPI) ao lado da de <strong>depois</strong> da reforma, use a aba <strong>Antes e depois</strong>. Ela mostra o que migra, o que fica e o preço estimado.</li>
+      <li>Para ver a carga de <strong>hoje</strong> (PIS/Cofins, ICMS/ISS, IPI) ao lado da de <strong>depois</strong> da reforma, use a aba <strong>Antes e depois</strong>. Ela mostra o que migra, o que fica e o preço estimado. Para empresas do <strong>Simples Nacional</strong>, compara recolher CBS e IBS dentro ou fora do DAS.</li>
+      <li>Para conferir uma nota emitida, abra o XML na aba <strong>Conferir NF-e</strong>. A calculadora oficial refaz a base, a CBS, o IBS e o Imposto Seletivo de cada item e mostra o que diverge.</li>
+      <li><strong>Copiar link</strong> leva a mesma nota para outra Calculadora RTC Fácil, e <strong>Imprimir ou salvar PDF</strong> gera o resultado com as premissas.</li>
       <li>Tudo isso fica guardado neste navegador entre um uso e outro. Para limpar restos de testes antigos, use <strong>Começar do zero</strong>, no alto da tela. Antes de apagar, ele mostra o que sai e oferece salvar os itens num arquivo.</li>
     </ol>
 
@@ -364,6 +427,7 @@
           <li>Data, UF e município da operação</li>
           <li>Datas e alíquotas da aba Comparar datas</li>
           <li>Ajustes da aba Antes e depois (preço de fábrica, regime, ICMS, monofásico, ST)</li>
+          <li>A NF-e aberta na aba Conferir NF-e</li>
         </ul>
       </div>
       <div>
@@ -379,6 +443,15 @@
       <button type="button" id="zerar-exportar" class="btn btn-sec">Salvar os itens antes</button>
       <button type="button" id="zerar-confirmar" class="btn btn-apagar">Apagar e recarregar</button>
     </div>
+  </div>
+</dialog>
+
+<dialog id="dlg-link" class="dlg dlg-estreito" aria-labelledby="link-titulo">
+  <form method="dialog" class="dlg-topo"><strong id="link-titulo">Link desta nota</strong><button class="btn btn-sec">Fechar</button></form>
+  <div class="dlg-corpo">
+    <p id="link-msg">Copiado. Quem abrir o link vê os mesmos itens, local, datas e ajustes.</p>
+    <input type="text" id="link-url" readonly aria-label="Link da nota" onclick="this.select()">
+    <p class="nota">O link abre a nota numa Calculadora RTC Fácil rodando no computador de quem recebe. Se a pessoa usar outra porta, basta trocar o número depois de <code>localhost:</code>. Os dados vão dentro do próprio link e não passam por nenhum servidor. A NF-e aberta na aba Conferir NF-e não vai junto.</p>
   </div>
 </dialog>
 
@@ -408,5 +481,6 @@
 
 <script src="exemplos.js"></script>
 <script src="app.js"></script>
+<script src="nfe.js"></script>
 </body>
 </html>

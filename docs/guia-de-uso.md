@@ -9,6 +9,7 @@
 | **Calcular nota** | Montar uma nota com seus itens e calcular CBS, IBS e Imposto Seletivo. |
 | **Comparar datas** | Calcular a mesma nota em duas datas e ver a diferença nos tributos novos, item a item. |
 | **Antes e depois** | Comparar a carga de hoje (PIS/Cofins, ICMS/ISS, IPI) com a de depois da reforma (CBS, IBS, IS e o ICMS/ISS que fica), com o preço estimado. |
+| **Conferir NF-e** | Abrir o XML de uma NF-e ou NFC-e, conferir CBS, IBS e Imposto Seletivo destacados contra a calculadora oficial e levar os itens para as outras abas. |
 | **Consultar códigos** | Procurar NCM por código ou descrição e ver as classificações tributárias vigentes. |
 | **Ajuda** | Versão em uso, botão de atualização, registro técnico e acesso à API (Swagger). |
 
@@ -20,6 +21,7 @@
 | UF e município | Em todas as abas |
 | Data | Só na aba onde foi escolhida: o cálculo tem uma data, a comparação tem duas |
 | Alíquotas de CBS e IBS (2027 em diante) | Só na aba onde foram preenchidas |
+| NF-e aberta | Os itens, a data e o local vão para todas as abas; a conferência fica na aba *Conferir NF-e* |
 
 Na tela, esses dados aparecem com os selos **vale em todas as abas** e **só nesta aba**.
 
@@ -63,7 +65,15 @@ A relação NCM × classificação é extraída do banco da versão instalada da
 
 ### Salvar e abrir
 
-**Salvar itens** gera um arquivo `.json` com a nota. **Abrir itens** aceita esse arquivo e também um JSON no formato da API oficial. Os itens também ficam salvos no navegador entre um uso e outro.
+**Salvar itens** gera um arquivo `.json` com a nota. **Abrir itens ou NF-e** aceita esse arquivo, um JSON no formato da API oficial e o XML de uma NF-e ou NFC-e (nesse caso, a tela vai para a aba *Conferir NF-e*). Os itens também ficam salvos no navegador entre um uso e outro.
+
+### Copiar link
+
+**Copiar link** gera um endereço com a nota inteira dentro dele: itens, local, datas, alíquotas e ajustes do *Antes e depois*. Quem abrir o link numa Calculadora RTC Fácil vê a mesma nota. Os dados não passam por nenhum servidor, porque vão no próprio endereço, e a pessoa precisa ter a ferramenta rodando no computador dela. Se ela usar outra porta, basta trocar o número depois de `localhost:`. A NF-e aberta não vai no link.
+
+### Imprimir ou salvar PDF
+
+As abas *Comparar datas*, *Antes e depois* e *Conferir NF-e* têm o botão **Imprimir ou salvar PDF**. A impressão tira botões e campos de edição e põe no topo a data e a versão do motor. No *Antes e depois*, o quadro **Premissas deste cálculo** registra as hipóteses usadas. Para gerar PDF, escolha "Salvar como PDF" na janela de impressão do navegador.
 
 ### Começar do zero
 
@@ -104,7 +114,7 @@ Esta aba responde "quanto pago hoje, quanto vou pagar e o que muda de lugar". El
 1. **Cenários.** *Antes* usa as regras de 2026, na data de hoje. *Depois* é a data que você escolher, de 2027 em diante, e traz o mesmo quadro de alíquotas de CBS e IBS da comparação.
 2. **Tributos atuais.**
    - **Quem vende:** *comércio* (varejo ou atacado) ou *indústria/importador*. No comércio, IPI, Imposto Seletivo, PIS/Cofins monofásico e ICMS-ST chegam **embutidos no custo**, calculados sobre o **preço de fábrica** (padrão: 60% do preço de venda).
-   - **Regime de PIS/Cofins:** não cumulativo (lucro real, 9,25%) ou cumulativo (lucro presumido, 3,65%).
+   - **Regime de PIS/Cofins:** não cumulativo (lucro real, 9,25%), cumulativo (lucro presumido, 3,65%) ou **Simples Nacional**. Veja [Simples Nacional](#simples-nacional) abaixo.
    - **ICMS e ISS:** o ICMS vem com a alíquota geral do estado em 2026, e o ISS dos serviços com 5%.
    - **ICMS de 2027 em diante:** CBS e IBS fora da base (padrão, como em 2026) ou dentro da base (se os estados incluírem).
    - **Tabela por item:** PIS/Cofins %, monofásico (marcador e %), ICMS/ISS %, FCP %, ICMS-ST (marcador) e IPI %. Ajuste o que for diferente: ICMS reduzido da cesta básica no seu estado, IPI da TIPI, FCP.
@@ -116,7 +126,48 @@ Esta aba responde "quanto pago hoje, quanto vou pagar e o que muda de lugar". El
    - **Composição do preço:** barras com o valor sem tributos e cada tributo, hoje e depois.
    - **Tabela por item:** todos os valores lado a lado. Os embutidos no custo aparecem em itálico.
 
+### Simples Nacional
+
+Escolha *Simples Nacional* em **Regime de PIS/Cofins**. Aparecem três campos:
+
+- **Anexo:** I (comércio), II (indústria) ou III (serviços). Itens de serviço (NBS) usam sempre o Anexo III.
+- **Alíquota efetiva do DAS:** a que a empresa paga hoje. O padrão é a da 1ª faixa (4%, 4,5% e 6%).
+- **De 2027 em diante, CBS e IBS:** *dentro do DAS* (padrão) ou *por fora, pelo regime regular* (o chamado Simples híbrido).
+
+O campo de preço de fábrica vira **Custo das compras**, porque a empresa do Simples não aproveita crédito do que compra. O PIS/Cofins e o ICMS que o fornecedor pagou ficam no custo dela. De 2027 em diante, dentro do DAS, a CBS e o IBS do fornecedor também ficam.
+
+| | Hoje | Dentro do DAS (2027 e 2028) | Por fora |
+|---|---|---|---|
+| PIS/Cofins | Parte do DAS (Anexo I, 1ª faixa: 15,50% da guia) | Vira CBS (15,33%) e IBS (0,17%) dentro da guia | CBS e IBS cheios, com crédito do que comprar |
+| ICMS ou ISS | Parte do DAS (Anexo I: 34% da guia) | Continua no DAS | Continua no DAS |
+| Crédito do cliente empresa | Não se aplica | Só a parte de CBS e IBS paga no DAS (Anexo I, 1ª faixa: 0,62% da venda) | A CBS e o IBS cheios |
+
+O resultado ganha o quadro **Simples Nacional: CBS e IBS dentro ou fora do DAS**, com as duas opções lado a lado. Ele mostra o preço, o crédito que um cliente empresa aproveita e o custo para esse cliente depois de descontar o crédito. Em geral, recolher dentro do DAS deixa o preço menor para o consumidor final, e recolher por fora deixa a compra mais barata para clientes empresa. Veja o [ponto de atenção 17](pontos-de-atencao.md#17-simples-nacional-dentro-ou-fora-do-das-é-uma-decisão-com-o-contador).
+
 Os tributos novos vêm da calculadora oficial. Os atuais são **estimativas** a partir das alíquotas da tela. Antes de usar os números, leia as premissas no fim da aba, os pontos de atenção [14](pontos-de-atencao.md#14-antes-e-depois-é-uma-estimativa-com-premissas), [15](pontos-de-atencao.md#15-a-cbs-e-o-ibs-podem-entrar-na-base-do-icms-a-partir-de-2027) e [16](pontos-de-atencao.md#16-o-total-não-é-a-carga-tributária-completa-do-produto), e o guia de [tributos e bases](tributos-e-bases.md).
+
+## Conferir NF-e
+
+Abra o XML de uma NF-e (modelo 55) ou NFC-e (modelo 65), com ou sem o protocolo de autorização, ou clique em **Usar uma nota de exemplo**. O XML é lido no navegador e não sai do computador.
+
+**O que vai para as outras abas.** Cada item da nota vira um item da nota da tela, com descrição, NCM, classificação tributária, quantidade e valor (produto + frete + seguro + outras despesas − desconto). A data de emissão vira a data da operação, e o local passa a ser o do destinatário, ou o do emitente quando a nota não tem destinatário (NFC-e). No *Antes e depois*, cada item já chega com os tributos de hoje que a nota traz: ICMS, FCP, PIS/Cofins (incluindo o monofásico, pelo CST 04), substituição tributária e IPI. Se o emitente for do Simples Nacional, o regime muda para Simples.
+
+**A conferência.** Para cada item, a calculadora oficial:
+
+1. monta a base de CBS e IBS e a do Imposto Seletivo com os valores da própria nota, pelas regras do ano de emissão. Por exemplo, o ICMS sai da base até 2032, o PIS/Cofins só em 2026 e o Imposto Seletivo entra de 2027 em diante;
+2. calcula CBS, IBS e Imposto Seletivo com o CST e a classificação tributária da nota;
+3. a tela compara com o que a nota destacou.
+
+As alíquotas usadas são as de **referência** para a data da nota, não as da nota, para mostrar se a nota usou a alíquota certa. Elas podem ser alteradas no quadro *Alíquotas da conferência*.
+
+| Situação | Significado |
+|---|---|
+| **Confere** | Base, CBS, IBS e Imposto Seletivo iguais, com até 1 centavo de diferença. |
+| **Diverge** | Algum valor ou a classificação é diferente. A linha de baixo mostra o que diverge, com o valor da nota e o oficial. |
+| **Erro** | A calculadora oficial recusou o item, por exemplo com uma classificação que não vale para o NCM ou para o tipo de documento. A linha de baixo mostra o código e a mensagem. |
+| **Sem destaque** | A nota não traz o grupo de CBS e IBS. A tela mostra o que a calculadora oficial calcularia. |
+
+**Exportar CSV** gera a conferência numa planilha (separador `;`), e **Ver JSON** mostra exatamente o que foi enviado e recebido da calculadora oficial. É útil para homologar o cálculo de um sistema emissor: emita notas de teste, abra os XMLs aqui e veja onde o sistema diverge da calculadora oficial.
 
 ## Acesso pela rede (por exemplo, de fora de uma máquina virtual)
 

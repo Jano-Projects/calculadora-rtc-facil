@@ -143,9 +143,15 @@ main { max-width: 1320px; margin: 0 auto; padding: 1.5rem; }
   .item .caixa:nth-child(n) { grid-column: span 1; }
   .item .caixa:nth-child(1), .item .caixa:nth-child(4) { grid-column: span 2; }
   .item { grid-template-columns: 1.6rem 1fr 2rem; }
-  .topo { position: static; gap: .5rem; padding: .6rem 1rem; }
-  .abas { order: 3; width: 100%; flex-wrap: nowrap; overflow-x: auto; }
-  .abas button { white-space: nowrap; }
+  .topo { position: static; gap: .4rem .5rem; padding: .5rem .75rem 0; }
+  .marca { flex: 1 1 100%; }
+  .marca span { font-size: .75rem; }
+  .chip { font-size: .75rem; padding: .2rem .6rem; }
+  /* abas numa linha só, com rolagem lateral; a borda esmaecida mostra que há mais abas */
+  .abas { order: 3; flex: 1 1 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -.75rem; padding: 0 .75rem;
+    -webkit-mask-image: linear-gradient(to right, #000 85%, transparent); mask-image: linear-gradient(to right, #000 85%, transparent); }
+  .abas::-webkit-scrollbar { display: none; }
+  .abas button { white-space: nowrap; padding: .5rem .6rem; }
   main { padding: 1rem .75rem; }
   .coluna-cupom { position: static; }
 }
@@ -281,7 +287,7 @@ tfoot td { font-weight: 700; border-bottom: 0; }
 
 /* ---------------------------------------------------------------- impressão: só o cupom e o detalhamento */
 @media print {
-  .topo, .coluna-form, .cupom-acoes, #aba-comparar, #aba-consultar, #aba-ajuda { display: none !important; }
+  .topo, .coluna-form, .cupom-acoes { display: none !important; }
   .grade { display: block; }
   .cupom { filter: none; -webkit-mask: none; mask: none; border: 1px dashed #999; max-width: 380px; }
   main { padding: 0; }
@@ -373,3 +379,60 @@ td.emb { font-style: italic; color: var(--tinta-2); }
 .carga-consumo h3 { margin: 0 0 .5rem; font-size: 1rem; }
 .carga-consumo table { max-width: 720px; }
 .carga-consumo .nota { margin: .5rem 0 0; }
+
+/* ---------------------------------------------------------------- conferir NF-e */
+.nfe-abrir { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; margin-bottom: .75rem; }
+#nfe-vazio ul { padding-left: 1.2rem; max-width: 72ch; }
+.nfe-cab { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .5rem 1.5rem; margin: .25rem 0 .5rem; }
+.nfe-cab div { border-left: 3px solid var(--regua); padding-left: .6rem; }
+.nfe-cab dt { font-size: .78rem; color: var(--tinta-2); }
+.nfe-cab dd { margin: 0; font-weight: 600; }
+.nfe-cab + .nota code { font-size: .78rem; word-break: break-all; }
+.aviso-nfe { background: var(--ambar-claro); border-left: 3px solid var(--ambar); padding: .6rem .8rem; max-width: 90ch; }
+.nfe-placar { display: flex; gap: .75rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.placar { border: 1px solid var(--regua-forte); border-radius: var(--raio); background: var(--branco); padding: .5rem .9rem; }
+.placar strong { font-size: 1.4rem; margin-right: .3rem; }
+.placar.confere strong { color: var(--fiscal); }
+.placar.diverge strong { color: var(--ambar); }
+.placar.erro strong { color: var(--erro); }
+.tab-nfe, .tab-nfe-tot { border-collapse: collapse; width: 100%; background: var(--branco); font-size: .88rem; }
+.tab-nfe-tot { max-width: 640px; margin-bottom: 0; }
+.tab-nfe th, .tab-nfe td, .tab-nfe-tot th, .tab-nfe-tot td { padding: .4rem .55rem; border-bottom: 1px solid var(--regua); text-align: left; }
+.tab-nfe th, .tab-nfe-tot th { font-weight: 600; color: var(--tinta-2); font-size: .8rem; }
+.tab-nfe th.grupo { text-align: center; color: var(--tinta); border-bottom: 2px solid var(--regua-forte); }
+.tab-nfe .n, .tab-nfe-tot .n { text-align: right; white-space: nowrap; }
+.tab-nfe td:nth-child(5), .tab-nfe td:nth-child(7), .tab-nfe td:nth-child(9), .tab-nfe td:nth-child(11) { font-weight: 600; }
+td.diverge { background: var(--ambar-claro); color: var(--ambar); }
+.tab-nfe tr.sit-detalhe td { border-bottom: 1px solid var(--regua); font-size: .82rem; color: var(--tinta-2); padding-top: 0; }
+.tab-nfe tr:has(+ .sit-detalhe) td { border-bottom: 0; }
+.selo-nfe { display: inline-block; font-size: .75rem; padding: .05rem .5rem; border-radius: 999px; border: 1px solid var(--regua-forte); white-space: nowrap; }
+.selo-nfe.confere { border-color: var(--fiscal); color: var(--fiscal); background: var(--fiscal-claro); }
+.selo-nfe.diverge { border-color: var(--ambar); color: var(--ambar); background: var(--ambar-claro); }
+.selo-nfe.erro { border-color: var(--erro); color: var(--erro); background: var(--erro-claro); }
+
+/* ---------------------------------------------------------------- Simples no antes e depois */
+.simples-ad { background: var(--branco); border: 1px solid var(--regua-forte); border-left: 4px solid var(--fiscal); border-radius: var(--raio); padding: .8rem 1rem; margin: 1.25rem 0; }
+.simples-ad h3 { margin: 0 0 .5rem; }
+.simples-ad table { max-width: 760px; }
+.simples-ad td, .simples-ad th { padding: .35rem .5rem; border-bottom: 1px solid var(--regua); }
+.simples-ad .forte { font-weight: 700; }
+.simples-ad .nota { max-width: 90ch; }
+
+/* ---------------------------------------------------------------- link e impressão */
+#link-url { width: 100%; font-family: var(--mono); font-size: .8rem; padding: .5rem; border: 1px solid var(--regua-forte); border-radius: var(--raio); }
+.cabecalho-impressao { display: none; }
+.premissas { font-size: .85rem; color: var(--tinta-2); background: var(--papel); border: 1px dashed var(--regua-forte); border-radius: var(--raio); padding: .6rem .8rem; margin: 1rem 0; }
+.premissas h3 { font-size: .9rem; margin: 0 0 .3rem; color: var(--tinta); }
+.premissas ul { margin: 0; padding-left: 1.1rem; }
+@media print {
+  .cabecalho-impressao { display: block; border-bottom: 2px solid #000; padding-bottom: .3rem; margin-bottom: .8rem; font-size: .85rem; }
+  .calcular-barra, button, .nfe-abrir, .intro-ad, #ad-itens-det { display: none !important; }
+  #aba-antesdepois fieldset.bloco, #aba-comparar fieldset.bloco, #nfe-bloco-aliq { display: none !important; }
+  .tabela-rolagem { overflow: visible !important; }
+  table { font-size: .72rem; page-break-inside: auto; }
+  tr { page-break-inside: avoid; }
+  .cmp-card, .simples-ad, .premissas { break-inside: avoid; }
+  body { background: #fff; }
+}
+.simples-ad .tabela-rolagem { max-width: 760px; }
+.tabela-rolagem:has(> .tab-nfe-tot) { max-width: 640px; margin-bottom: 1rem; }

@@ -59,6 +59,23 @@ A Medida Provisória 1.399/2026 fixou as alíquotas do IS para 2027, em geral eq
 
 Pela MP, o IS começa a produzir efeitos em **2 de fevereiro de 2027**. A MP precisa ser convertida em lei, e as alíquotas de 2028 em diante virão de um projeto de lei. Consulte o texto oficial da MP para o seu produto.
 
+## Simples Nacional
+
+A empresa do Simples continua no Simples. O que muda é a divisão da guia (DAS), pelas novas tabelas dos Anexos I a V da LC 123/2006, que estão nos Anexos XVIII a XXII da LC 214/2025 e valem a partir de 1º/1/2027:
+
+- **2027 e 2028:** a parte de PIS e Cofins vira CBS e uma pequena parte de IBS. No Anexo I (comércio), 1ª faixa, os 15,50% de PIS/Cofins passam a ser 15,33% de CBS e 0,17% de IBS. A alíquota efetiva não muda.
+- **2029 a 2032:** a cada ano, o IBS absorve mais 10% da parte do ICMS ou do ISS.
+- **2033:** o ICMS e o ISS saem do DAS.
+
+A partir de 2027, a empresa pode escolher, por semestre, recolher **CBS e IBS por fora do DAS**, pelo regime regular, mantendo os demais tributos na guia. É o chamado Simples híbrido (LC 214/2025, art. 41, § 3º; Resolução CGSN 186/2026). Isso muda o crédito de quem compra dela:
+
+| Fornecedor do Simples | Crédito de CBS e IBS do cliente empresa |
+|---|---|
+| Dentro do DAS | Só o valor pago na guia: alíquota efetiva × parte de CBS e IBS (Anexo I, 1ª faixa: 4% × 15,50% = 0,62% da venda) |
+| Por fora | A CBS e o IBS cheios destacados na nota |
+
+Na aba *Antes e depois*, escolha *Simples Nacional* no regime para comparar as duas opções. Veja o [guia de uso](guia-de-uso.md#simples-nacional) e o [ponto de atenção 17](pontos-de-atencao.md#17-simples-nacional-dentro-ou-fora-do-das-é-uma-decisão-com-o-contador).
+
 ## Termos que aparecem na tela
 
 | Termo | Significado |
@@ -82,4 +99,7 @@ Pela MP, o IS começa a produzir efeitos em **2 de fevereiro de 2027**. A MP pre
 - [Mattos Filho: TCU propõe alíquota de referência de 11,35% para a CBS em 2027](https://www.mattosfilho.com.br/unico/tcu-aliquota-cbs-2027/)
 - [Congresso em Foco: TCU propõe alíquota de 11,3% para a CBS; Senado terá decisão final](https://www.congressoemfoco.com.br/noticia/129639/tcu-propoe-aliquota-de-11-3-para-cbs-senado-tera-decisao-final)
 - [TCU: painel da Reforma Tributária, cronograma](https://sites.tcu.gov.br/recursos/reforma-tributaria/Painel%20da%20Reforma%20Tribut%C3%A1ria_Cronograma_v5.pdf)
-- Emenda Constitucional 132/2023, Lei Complementar 214/2025 e Medida Provisória 1.399/2026 (Diário Oficial da União)
+- [Receita Federal: manual da opção pelo regime regular de IBS e CBS no Simples Nacional](https://www8.receita.fazenda.gov.br/SimplesNacional/Arquivos/manual/Manual%20op%C3%A7%C3%A3o%20regime%20regular%20IBS%20e%20CBS%20no%20Simples%20Nacional.pdf)
+- [Agência Gov: empresas do Simples já podem optar por IBS e CBS fora do regime unificado em 2027](https://agenciagov.ebc.com.br/noticias/202609/empresas-do-simples-nacional-ja-podem-optar-pelo-recolhimento-de-ibs-e-cbs-fora-do-regime-unificado)
+- [Nota Técnica 2025.002-RTC (NF-e e NFC-e: grupos de IBS, CBS e IS), versão 1.53](https://www.reformatributaria.com/wp-content/uploads/2026/10/NT_2025.002_v1.53_RTC_NF-e_IBS_CBS_IS.pdf)
+- Emenda Constitucional 132/2023, Lei Complementar 214/2025, Lei Complementar 123/2006 (com a redação da LC 227/2026), Resolução CGSN 186/2026 e Medida Provisória 1.399/2026 (Diário Oficial da União)
