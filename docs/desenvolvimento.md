@@ -57,6 +57,25 @@ CALC_RTC_REPO=https://github.com/meu-usuario/calculadora-rtc-regime-regular bash
   - abre a tela com o motor oficial e roda `dev/teste_tela.py --motor-real`: calcular em 2026 e 2027, comparar, antes e depois (inclusive o Imposto Seletivo do refrigerante) e a conferência da NF-e de exemplo;
   - se uma execução agendada falhar, abre um aviso (*issue*) no repositório, ou comenta no aviso que já estiver aberto.
 
+- **dependabot-automerge.yml**: liga a mesclagem automática nos pedidos do Dependabot, que chegam uma vez por mês com todas as atualizações de *actions* juntas. O pedido só entra na `main` com as verificações aprovadas, e o ramo é apagado em seguida.
+
+## Configuração do repositório no GitHub
+
+`dev/configurar-github.sh` guarda a configuração do repositório como código. Ele pode ser rodado de novo a qualquer momento e só cria ou atualiza o que falta:
+
+| Área | O que fica configurado |
+|---|---|
+| Apresentação | Descrição, tópicos; Wiki e Projects desligados (a documentação fica em `docs/`) |
+| Pull requests | Só *squash*, ramo apagado ao mesclar, mesclagem automática liberada |
+| Segurança | Alertas e correções do Dependabot, aviso de falhas em sigilo, varredura de segredos com bloqueio de push, análise de código CodeQL |
+| Actions | Token só com leitura por padrão; cada workflow declara as permissões que usa |
+| Regra "Proteção da main" | Não pode ser apagada nem reescrita (*force push*), histórico linear e pull requests só com **Análise estática** e **Teste de fumaça e de tela** aprovados. O administrador pode publicar direto, e o `git push` mostra o aviso "Bypassed rule violations", que é esperado |
+| Regra "Proteção das versões" | Tags `v*` só podem ser apagadas ou movidas pelo administrador |
+| Rótulos | `problema`, `resultado`, `sugestão` e `dependências` |
+| Ramos | Remove qualquer ramo além da `main`, fechando o pull request correspondente |
+
+A imagem de prévia (`docs/imagens/previa-social.png`, 1280 × 640) é enviada à mão, em *Settings > General > Social preview*.
+
 ### Teste de tela no seu computador
 
 ```bash

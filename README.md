@@ -157,7 +157,7 @@ O [índice da documentação](docs/README.md) indica por onde começar conforme 
 | [Entenda a reforma](docs/entenda-a-reforma.md): tributos, cronograma, Simples e glossário | [Desenvolvimento](docs/desenvolvimento.md): motor simulado, testes e CI |
 | [Tributos e bases](docs/tributos-e-bases.md): bases, "imposto sobre imposto", destacado × embutido | [Como contribuir](CONTRIBUTING.md) |
 | [Diferenças que confundem](docs/diferencas.md): calculado × simulado, NCM × NBS, CST × cClassTrib | [Segurança](SECURITY.md) |
-| [Perguntas frequentes](docs/perguntas-frequentes.md) | [Mudanças](CHANGELOG.md) |
+| [Perguntas frequentes](docs/perguntas-frequentes.md) | [Mudanças](CHANGELOG.md) · [Código de conduta](CODE_OF_CONDUCT.md) |
 
 ## Licença
 

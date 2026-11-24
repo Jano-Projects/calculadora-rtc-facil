@@ -1,9 +1,15 @@
-# Mantém as actions do GitHub (checkout, setup-python, cache...) atualizadas
+# Mantém as actions do GitHub (checkout, setup-python, cache...) atualizadas.
+# Todas as atualizações do mês vêm num único pedido (pull request), que se mescla sozinho
+# quando os testes passam (veja dependabot-automerge.yml) e tem o ramo apagado em seguida.
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
     commit-message:
       prefix: "CI"
+    labels: ["dependências"]

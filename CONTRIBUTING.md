@@ -26,5 +26,8 @@ Falhas de segurança seguem a [política de segurança](SECURITY.md), e não vã
    shellcheck iniciar.sh dev/*.sh                           # se mexeu em scripts
    ```
 3. Atualize o `CHANGELOG.md` e a documentação que o seu ajuste afeta. O modelo de *pull request* tem a lista.
+4. O *pull request* só pode ser mesclado com as verificações **Análise estática** e **Teste de fumaça e de tela** aprovadas. A mesclagem é sempre por *squash* (um commit por pull request), e o ramo é apagado em seguida: o repositório mantém só a `main`.
+
+Participar do projeto implica seguir o [código de conduta](CODE_OF_CONDUCT.md).
 
 As versões seguem `MAIOR.MENOR.CORREÇÃO`, e cada release tem a tag `vX.Y.Z`.

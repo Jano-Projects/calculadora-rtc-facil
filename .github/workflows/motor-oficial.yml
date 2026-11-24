@@ -40,7 +40,7 @@ jobs:
           echo "Última versão da Receita: $v" >> "$GITHUB_STEP_SUMMARY"
       - name: Já foi testada?
         id: cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: .motor-testado
           key: motor-testado-${{ steps.tag.outputs.versao }}
@@ -76,7 +76,7 @@ jobs:
     steps:
       - name: Pacotes que já vêm numa instalação desktop
         run: ${{ matrix.preparar }}
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Instalar a última versão oficial e calcular
         run: bash iniciar.sh --instalar-e-sair
       - name: Logs
@@ -89,7 +89,7 @@ jobs:
     if: needs.verificar.outputs.testar == 'true'
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Instalar a última versão oficial e calcular
         shell: cmd
         run: call iniciar.bat --instalar-e-sair
@@ -104,8 +104,8 @@ jobs:
     if: needs.verificar.outputs.testar == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - name: Navegador para o teste
@@ -134,7 +134,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: echo "${{ needs.verificar.outputs.versao }}" > .motor-testado
-      - uses: actions/cache/save@v4
+      - uses: actions/cache/save@v6
         with:
           path: .motor-testado
           key: motor-testado-${{ needs.verificar.outputs.versao }}
