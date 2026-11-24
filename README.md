@@ -1,19 +1,62 @@
+<div align="center">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/imagens/icone-escuro.svg">
+  <img src="web/icone.svg" alt="" width="72" height="72">
+</picture>
+
 # Calculadora RTC Fácil
 
-Calcule **CBS, IBS e Imposto Seletivo** da Reforma Tributária do Consumo (LC 214/2025) no seu computador, com uma tela simples, **usando a calculadora oficial da Receita Federal**, que se atualiza sozinha.
+**CBS, IBS e Imposto Seletivo da Reforma Tributária no seu computador, em português.**
+Uma tela simples para a calculadora oficial da Receita Federal, que se instala com um clique
+e **se atualiza sozinha** quando o governo publica uma versão nova.
 
-- **Um clique para abrir** no Windows, no Fedora, no Debian e no Ubuntu.
-- **Sem instalar nada antes**: não precisa de administrador, `sudo`, Git nem Java. O Java 25 vem junto, dentro da pasta.
-- **Sempre na versão mais recente**: quando a Receita publica uma versão nova da [calculadora oficial](https://github.com/ReceitaFederal/calculadora-rtc-regime-regular), ela é baixada, compilada e colocada em uso automaticamente, sem fechar a tela.
-- **Tela amigável**: monte a nota item a item, com autocompletar de NCM e lista de classificações tributárias. O resultado sai em forma de cupom e com detalhamento por item.
-- **Compare datas**: veja a mesma nota em 2026 (ano de teste) e em 2027 (CBS para valer + Imposto Seletivo).
-- **Antes e depois**: os tributos sobre o consumo de hoje (PIS/Cofins, ICMS/ISS, FCP, IPI, monofásico, ICMS-ST) ao lado dos de depois da reforma. Mostra o que migra (PIS/Cofins → CBS, IPI → Imposto Seletivo), o que fica (ICMS/ISS até 2028), o que é destacado na venda e o que vem embutido no custo, e o preço estimado. Funciona para venda da indústria ou do comércio, no lucro real, no presumido ou no **Simples Nacional**, com a comparação entre recolher CBS e IBS dentro ou fora do DAS.
-- **Conferir NF-e**: abra o XML de uma NF-e ou NFC-e e confira, item por item, se a base, a CBS, o IBS e o Imposto Seletivo destacados batem com a calculadora oficial. Os itens também vão para as outras abas com os tributos reais da nota.
-- **Compartilhe e imprima**: um link leva a mesma nota para outra Calculadora RTC Fácil, e cada aba imprime ou vira PDF com as premissas usadas.
-- **Tudo local**: os cálculos rodam na sua máquina. Nenhum dado da sua nota sai do computador.
+[![Verificação](https://github.com/Jano-Projects/calculadora-rtc-facil/actions/workflows/verificacao.yml/badge.svg)](https://github.com/Jano-Projects/calculadora-rtc-facil/actions/workflows/verificacao.yml)
+[![Motor oficial](https://github.com/Jano-Projects/calculadora-rtc-facil/actions/workflows/motor-oficial.yml/badge.svg)](https://github.com/Jano-Projects/calculadora-rtc-facil/actions/workflows/motor-oficial.yml)
+[![Versão](https://img.shields.io/github/v/release/Jano-Projects/calculadora-rtc-facil?label=vers%C3%A3o&color=0e6b5a)](https://github.com/Jano-Projects/calculadora-rtc-facil/releases/latest)
+[![Calculadora oficial](https://img.shields.io/github/v/tag/ReceitaFederal/calculadora-rtc-regime-regular?sort=semver&label=calculadora%20oficial&color=1c2b33)](https://github.com/ReceitaFederal/calculadora-rtc-regime-regular)
+![Java 25](https://img.shields.io/badge/java-25%20port%C3%A1til-ed8b00)
+![Plataformas](https://img.shields.io/badge/plataformas-Windows%20%7C%20Ubuntu%20%7C%20Debian%20%7C%20Fedora-6b7280)
+![Local](https://img.shields.io/badge/dados-ficam%20no%20seu%20computador-16a34a)
+![LC 214/2025](https://img.shields.io/badge/LC-214%2F2025-a86b12)
+[![Licença MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-4f46e5)](LICENSE)
+
+<img src="docs/imagens/calcular-nota.png" alt="Tela da Calculadora RTC Fácil: os itens da nota à esquerda e, à direita, o cupom com CBS, IBS e Imposto Seletivo de março de 2027" width="820">
+
+</div>
+
+> 🧾 **Para quem quer entender e simular a reforma tributária do consumo**: empresas, contadores,
+> estudantes e equipes que homologam sistemas emissores de nota fiscal.
+
+---
+
+## Sumário
+
+- [O que ela faz](#o-que-ela-faz)
+- [Como usar](#como-usar)
+- [Telas](#telas)
+- [Atualização automática](#atualização-automática)
+- [Opções](#opções) · [Requisitos](#requisitos)
+- [Documentação](#documentação)
+- [Licença](#licença)
+
+> [!IMPORTANT]
+> Esta ferramenta **não é da Receita Federal**. Ela automatiza a instalação e oferece uma tela mais simples para a calculadora oficial, que continua fazendo os cálculos de CBS, IBS e Imposto Seletivo. Antes de usar os resultados, leia os **[pontos de atenção](docs/pontos-de-atencao.md)**.
+
+## O que ela faz
+
+| | |
+|---|---|
+| **Calcular nota** | Monte a nota item a item, com autocompletar de NCM e sugestão da classificação tributária. O resultado sai em forma de cupom, com o detalhamento de cada item. |
+| **Comparar datas** | A mesma nota em 2026 (ano de teste) e em 2027 (CBS para valer e Imposto Seletivo). |
+| **Antes e depois** | Os tributos sobre o consumo de hoje (PIS/Cofins, ICMS/ISS, FCP, IPI, monofásico, ICMS-ST) ao lado dos de depois da reforma. Mostra o que migra, o que fica, o que é destacado ou embutido no custo e o preço estimado. Vale para indústria ou comércio, no lucro real, no presumido ou no **Simples Nacional**, com a escolha de recolher CBS e IBS dentro ou fora do DAS. |
+| **Conferir NF-e** | Abra o XML de uma NF-e ou NFC-e e confira, item por item, se a base, a CBS, o IBS e o Imposto Seletivo destacados batem com a calculadora oficial. Serve para homologar o cálculo de um sistema emissor. |
+| **Compartilhar e imprimir** | Um link leva a mesma nota para outra Calculadora RTC Fácil, e cada aba vira PDF com as premissas usadas. |
+
+- **Um clique para abrir** no Windows, no Fedora, no Debian e no Ubuntu. Não precisa de administrador, `sudo`, Git nem Java, porque o Java 25 vem junto, dentro da pasta.
+- **Sempre na versão mais recente**: quando a Receita publica uma versão nova da [calculadora oficial](https://github.com/ReceitaFederal/calculadora-rtc-regime-regular), ela é baixada, compilada e posta em uso sozinha, sem fechar a tela. Um teste diário no GitHub confere se a versão nova funciona com a tela.
+- **Tudo local**: os cálculos rodam na sua máquina, e nenhum dado das suas notas sai do computador.
 - **100% código aberto** (licença MIT).
-
-> Esta ferramenta não é da Receita Federal. Ela só automatiza a instalação e oferece uma tela mais simples para a calculadora oficial, que continua fazendo todos os cálculos.
 
 ---
 
@@ -55,6 +98,21 @@ Veja o [guia de uso](docs/guia-de-uso.md) para entender cada campo e o resultado
 
 ---
 
+## Telas
+
+<table>
+<tr>
+<td width="50%"><a href="docs/imagens/calcular-nota.png"><img src="docs/imagens/calcular-nota.png" alt="Aba Calcular nota, com os itens à esquerda e o cupom com CBS, IBS e Imposto Seletivo à direita"></a><br><sub><b>Calcular nota</b>: itens, alíquotas e o cupom com os tributos novos.</sub></td>
+<td width="50%"><a href="docs/imagens/antes-e-depois.png"><img src="docs/imagens/antes-e-depois.png" alt="Aba Antes e depois, com a carga de hoje, a de depois e o preço estimado"></a><br><sub><b>Antes e depois</b>: o que migra, o que fica e o preço estimado.</sub></td>
+</tr>
+<tr>
+<td width="50%"><a href="docs/imagens/conferir-nfe.png"><img src="docs/imagens/conferir-nfe.png" alt="Aba Conferir NF-e, com três itens que conferem e um que diverge da calculadora oficial"></a><br><sub><b>Conferir NF-e</b>: cada item da nota contra a calculadora oficial.</sub></td>
+<td width="50%"><a href="docs/imagens/simples-nacional.png"><img src="docs/imagens/simples-nacional.png" alt="Quadro do Simples Nacional comparando CBS e IBS dentro e fora do DAS"></a><br><sub><b>Simples Nacional</b>: dentro ou fora do DAS, para o consumidor e para o cliente empresa.</sub></td>
+</tr>
+</table>
+
+---
+
 ## Atualização automática
 
 | O que atualiza | Como |
@@ -90,20 +148,16 @@ Variáveis de ambiente: `CALC_RTC_PORTA`, `CALC_RTC_HORAS_VERIFICACAO` (0 deslig
 
 ## Documentação
 
-> **Antes de usar os resultados, leia os [pontos de atenção](docs/pontos-de-atencao.md).** O cupom mostra só os tributos novos, a comparação 2026 × 2027 não é aumento de preço, e de 2027 em diante as alíquotas são estimativas.
+O [índice da documentação](docs/README.md) indica por onde começar conforme o que você quer fazer.
 
-**Para quem usa**
-- [Pontos de atenção](docs/pontos-de-atencao.md): o que pode enganar nos resultados e o que fazer.
-- [Entenda a reforma](docs/entenda-a-reforma.md): CBS, IBS, Imposto Seletivo, cronograma de 2026 a 2033 e glossário.
-- [Tributos e bases](docs/tributos-e-bases.md): a base de cada tributo, o que é "imposto sobre imposto", destacado × embutido e o que não entra.
-- [Diferenças que confundem](docs/diferencas.md): calculado × simulado, redução × imunidade × isenção, NCM × NBS, CST × cClassTrib e outras.
-- [Perguntas frequentes](docs/perguntas-frequentes.md).
-- [Guia de uso](docs/guia-de-uso.md): a tela, os campos e como ler o resultado.
-
-**Técnico**
-- [Como funciona](docs/como-funciona.md): a arquitetura, o processo de atualização e onde ficam os arquivos.
-- [Solução de problemas](docs/solucao-de-problemas.md): o que fazer quando algo não abre.
-- [Desenvolvimento](docs/desenvolvimento.md): como contribuir, testar com o motor simulado e a CI.
+| Para quem usa | Técnico |
+|---|---|
+| [Pontos de atenção](docs/pontos-de-atencao.md): o que pode enganar nos resultados | [Como funciona](docs/como-funciona.md): arquitetura, atualização e arquivos |
+| [Guia de uso](docs/guia-de-uso.md): cada aba, campo e resultado | [Solução de problemas](docs/solucao-de-problemas.md): quando algo não abre |
+| [Entenda a reforma](docs/entenda-a-reforma.md): tributos, cronograma, Simples e glossário | [Desenvolvimento](docs/desenvolvimento.md): motor simulado, testes e CI |
+| [Tributos e bases](docs/tributos-e-bases.md): bases, "imposto sobre imposto", destacado × embutido | [Como contribuir](CONTRIBUTING.md) |
+| [Diferenças que confundem](docs/diferencas.md): calculado × simulado, NCM × NBS, CST × cClassTrib | [Segurança](SECURITY.md) |
+| [Perguntas frequentes](docs/perguntas-frequentes.md) | [Mudanças](CHANGELOG.md) |
 
 ## Licença
 

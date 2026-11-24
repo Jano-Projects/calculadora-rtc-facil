@@ -1,5 +1,15 @@
 # Mudanças
 
+## 1.6.1 — 2026-11-24
+
+### Documentação e repositório
+- **README novo**: ícone, selos de status (verificação, teste com o motor oficial, versão, versão da calculadora oficial, licença, downloads, sistemas, Java e JavaScript), navegação, tabela "O que ela faz" e a seção **Telas**, com capturas das abas *Calcular nota*, *Antes e depois*, *Conferir NF-e* e do quadro do Simples Nacional.
+- **Índice da documentação** (`docs/README.md`), organizado pelo que você quer fazer.
+- **Modelos de issue** (*Problema*, *Resultado estranho* e *Sugestão*), com link para informar erros de cálculo direto no repositório oficial da Receita.
+- **Modelo de pull request**, com a lista de testes e de documentação.
+- **Política de segurança** (`SECURITY.md`): como avisar sobre falhas em sigilo e o que a ferramenta faz com os seus dados.
+- **Como contribuir** reescrito, e atualização mensal automática das *actions* do GitHub (Dependabot).
+
 ## 1.6.0 — 2026-11-24
 
 ### Conferir NF-e (aba nova)

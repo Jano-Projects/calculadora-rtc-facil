@@ -1,0 +1,16 @@
+name: Sugestão
+description: Uma ideia para melhorar a ferramenta ou a documentação
+labels: ["sugestão"]
+body:
+  - type: textarea
+    id: ideia
+    attributes:
+      label: O que você gostaria
+      description: Descreva o problema que a ideia resolve, não só a solução.
+    validations:
+      required: true
+  - type: textarea
+    id: exemplo
+    attributes:
+      label: Exemplo de uso
+      description: Uma situação real (com dados fictícios) em que isso ajudaria.

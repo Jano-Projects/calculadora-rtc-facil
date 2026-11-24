@@ -1,0 +1,49 @@
+name: Problema
+description: A ferramenta não abre, trava, mostra erro ou faz algo errado
+labels: ["problema"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Obrigado por avisar. Antes, veja a [solução de problemas](https://github.com/Jano-Projects/calculadora-rtc-facil/blob/main/docs/solucao-de-problemas.md).
+        **Não cole dados de clientes, CNPJ, chaves de acesso ou XML de notas reais.** Use dados fictícios.
+  - type: input
+    id: versao
+    attributes:
+      label: Versão da Calculadora RTC Fácil
+      description: Aparece na aba Ajuda e no CHANGELOG.
+      placeholder: "1.6.0"
+    validations:
+      required: true
+  - type: input
+    id: motor
+    attributes:
+      label: Versão da calculadora oficial (motor)
+      description: Aparece no canto superior direito da tela.
+      placeholder: "1.7.2"
+  - type: dropdown
+    id: sistema
+    attributes:
+      label: Sistema
+      options:
+        - Windows 10
+        - Windows 11
+        - Ubuntu
+        - Debian
+        - Fedora
+        - Outro Linux
+    validations:
+      required: true
+  - type: textarea
+    id: oque
+    attributes:
+      label: O que aconteceu
+      description: O que você fez, o que esperava e o que apareceu. Prints ajudam.
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: As últimas linhas de `dados/logs/` ou do botão "Ver registro técnico" na aba Ajuda.
+      render: text

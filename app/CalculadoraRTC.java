@@ -36,7 +36,7 @@ public class CalculadoraRTC {
 
     // ------------------------------------------------------------------ configuração
     static final String REPO_PADRAO = "https://github.com/ReceitaFederal/calculadora-rtc-regime-regular";
-    static final String VERSAO_PAINEL = "1.6.0";
+    static final String VERSAO_PAINEL = "1.6.1";
 
     static Path base, dados, dirWeb, dirMotores, dirFontes, dirLogs;
     static String repo = env("CALC_RTC_REPO", REPO_PADRAO);

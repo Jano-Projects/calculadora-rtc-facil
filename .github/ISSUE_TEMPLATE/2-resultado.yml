@@ -1,0 +1,43 @@
+name: Resultado estranho
+description: Um número na tela parece errado (Antes e depois, Simples, conferência de NF-e...)
+labels: ["resultado"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        CBS, IBS e Imposto Seletivo vêm da **calculadora oficial**. Se o valor também sair errado no Swagger oficial, use o link "Erro no cálculo da calculadora oficial".
+        Os tributos de hoje do *Antes e depois* e o quadro do Simples são **estimativas** desta ferramenta, com as premissas descritas nos [pontos de atenção](https://github.com/Jano-Projects/calculadora-rtc-facil/blob/main/docs/pontos-de-atencao.md).
+        **Use dados fictícios.**
+  - type: dropdown
+    id: aba
+    attributes:
+      label: Aba
+      options:
+        - Calcular nota
+        - Comparar datas
+        - Antes e depois
+        - Antes e depois (Simples Nacional)
+        - Conferir NF-e
+        - Consultar códigos
+    validations:
+      required: true
+  - type: input
+    id: versao
+    attributes:
+      label: Versões (ferramenta e motor)
+      placeholder: "1.6.0 com o motor 1.7.2"
+    validations:
+      required: true
+  - type: textarea
+    id: link
+    attributes:
+      label: Link da nota
+      description: Use o botão "Copiar link" e cole aqui. Assim dá para abrir exatamente a mesma nota.
+      render: text
+  - type: textarea
+    id: esperado
+    attributes:
+      label: O que saiu e o que você esperava
+      description: Diga de onde vem o valor esperado (lei, nota técnica, cálculo do contador, outra ferramenta).
+    validations:
+      required: true

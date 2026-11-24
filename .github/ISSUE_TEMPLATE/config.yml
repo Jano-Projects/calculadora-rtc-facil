@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Erro no cálculo da calculadora oficial
+    url: https://github.com/ReceitaFederal/calculadora-rtc-regime-regular/issues
+    about: Se o valor de CBS, IBS ou Imposto Seletivo está errado também no Swagger oficial (http://localhost:8090/api/swagger-ui.html), o problema é da calculadora da Receita. Informe lá.
+  - name: Dúvidas sobre a reforma
+    url: https://github.com/Jano-Projects/calculadora-rtc-facil/blob/main/docs/perguntas-frequentes.md
+    about: Veja as perguntas frequentes e os pontos de atenção antes de abrir uma issue.

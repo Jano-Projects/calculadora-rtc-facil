@@ -1,0 +1,9 @@
+# Mantém as actions do GitHub (checkout, setup-python, cache...) atualizadas
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "CI"
