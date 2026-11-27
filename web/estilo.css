@@ -256,6 +256,21 @@ tfoot td { font-weight: 700; border-bottom: 0; }
 .texto { max-width: 75ch; }
 .texto li { margin-bottom: .4rem; }
 .acoes-ajuda { display: flex; flex-wrap: wrap; gap: .5rem; }
+/* aba Ajuda: índice, tabelas e o caminho de um cálculo (tela → painel → calculadora oficial) */
+.ajuda h2 { scroll-margin-top: 8rem; border-top: 1px solid var(--regua); padding-top: 1.25rem; }
+.ajuda > h2:first-child { border-top: 0; padding-top: 0; }
+.ajuda h3 { font-size: 1rem; margin: 1.25rem 0 .4rem; }
+.indice-ajuda { display: flex; flex-wrap: wrap; gap: .35rem .5rem; margin: .5rem 0 1rem; }
+.indice-ajuda a { padding: .2rem .6rem; border: 1px solid var(--regua-forte); border-radius: 999px; text-decoration: none; font-size: .85rem; background: var(--branco); }
+.indice-ajuda a:hover { background: var(--fiscal-claro); }
+.tabela-ajuda { margin: .5rem 0 1rem; }
+.tabela-ajuda th { white-space: normal; }
+.tabela-ajuda td:first-child { font-weight: 600; min-width: 12ch; }
+.fluxo-ajuda { display: flex; flex-wrap: wrap; align-items: stretch; gap: .5rem; margin: .5rem 0 1rem; }
+.fluxo-ajuda > div:not(.seta) { flex: 1 1 10rem; border: 1px solid var(--regua-forte); border-radius: var(--raio); background: var(--branco); padding: .6rem .75rem; }
+.fluxo-ajuda > div:not(.seta) span { display: block; font-size: .8rem; color: var(--tinta-2); }
+.fluxo-ajuda .seta { align-self: center; color: var(--fiscal); font-size: 1.4rem; }
+kbd { font-family: var(--mono); font-size: .8rem; border: 1px solid var(--regua-forte); border-bottom-width: 2px; border-radius: 3px; padding: 0 .3rem; background: var(--branco); }
 
 /* ---------------------------------------------------------------- diálogo JSON */
 .dlg { border: 1px solid var(--tinta); border-radius: var(--raio); padding: 0; width: min(960px, 94vw); max-height: 88vh; }

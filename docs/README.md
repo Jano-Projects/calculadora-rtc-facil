@@ -5,6 +5,7 @@ Por onde começar, conforme o que você quer fazer.
 | Quero... | Leia |
 |---|---|
 | Instalar e abrir pela primeira vez | [README](../README.md#como-usar) |
+| Desinstalar ou achar os arquivos baixados | [Solução de problemas](solucao-de-problemas.md#desinstalar) |
 | Entender o que a tela mostra antes de usar os números | [Pontos de atenção](pontos-de-atencao.md) |
 | Aprender a usar cada aba | [Guia de uso](guia-de-uso.md) |
 | Entender CBS, IBS, Imposto Seletivo e o cronograma | [Entenda a reforma](entenda-a-reforma.md) |

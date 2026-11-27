@@ -11,7 +11,15 @@
 | **Antes e depois** | Comparar a carga de hoje (PIS/Cofins, ICMS/ISS, IPI) com a de depois da reforma (CBS, IBS, IS e o ICMS/ISS que fica), com o preço estimado. |
 | **Conferir NF-e** | Abrir o XML de uma NF-e ou NFC-e, conferir CBS, IBS e Imposto Seletivo destacados contra a calculadora oficial e levar os itens para as outras abas. |
 | **Consultar códigos** | Procurar NCM por código ou descrição e ver as classificações tributárias vigentes. |
-| **Ajuda** | Versão em uso, botão de atualização, registro técnico e acesso à API (Swagger). |
+| **Ajuda** | Manual completo dentro da tela (o que é, como usar, o que cada número significa e de onde vem, como funciona), versão em uso, atualização, registro técnico, API (Swagger) e o botão **Encerrar a calculadora**. |
+
+## Abrir e fechar
+
+- **Instalada:** abra **Calculadora RTC** no Menu Iniciar ou no menu de aplicativos. Para fechar, feche as abas: ela se encerra sozinha 20 minutos depois. Para fechar na hora, use **Encerrar a calculadora** (aba *Ajuda*) ou o atalho *Encerrar a Calculadora RTC* do menu.
+- **Portátil:** `iniciar.bat` ou `bash iniciar.sh`. Feche a janela do terminal para encerrar.
+- Abrir de novo com a calculadora aberta não cria uma segunda cópia: só abre outra aba na mesma.
+
+Veja os detalhes de instalação no [README](../README.md#como-usar).
 
 ## O que vale em todas as abas e o que é de cada aba
 

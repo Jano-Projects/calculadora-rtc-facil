@@ -4,6 +4,7 @@
 #
 #  Opcoes extras:
 #    --criar-atalho  cria um atalho "Calculadora RTC" na Area de Trabalho
+#    --so-java       so baixa ou atualiza o Java portatil e encerra (usado pelo instalador)
 #    Demais opcoes sao repassadas ao gerenciador (ex.: --porta 9000, --rede)
 #
 #  Nao precisa de administrador: o Java 25 e baixado para a pasta "dados\".
@@ -17,7 +18,8 @@ $ProgressPreference = 'SilentlyContinue'   # deixa o download muito mais rapido
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 
 $Dir = Split-Path -Parent $PSScriptRoot
-$Dados = Join-Path $Dir 'dados'
+# Versao instalada: o lancador (CalculadoraRTC.exe) define CALC_RTC_DADOS para %LOCALAPPDATA%\CalculadoraRTC
+$Dados = if ($env:CALC_RTC_DADOS) { $env:CALC_RTC_DADOS } else { Join-Path $Dir 'dados' }
 $Jdk = Join-Path $Dados 'jdk'
 $VersaoJava = 25
 
@@ -105,12 +107,24 @@ elseif (-not (Test-Jdk $Jdk) -or (Test-JdkAntigo $Jdk)) {
     }
 }
 
+if ($Resto -contains '--so-java') { Info "Java pronto em $Jdk"; exit 0 }
+
 # ---------------------------------------------------------------- inicia o gerenciador
 $java = Join-Path $Jdk 'bin\java.exe'
 $app = Join-Path $Dir 'app\CalculadoraRTC.java'
 # -XX:-UseBASE64Intrinsics: mitigacao do Java4Shell (CVE-2026-114938); o motor oficial tambem recebe a opcao.
 $argumentos = @('-XX:-UseBASE64Intrinsics', '--enable-native-access=ALL-UNNAMED', '-Dfile.encoding=UTF-8', '-Dstdout.encoding=UTF-8', $app, '--base', $Dir)
 if ($Resto.Count -gt 0) { $argumentos += $Resto }
+if ($Resto -contains '--atalho') {
+    # Aberto pelo icone (CalculadoraRTC.exe), sem janela: o registro vai para dados\logs\painel.log
+    $logs = Join-Path $Dados 'logs'
+    New-Item -ItemType Directory -Force -Path $logs | Out-Null
+    $ErrorActionPreference = 'Continue'   # linhas do Java no stderr nao devem interromper o script
+    try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch { Write-Verbose 'sem console' }
+    "===== $(Get-Date -Format 'dd/MM/yyyy HH:mm:ss') =====" | Out-File -FilePath (Join-Path $logs 'painel.log') -Append -Encoding utf8
+    & $java @argumentos 2>&1 | ForEach-Object { "$_" } | Out-File -FilePath (Join-Path $logs 'painel.log') -Append -Encoding utf8
+    exit $LASTEXITCODE
+}
 & $java @argumentos
 # 130 / -1073741510 = encerrada com Ctrl+C (normal)
 if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne 130 -and $LASTEXITCODE -ne -1073741510) {

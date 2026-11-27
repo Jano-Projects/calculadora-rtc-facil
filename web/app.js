@@ -150,7 +150,8 @@ async function acompanharPainel() {
   try {
     s = await (await fetch("/painel/status", { cache: "no-store" })).json();
   } catch {
-    mostrarPreparo({ estado: "erro", mensagem: "Não foi possível falar com o painel. A janela da calculadora (terminal) ainda está aberta?" });
+    if (encerrada) return; // encerrada pelo botão: a mensagem já está na tela
+    mostrarPreparo({ estado: "erro", mensagem: "Não foi possível falar com a calculadora. Ela pode ter sido encerrada: pela janela do terminal, pelo botão Encerrar ou sozinha, depois de um tempo sem nenhuma aba aberta. Abra-a de novo pelo ícone ou pelo iniciar." });
     setTimeout(acompanharPainel, 4000);
     return;
   }
@@ -199,6 +200,9 @@ function atualizarChip(s) {
   }
   chip.textContent = texto;
   chip.title = titulo || "";
+  // aba Ajuda: tempo do encerramento automático (só quando aberta pelo ícone) e pasta dos arquivos baixados
+  $("#ajuda-minutos").textContent = s.encerraSemUso ? `${s.encerraSemUso} minutos` : "alguns minutos";
+  if (s.pastaDados) $("#ajuda-pasta").innerHTML = `Os arquivos baixados e gerados (Java, calculadora oficial e registros) ficam em <code>${esc(s.pastaDados)}</code>. Apagar essa pasta faz tudo ser baixado e preparado de novo na próxima abertura.`;
   $("#ajuda-status").textContent = s.pronto
     ? `Em uso: calculadora oficial versão ${s.versaoInstalada}. Mais recente publicada: ${s.versaoDisponivel || "não verificado"}${s.ultimaVerificacao ? " (verificado em " + s.ultimaVerificacao + ")" : ""}.`
       + (s.atualizacaoAutomatica ? ` Atualização automática ligada (a cada ${s.horasEntreVerificacoes} h).` : " Atualização automática desligada.")
@@ -207,6 +211,16 @@ function atualizarChip(s) {
 }
 
 /** Pede ao gerenciador que procure e instale agora a versão mais recente da calculadora oficial. */
+/** Botão "Encerrar a calculadora" (aba Ajuda): desliga o painel e o motor oficial neste computador. */
+let encerrada = false;
+async function encerrarCalculadora() {
+  if (!confirm("Encerrar a calculadora? Os itens continuam guardados neste navegador. Para usar de novo, abra pelo ícone.")) return;
+  encerrada = true;
+  try { await fetch("/painel/encerrar", { method: "POST" }); } catch { /* já estava encerrando */ }
+  mostrarPreparo({ estado: "ok", mensagem: "A calculadora foi encerrada. Pode fechar esta aba." });
+  $("#preparo h1").textContent = "Calculadora encerrada";
+}
+
 async function pedirAtualizacao() {
   const r = await fetch("/painel/atualizar", { method: "POST" });
   if (r.status === 409) alert("A atualização automática está desligada (o painel foi iniciado com --sem-atualizacao, --versao ou --api-externa).");
@@ -1767,6 +1781,7 @@ function ligarEventos() {
     if (tr) { const m = $(`#tab-detalhe tr[data-m="${tr.dataset.n}"]`); m.hidden = !m.hidden; }
   });
   $("#btn-verificar").addEventListener("click", pedirAtualizacao);
+  $("#btn-encerrar").addEventListener("click", encerrarCalculadora);
   $("#preparo-tentar").addEventListener("click", pedirAtualizacao);
   $("#preparo details").addEventListener("toggle", async (ev) => {
     if (!ev.target.open) return;

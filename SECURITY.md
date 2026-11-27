@@ -8,8 +8,9 @@ Diga o que acontece, como reproduzir e qual versão você usa. A resposta vem em
 
 ## O que a ferramenta faz para proteger os seus dados
 
+- Os instaladores são gerados e homologados pelo GitHub Actions a partir do código deste repositório, e cada release traz o `SHA256SUMS.txt` com as somas de conferência. Eles não têm assinatura digital paga, por isso o Windows avisa que o editor é desconhecido.
 - Os cálculos rodam no seu computador. A internet só é usada para baixar o Java, a calculadora oficial e as atualizações dela, sempre de `github.com` e `api.adoptium.net`, por HTTPS.
-- O painel só aceita conexões do próprio computador (`127.0.0.1`). A opção `--rede` libera o acesso pela rede **sem senha**: use só em redes de confiança.
+- O painel só aceita conexões do próprio computador (`127.0.0.1`). A opção `--rede` libera o acesso pela rede **sem senha**, inclusive o botão de encerrar: use só em redes de confiança.
 - O XML de notas fiscais é lido no navegador e não é enviado a nenhum servidor. O **link da nota** leva os dados dentro do próprio endereço, depois de `#`, que o navegador não envia a servidores. Mesmo assim, quem receber o link vê a nota inteira.
 - Os dados da tela ficam no armazenamento do navegador. **Começar do zero** apaga tudo.
 - O Java portátil (pasta `dados/jdk`) é baixado de novo a cada 90 dias, para receber as correções de segurança do Java. Se o download falhar, a cópia atual continua em uso e a troca é tentada na próxima vez.

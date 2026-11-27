@@ -1,5 +1,38 @@
 # Mudanças
 
+## 1.7.0 — 2026-11-27
+
+Instaladores com ícone para Windows, Debian/Ubuntu e Fedora: a calculadora abre pelo menu, sem terminal, e se encerra sozinha quando você fecha a aba. A aba *Ajuda* virou um manual completo do que a ferramenta é, de como usar e do que cada número significa.
+
+### Instaladores
+- **Windows** (`CalculadoraRTC-<versão>-instalador-windows.exe`): assistente em português, instala sem pedir administrador, cria os atalhos *Calculadora RTC* e *Encerrar a Calculadora RTC* no Menu Iniciar e, se marcado, na Área de Trabalho. A desinstalação encerra a calculadora aberta e apaga o Java e o motor baixados.
+- **Debian e Ubuntu** (`.deb`) e **Fedora** (`.rpm`): ícone no menu de aplicativos, com a ação *Encerrar a calculadora* no botão direito.
+- Os instaladores têm menos de 1 MB: o Java e a calculadora oficial continuam sendo baixados na primeira abertura, agora na pasta do usuário (`%LOCALAPPDATA%\CalculadoraRTC` ou `~/.local/share/calculadora-rtc`).
+- **Primeira abertura com janela de progresso:** o download do Java aparece numa janela (PowerShell no Windows; zenity ou kdialog no Linux), e a instalação da calculadora oficial aparece no navegador, como antes.
+- **Ícone novo** de aplicativo (o recibo sobre fundo verde), legível em menus claros e escuros.
+- A versão portátil (ZIP ou `git clone`, com `iniciar.bat` e `iniciar.sh`) continua igual.
+
+### Abrir e fechar
+- **Encerramento sozinho:** aberta pelo ícone, a calculadora se encerra 20 minutos depois que a última aba é fechada (`CALC_RTC_ENCERRAR_MIN` muda o tempo).
+- **Botão *Encerrar a calculadora*** na aba *Ajuda*, que funciona também na versão portátil.
+- **Uma calculadora por vez:** abrir de novo com ela aberta só abre outra aba na mesma, em vez de subir uma segunda cópia que disputaria a pasta do motor.
+- Novas opções `--dados` (ou `CALC_RTC_DADOS`), `--atalho` e `--so-java`.
+
+### Aba Ajuda
+- Manual dentro da tela, que funciona offline: o que é a ferramenta e o que ela faz além da calculadora oficial; como abrir e fechar; como usar cada aba; o que cada número mostra (base, CBS, IBS, IS, redução, alíquota efetiva, situações, memória de cálculo) e o que não mostra; de onde vem cada número (calculadora oficial, estimativa da tela ou você); a reforma num quadro; e como funciona por dentro, com o caminho de um cálculo e a pasta onde ficam os arquivos.
+
+### Correções
+- **Downloads recusados por excesso de pedidos (HTTP 429):** a instalação do motor esperava só 5 e 10 segundos entre tentativas. Agora respeita o tempo que o servidor pede (`Retry-After`) ou espera 30, 60 e 120 segundos, com até 5 tentativas, e o Maven espera mais quando o repositório recusa. Foi o que derrubou o teste do Ubuntu em 27/11/2026.
+- O teste diário com o motor oficial guarda as dependências do Maven entre execuções, e quase não baixa nada do Maven Central.
+
+### Repositório
+- Novo workflow **Lançamento**: ao enviar a tag, monta a versão portátil e os três instaladores, homologa cada um num sistema limpo (instala, abre pelo lançador baixando o Java de verdade, abre de novo, encerra e desinstala, em Debian, Ubuntu LTS e mais recente, Fedora e Windows) e só então publica a release, com as notas do CHANGELOG e o `SHA256SUMS.txt`.
+- A verificação a cada push também monta o `.deb` e confere o lançador, a tela e o ícone.
+
+### Documentação
+- README com a instalação pelos instaladores e a versão portátil como alternativa.
+- *Como funciona*: lançadores, instaladores, pasta de dados, instância única e encerramento automático. *Solução de problemas*: onde ficam os registros, SmartScreen, como desinstalar. *Desenvolvimento*: como publicar uma versão e montar os pacotes. Novas perguntas frequentes e a comparação *Instalada × portátil* em *Diferenças*.
+
 ## 1.6.2 — 2026-11-27
 
 Revisão contra as publicações do governo até 27/11/2026: calculadora oficial 1.7.3 (26/11), MP 1.399/2026 (Imposto Seletivo), cálculo do TCU para a CBS de 2027 (ainda pendente de resolução do Senado até 15/12/2026) e Anexos XVIII a XX da LC 214/2025 (Simples Nacional).

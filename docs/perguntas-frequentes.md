@@ -1,5 +1,14 @@
 # Perguntas frequentes
 
+### Instalo ou uso a versão portátil?
+Para usar no dia a dia, **instale**: abre pelo ícone, sem terminal, e se encerra sozinha. A versão portátil (ZIP ou `git clone`) serve para levar num pendrive, rodar sem instalar nada ou mexer no código. As duas fazem os mesmos cálculos. Veja [como usar](../README.md#como-usar).
+
+### Fechei o navegador. A calculadora continua rodando?
+Por até 20 minutos, na versão instalada; depois ela se encerra sozinha. Para encerrar na hora, use **Encerrar a calculadora**, na aba *Ajuda*, ou o atalho *Encerrar a Calculadora RTC* do menu. Na versão portátil, ela roda enquanto a janela do terminal estiver aberta.
+
+### Como desinstalo?
+Pelo próprio sistema: *Aplicativos instalados* no Windows, `sudo apt remove calculadora-rtc` no Debian e no Ubuntu, `sudo dnf remove calculadora-rtc` no Fedora. No Linux, apague também a pasta `~/.local/share/calculadora-rtc`. Veja [desinstalar](solucao-de-problemas.md#desinstalar).
+
 ### Por que uma nota de 2026 mostra só centavos de tributo?
 Porque 2026 é o ano de teste: CBS de 0,9% e IBS de 0,1%, e itens com benefício (como a cesta básica) zeram até isso. A tela também não mostra PIS, Cofins, ICMS, ISS nem IPI, que continuam valendo integralmente em 2026. Veja o [ponto de atenção 1](pontos-de-atencao.md#1-o-resultado-mostra-só-os-tributos-novos).
 

@@ -31,4 +31,4 @@ Falhas de segurança seguem a [política de segurança](SECURITY.md), e não vã
 
 Participar do projeto implica seguir o [código de conduta](CODE_OF_CONDUCT.md).
 
-As versões seguem `MAIOR.MENOR.CORREÇÃO`, e cada release tem a tag `vX.Y.Z`.
+As versões seguem `MAIOR.MENOR.CORREÇÃO`, e cada release tem a tag `vX.Y.Z`. A página de Releases é montada pelo workflow *Lançamento* ao enviar a tag: veja [publicar uma versão](docs/desenvolvimento.md#publicar-uma-versão).

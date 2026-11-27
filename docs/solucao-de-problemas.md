@@ -1,6 +1,24 @@
 # Solução de problemas
 
-O registro técnico está em **Ajuda → Ver registro técnico** e nos arquivos de `dados/logs/`.
+O registro técnico está em **Ajuda → Ver registro técnico** e nos arquivos da pasta `logs`, dentro da pasta de dados:
+
+| Versão | Pasta de dados |
+|---|---|
+| Instalada no Windows | `%LOCALAPPDATA%\CalculadoraRTC` (cole na barra do Explorador de Arquivos) |
+| Instalada no Linux | `~/.local/share/calculadora-rtc` |
+| Portátil | `dados/`, ao lado do `iniciar.bat` ou `iniciar.sh` |
+
+### Abri pelo ícone e nada apareceu
+- **Na primeira vez**, espere: a janela do download do Java pode demorar alguns segundos para aparecer, e o navegador só abre depois dela.
+- Abra `logs/painel.log` na pasta de dados: o fim do arquivo mostra o que aconteceu.
+- No Linux, rode `calculadora-rtc` num terminal: ele mostra o registro na tela, como o `iniciar.sh`.
+- Se a calculadora já estava aberta, o ícone só abre outra aba nela. Se o navegador não abriu, acesse `http://localhost:8090`.
+
+### O instalador do Windows mostra "O Windows protegeu o computador"
+O instalador não tem assinatura digital paga, então o SmartScreen avisa que o editor é desconhecido. Clique em **Mais informações → Executar assim mesmo**. Para conferir que o arquivo é o publicado, compare a soma SHA-256 dele (`Get-FileHash CalculadoraRTC-*.exe` no PowerShell) com a do `SHA256SUMS.txt` da release.
+
+### A calculadora continua rodando depois que fechei o navegador
+Na versão instalada, ela se encerra sozinha 20 minutos depois que a última aba é fechada. Para encerrar na hora, use o atalho *Encerrar a Calculadora RTC* do menu. Na versão portátil, feche a janela do terminal.
 
 ### A primeira abertura está demorando
 É normal levar de 5 a 15 minutos: o programa baixa o Java, a calculadora oficial e as dependências do Maven, e compila tudo. Acompanhe pela tela ou pelo terminal. Nas próximas vezes abre em segundos.
@@ -47,5 +65,12 @@ Veja a mensagem embaixo de cada item. As mais comuns são a classificação trib
 ### A tela mostra itens ou valores de testes antigos
 Clique em **Começar do zero**, no alto da tela. Isso apaga os itens e as escolhas guardadas neste navegador e não mexe no motor instalado. Se a tela nem chegar a abrir direito, acesse o endereço com `?limpar` no final (por exemplo `http://localhost:8090/?limpar`). Veja os detalhes no [guia de uso](guia-de-uso.md#começar-do-zero).
 
+### Desinstalar
+- **Windows:** *Configurações → Aplicativos → Calculadora RTC Fácil → Desinstalar*. A calculadora aberta é encerrada e a pasta de dados é apagada junto.
+- **Debian e Ubuntu:** `sudo apt remove calculadora-rtc`. **Fedora:** `sudo dnf remove calculadora-rtc`.
+  No Linux, a pasta de dados de cada usuário fica (cerca de 1 GB). Para apagá-la: `rm -r ~/.local/share/calculadora-rtc`.
+- **Portátil:** apague a pasta da calculadora.
+- Em todos os casos, as dependências do Maven ficam em `~/.m2` (Linux) ou `%USERPROFILE%\.m2` (Windows), cache compartilhado com outros programas Java. Se você não usa Maven para mais nada, pode apagar também.
+
 ### Reinstalar tudo
-Feche a calculadora e apague a pasta `dados/`. Na próxima abertura o Java, o motor oficial e a relação de NCM são baixados e preparados de novo. Os itens guardados no navegador não são afetados; para eles, use **Começar do zero**.
+Feche a calculadora e apague a pasta de dados (veja a tabela no início desta página). Na próxima abertura o Java, o motor oficial e a relação de NCM são baixados e preparados de novo. Os itens guardados no navegador não são afetados; para eles, use **Começar do zero**.

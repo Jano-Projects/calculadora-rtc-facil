@@ -96,7 +96,7 @@ Qual delas vale depende de **quem vende, para quem e com que finalidade**.
 
 ## 13. Acesso pela rede não tem senha
 
-**O que pode enganar.** Com a opção `--rede`, qualquer computador da rede local consegue abrir a calculadora.
+**O que pode enganar.** Com a opção `--rede`, qualquer computador da rede local consegue abrir a calculadora, e também encerrá-la pelo botão *Encerrar a calculadora*.
 
 **O que fazer.** Use `--rede` só em redes de confiança (sua casa, uma VM no seu computador). Sem essa opção, a calculadora só aceita acessos do próprio computador.
 

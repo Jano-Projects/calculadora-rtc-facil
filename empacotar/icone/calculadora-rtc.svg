@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- Ícone de aplicativo da Calculadora RTC Fácil: o mesmo recibo de web/icone.svg sobre um quadrado
+       arredondado na cor principal da tela (#0E6B5A), para aparecer bem em menus claros e escuros. -->
+  <rect x="8" y="8" width="240" height="240" rx="52" fill="#0E6B5A"/>
+  <g transform="translate(40 46) scale(2.75)">
+    <path d="M14 4h36v52l-4.5-3-4.5 3-4.5-3-4.5 3-4.5-3-4.5 3-4.5-3-4.5 3z" fill="#F7F9F8" stroke="#1C2B33" stroke-width="2.6" stroke-linejoin="round"/>
+    <path d="M21 16h22M21 24h22M21 32h12" stroke="#1C2B33" stroke-width="3" stroke-linecap="round"/>
+    <path d="M35 42h8" stroke="#0E6B5A" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="23" cy="42" r="3" fill="#0E6B5A"/>
+  </g>
+</svg>

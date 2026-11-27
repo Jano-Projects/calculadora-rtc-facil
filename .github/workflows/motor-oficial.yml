@@ -77,6 +77,13 @@ jobs:
       - name: Pacotes que já vêm numa instalação desktop
         run: ${{ matrix.preparar }}
       - uses: actions/checkout@v7
+      # Dependências do Maven guardadas entre execuções: o Maven Central recusa (HTTP 429) quando muitas
+      # máquinas do GitHub baixam ao mesmo tempo; com o cache, quase nada é baixado.
+      - uses: actions/cache@v6
+        with:
+          path: ~/.m2/repository
+          key: m2-${{ matrix.nome }}-${{ needs.verificar.outputs.versao }}
+          restore-keys: m2-${{ matrix.nome }}-
       - name: Instalar a última versão oficial e calcular
         run: bash iniciar.sh --instalar-e-sair
       - name: Logs
@@ -90,6 +97,11 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/cache@v6
+        with:
+          path: ~/.m2/repository
+          key: m2-windows-${{ needs.verificar.outputs.versao }}
+          restore-keys: m2-windows-
       - name: Instalar a última versão oficial e calcular
         shell: cmd
         run: call iniciar.bat --instalar-e-sair
@@ -112,6 +124,11 @@ jobs:
         run: |
           pip install playwright
           python -m playwright install --with-deps chromium
+      - uses: actions/cache@v6
+        with:
+          path: ~/.m2/repository
+          key: m2-tela-${{ needs.verificar.outputs.versao }}
+          restore-keys: m2-tela-
       - name: Instalar a última versão oficial
         run: bash iniciar.sh --instalar-e-sair
       - name: Abrir a calculadora

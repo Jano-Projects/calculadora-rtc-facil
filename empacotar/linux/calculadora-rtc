@@ -1,0 +1,88 @@
+#!/bin/sh
+# ==========================================================================
+#  Calculadora RTC Fácil — lançador instalado (Linux): /usr/bin/calculadora-rtc
+#  É o que o ícone do menu de aplicativos abre. Não precisa de terminal:
+#
+#  1. Java: na primeira vez (e a cada 90 dias, para receber as correções de segurança)
+#     baixa o Java portátil, mostrando uma janela de progresso (zenity ou kdialog;
+#     sem eles, um aviso na área de notificações).
+#  2. Sobe o gerenciador em segundo plano com --atalho. Ele abre o navegador, mostra
+#     a preparação do motor oficial na própria tela e se encerra sozinho depois que a
+#     última aba da calculadora for fechada. Se ela já estiver aberta, só abre o navegador.
+#
+#  Os arquivos baixados e gerados (Java, motor oficial, logs) ficam na pasta do usuário:
+#  ${XDG_DATA_HOME:-~/.local/share}/calculadora-rtc. O programa em /usr/share não muda.
+#
+#  calculadora-rtc             abre (pelo ícone)
+#  calculadora-rtc --encerrar  encerra a calculadora aberta (ação "Encerrar" do ícone)
+#  Rodado num terminal, funciona como o iniciar.sh: mostra o registro e encerra com Ctrl+C.
+# ==========================================================================
+APP="${CALC_RTC_APP:-/usr/share/calculadora-rtc}"
+CALC_RTC_DADOS="${CALC_RTC_DADOS:-${XDG_DATA_HOME:-$HOME/.local/share}/calculadora-rtc}"
+export CALC_RTC_DADOS
+DIAS_JAVA=90
+TITULO="Calculadora RTC"
+
+avisar() {   # mensagem em janela: sem terminal, não há onde imprimir (\n vira quebra de linha)
+  set -- "$(printf '%b' "$1")"
+  if command -v zenity >/dev/null 2>&1; then zenity --warning --title="$TITULO" --text="$1" --width=420 2>/dev/null
+  elif command -v kdialog >/dev/null 2>&1; then kdialog --title "$TITULO" --sorry "$1" 2>/dev/null
+  elif command -v notify-send >/dev/null 2>&1; then notify-send "$TITULO" "$1"
+  else echo "$TITULO: $1" >&2; fi
+}
+
+postar() {   # POST simples na porta local (curl ou wget, o que existir)
+  if command -v curl >/dev/null 2>&1; then curl -fsS -m 5 -X POST "$1" >/dev/null 2>&1
+  else wget -q -T 5 --method=POST -O /dev/null "$1" 2>/dev/null; fi
+}
+
+# ---------- encerrar ----------
+if [ "$1" = "--encerrar" ]; then
+  porta="$(cat "$CALC_RTC_DADOS/painel.porta" 2>/dev/null)"
+  if [ -n "$porta" ] && postar "http://127.0.0.1:$porta/painel/encerrar"; then
+    command -v notify-send >/dev/null 2>&1 && notify-send "$TITULO" "Calculadora encerrada."
+  else
+    avisar "A calculadora não está aberta."
+  fi
+  exit 0
+fi
+
+# ---------- num terminal: comportamento do iniciar.sh (registro na tela, Ctrl+C encerra) ----------
+if [ -t 1 ]; then exec bash "$APP/iniciar.sh" "$@"; fi
+
+mkdir -p "$CALC_RTC_DADOS/logs"
+REGISTRO="$CALC_RTC_DADOS/logs/painel.log"
+
+# ---------- 1. Java portátil, com janela de progresso ----------
+precisa_java() {   # mesma regra do iniciar.sh: falta o Java, ou a cópia tem mais de DIAS_JAVA dias
+  [ -x "$CALC_RTC_DADOS/jdk/bin/java" ] || return 0
+  baixado="$(cat "$CALC_RTC_DADOS/jdk/.baixado-em" 2>/dev/null || echo 0)"
+  [ $(( $(date +%s) - baixado )) -gt $(( DIAS_JAVA * 86400 )) ]
+}
+if precisa_java; then
+  if [ -x "$CALC_RTC_DADOS/jdk/bin/java" ]; then
+    TEXTO="Atualizando o Java da calculadora (correções de segurança, cerca de 200 MB)..."
+  else
+    TEXTO="$(printf 'Preparando a Calculadora RTC pela primeira vez.\n\nBaixando o Java (cerca de 200 MB). Depois, o navegador abre e mostra a instalação da calculadora oficial, que leva de 5 a 15 minutos.')"
+  fi
+  if command -v zenity >/dev/null 2>&1; then
+    bash "$APP/iniciar.sh" --so-java >>"$REGISTRO" 2>&1 &
+    TAREFA=$!
+    ( while kill -0 "$TAREFA" 2>/dev/null; do echo "#"; sleep 1; done ) |
+      zenity --progress --pulsate --auto-close --no-cancel --title="$TITULO" --text="$TEXTO" --width=440 2>/dev/null
+    wait "$TAREFA"
+  else
+    if command -v kdialog >/dev/null 2>&1; then kdialog --title "$TITULO" --passivepopup "$TEXTO" 30 2>/dev/null &
+    elif command -v notify-send >/dev/null 2>&1; then notify-send "$TITULO" "$TEXTO"; fi
+    bash "$APP/iniciar.sh" --so-java >>"$REGISTRO" 2>&1
+  fi
+  if [ ! -x "$CALC_RTC_DADOS/jdk/bin/java" ]; then
+    avisar "Não consegui baixar o Java. Verifique a internet e abra a calculadora de novo.\n\nDetalhes em $REGISTRO"
+    exit 1
+  fi
+fi
+
+# ---------- 2. gerenciador em segundo plano ----------
+printf '\n===== %s =====\n' "$(date '+%d/%m/%Y %H:%M:%S')" >>"$REGISTRO"
+nohup bash "$APP/iniciar.sh" --atalho "$@" >>"$REGISTRO" 2>&1 </dev/null &
+exit 0

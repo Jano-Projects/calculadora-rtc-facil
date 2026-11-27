@@ -36,16 +36,26 @@ public class CalculadoraRTC {
 
     // ------------------------------------------------------------------ configuração
     static final String REPO_PADRAO = "https://github.com/ReceitaFederal/calculadora-rtc-regime-regular";
-    static final String VERSAO_PAINEL = "1.6.2";
+    static final String VERSAO_PAINEL = "1.7.0";
 
-    // Pastas: base = raiz do projeto; dados/ guarda o que é baixado e gerado (motores, fontes, logs, JDK)
+    // Pastas: base = onde estão app/ e web/; dados = o que é baixado e gerado (motores, fontes, logs, JDK).
+    // Na versão portátil (ZIP ou git clone), dados fica dentro da própria pasta (base/dados). Na versão
+    // instalada, a pasta do programa não é gravável, e os lançadores apontam dados para a pasta do usuário
+    // (CALC_RTC_DADOS ou --dados): ~/.local/share/calculadora-rtc no Linux, %LOCALAPPDATA%\CalculadoraRTC no Windows.
     static Path base, dados, dirWeb, dirMotores, dirFontes, dirLogs;
+    static String dadosEscolhido = env("CALC_RTC_DADOS", null);
     static String repo = env("CALC_RTC_REPO", REPO_PADRAO);
     static int portaWeb = Integer.parseInt(env("CALC_RTC_PORTA", "8090"));
     static long horasEntreVerificacoes = Long.parseLong(env("CALC_RTC_HORAS_VERIFICACAO", "6"));
     static boolean abrirNavegador = true, rede = false, semAtualizacao = false, instalarESair = false;
     static String apiExterna = null; // modo desenvolvimento: não gerencia o motor
     static String versaoFixa = env("CALC_RTC_VERSAO", null);
+    // Modo atalho (aberto pelo ícone, sem terminal): não há Ctrl+C, então o painel se encerra sozinho
+    // depois de alguns minutos sem nenhuma aba da calculadora aberta (a tela consulta /painel/status a cada minuto).
+    static boolean atalho = false;
+    static long minutosSemUso = Long.parseLong(env("CALC_RTC_ENCERRAR_MIN", "20"));
+    static final AtomicLong ultimoAcesso = new AtomicLong(System.currentTimeMillis());
+    static volatile int portaPainel = -1;
 
     // ------------------------------------------------------------------ estado
     static final Object trava = new Object();
@@ -80,7 +90,7 @@ public class CalculadoraRTC {
      *  Com --instalar-e-sair (usado na CI), só instala, faz um cálculo de teste e termina. */
     public static void main(String[] args) throws Exception {
         lerArgumentos(args);
-        dados = base.resolve("dados");
+        dados = dadosEscolhido != null ? Paths.get(dadosEscolhido).toAbsolutePath().normalize() : base.resolve("dados");
         dirWeb = base.resolve("web");
         dirMotores = dados.resolve("motor");
         dirFontes = dados.resolve("fontes");
@@ -88,9 +98,24 @@ public class CalculadoraRTC {
         for (Path p : List.of(dados, dirMotores, dirFontes, dirLogs)) Files.createDirectories(p);
 
         log("Calculadora RTC Fácil " + VERSAO_PAINEL + " | Java " + Runtime.version());
-        log("Pasta: " + base);
+        log("Pasta: " + base + (dados.startsWith(base) ? "" : " | dados: " + dados));
 
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> pararMotor(motor), "desligamento"));
+        // Já existe uma calculadora aberta com esta mesma pasta de dados? Então só abre o navegador nela.
+        // Duas instâncias disputariam a pasta do motor (instalação e troca de versão).
+        if (!instalarESair && apiExterna == null) {
+            int aberta = painelJaAberto();
+            if (aberta > 0) {
+                String url = "http://localhost:" + aberta + "/";
+                log("A calculadora já está aberta em " + url + " (abrindo no navegador).");
+                if (abrirNavegador) { abrirNoNavegador(url); Thread.sleep(3000); }
+                System.exit(0);
+            }
+        }
+
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            pararMotor(motor);
+            apagarArquivoDaPorta();
+        }, "desligamento"));
 
         if (instalarESair) { // usado na CI e para pré-instalar: prepara, testa o motor e sai
             prepararNaInicializacao();
@@ -106,6 +131,8 @@ public class CalculadoraRTC {
         }
 
         int porta = iniciarServidorWeb();
+        portaPainel = porta;
+        Files.writeString(dados.resolve(ARQ_PORTA), String.valueOf(porta)); // para a próxima abertura achar esta
         String url = "http://localhost:" + porta + "/";
         log("Painel disponível em " + url + (rede ? " (também acessível pela rede local)" : ""));
         if (abrirNavegador) abrirNoNavegador(url);
@@ -122,7 +149,13 @@ public class CalculadoraRTC {
                         horasEntreVerificacoes, horasEntreVerificacoes, TimeUnit.HOURS);
             }
         }
-        log("Deixe esta janela aberta enquanto usa a calculadora. Para encerrar: Ctrl+C (ou feche a janela).");
+        if (atalho && minutosSemUso > 0) {
+            vigiarUso();
+            log("Aberta pelo atalho: encerra sozinha " + minutosSemUso + (minutosSemUso == 1 ? " minuto" : " minutos")
+                    + " depois que a última aba for fechada.");
+        } else {
+            log("Deixe esta janela aberta enquanto usa a calculadora. Para encerrar: Ctrl+C (ou feche a janela).");
+        }
         Thread.currentThread().join();
     }
 
@@ -139,6 +172,8 @@ public class CalculadoraRTC {
                 case "--instalar-e-sair" -> { instalarESair = true; abrirNavegador = false; }
                 case "--versao" -> versaoFixa = args[++i];
                 case "--api-externa" -> apiExterna = args[++i].replaceAll("/+$", "");
+                case "--dados" -> dadosEscolhido = args[++i];
+                case "--atalho" -> atalho = true;
                 case "--ajuda", "-h", "--help" -> { ajuda(); System.exit(0); }
                 default -> { System.err.println("Opção desconhecida: " + args[i]); ajuda(); System.exit(2); }
             }
@@ -155,9 +190,12 @@ public class CalculadoraRTC {
               --rede               aceita acessos de outros computadores da rede
               --sem-navegador      não abre o navegador automaticamente
               --sem-atualizacao    não procura versões novas (usa a instalada)
-              --versao X           usa uma versão específica da calculadora oficial (ex.: 1.7.2)
+              --versao X           usa uma versão específica da calculadora oficial (ex.: 1.7.3)
               --instalar-e-sair    só instala/atualiza o motor, testa e encerra (útil para CI)
               --api-externa URL    não gerencia o motor; usa um já em execução (desenvolvimento)
+              --dados PASTA        onde guardar o Java, o motor e os logs (padrão: ./dados)
+              --atalho             modo do ícone: encerra sozinha quando nenhuma aba estiver aberta
+              --so-java            (só nos scripts) baixa ou atualiza o Java portátil e encerra
             """);
     }
 
@@ -525,17 +563,24 @@ public class CalculadoraRTC {
     }
 
     // ================================================================== Maven / arquivos
-    /** Roda o Maven Wrapper; se falhar (em geral, download interrompido), tenta mais uma vez. */
+    /** Roda o Maven Wrapper; se falhar (em geral, download interrompido), tenta de novo até 2 vezes.
+     *  Se o log mostrar que o repositório recusou por excesso de pedidos (HTTP 429), espera mais. */
     static void executar(Path dir, Path log, List<String> argsMaven) throws Exception {
-        try {
-            executarUmaVez(dir, log, argsMaven);
-        } catch (IOException primeira) {
-            if (primeira.getMessage() != null && primeira.getMessage().contains("demorou demais")) throw primeira;
-            log("O Maven falhou; tentando de novo em 10 segundos (falhas de download costumam ser passageiras)...");
-            Files.writeString(log, "\n--- nova tentativa ---\n", StandardOpenOption.APPEND);
-            Thread.sleep(10_000);
-            garantirWrapperJar(dir, log);
-            executarUmaVez(dir, log, argsMaven);
+        for (int tentativa = 1; ; tentativa++) {
+            try {
+                executarUmaVez(dir, log, argsMaven);
+                return;
+            } catch (IOException falha) {
+                if (tentativa >= 3 || (falha.getMessage() != null && falha.getMessage().contains("demorou demais"))) throw falha;
+                String fim = ultimasLinhas(log, 60);
+                boolean excesso = fim.contains("429") || fim.contains("Too Many Requests");
+                long espera = excesso ? 60_000L * tentativa : 10_000L;
+                log("O Maven falhou" + (excesso ? " (o repositório recusou por excesso de pedidos)" : "")
+                        + "; tentando de novo em " + espera / 1000 + " segundos...");
+                Files.writeString(log, "\n--- nova tentativa ---\n", StandardOpenOption.APPEND);
+                Thread.sleep(espera);
+                garantirWrapperJar(dir, log);
+            }
         }
     }
 
@@ -556,7 +601,8 @@ public class CalculadoraRTC {
         }
         Files.createDirectories(jar.getParent());
         IOException ultimo = null;
-        for (int tentativa = 1; tentativa <= 3; tentativa++) {
+        final int tentativas = 5;
+        for (int tentativa = 1; tentativa <= tentativas; tentativa++) {
             try {
                 baixar(url, jar);
                 if (tamanho(jar) > 0) {
@@ -566,8 +612,11 @@ public class CalculadoraRTC {
             } catch (IOException e) {
                 ultimo = e;
                 Files.deleteIfExists(jar);
-                log("Download do Maven Wrapper falhou (tentativa " + tentativa + " de 3): " + descrever(e));
-                Thread.sleep(5_000L * tentativa);
+                if (tentativa == tentativas) break;
+                long espera = esperaAntesDe(tentativa, e);
+                log("Download do Maven Wrapper falhou (tentativa " + tentativa + " de " + tentativas + "): " + descrever(e)
+                        + ". Nova tentativa em " + espera / 1000 + " s.");
+                Thread.sleep(espera);
             }
         }
         throw new IOException("não foi possível baixar o Maven Wrapper de " + url + ": " + (ultimo != null ? descrever(ultimo) : "arquivo vazio"));
@@ -630,8 +679,36 @@ public class CalculadoraRTC {
                 HttpResponse.BodyHandlers.ofFile(destino));
         if (r.statusCode() != 200) {
             Files.deleteIfExists(destino);
-            throw new IOException("download falhou (HTTP " + r.statusCode() + "): " + url);
+            long esperar = r.headers().firstValue("Retry-After").filter(v -> v.matches("\\d{1,6}")).map(Long::parseLong).orElse(0L);
+            throw new FalhaDeDownload(r.statusCode(), esperar, url);
         }
+    }
+
+    /** Download recusado pelo servidor. 429 (Too Many Requests) e 503 são passageiros: o servidor pede para
+     *  esperar, às vezes dizendo quanto no cabeçalho Retry-After. Acontece no Maven Central quando muitas máquinas
+     *  saem pelo mesmo IP (servidores do GitHub Actions, redes de empresa). */
+    static final class FalhaDeDownload extends IOException {
+        private static final long serialVersionUID = 1L;
+        final int status;
+        final long retryAfterSegundos;
+
+        FalhaDeDownload(int status, long retryAfterSegundos, String url) {
+            super("download falhou (HTTP " + status + (status == 429 ? ", servidor com excesso de pedidos" : "") + "): " + url);
+            this.status = status;
+            this.retryAfterSegundos = retryAfterSegundos;
+        }
+
+        boolean passageira() { return status == 429 || status == 503 || status == 502 || status == 504; }
+    }
+
+    /** Quanto esperar antes da tentativa seguinte: o que o servidor pediu (até 5 min) ou 30 s, 60 s, 120 s...
+     *  para recusas passageiras; 5 s, 10 s... para as demais falhas. */
+    static long esperaAntesDe(int tentativa, IOException falha) {
+        if (falha instanceof FalhaDeDownload f && f.passageira()) {
+            if (f.retryAfterSegundos > 0) return Math.min(f.retryAfterSegundos, 300) * 1000;
+            return Math.min(30_000L << (tentativa - 1), 240_000L);
+        }
+        return 5_000L * tentativa;
     }
 
     /** Extrai o zip e devolve a pasta raiz do projeto (o GitHub coloca tudo dentro de uma pasta). */
@@ -702,6 +779,60 @@ public class CalculadoraRTC {
         return System.getProperty("os.name").toLowerCase().contains("win");
     }
 
+    // ================================================================== instância única e encerramento
+    static final String ARQ_PORTA = "painel.porta"; // porta do painel em uso, gravada dentro da pasta de dados
+
+    /** Porta de uma calculadora já aberta com a mesma pasta de dados (que responde em /painel/status), ou -1. */
+    static int painelJaAberto() {
+        String texto = lerTexto(dados.resolve(ARQ_PORTA));
+        if (texto == null || !texto.matches("\\d{1,5}")) return -1;
+        int porta = Integer.parseInt(texto);
+        try {
+            var r = httpLocal.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + porta + "/painel/status"))
+                    .timeout(Duration.ofSeconds(3)).build(), HttpResponse.BodyHandlers.ofString());
+            return r.statusCode() == 200 && r.body().contains("\"versaoPainel\"") ? porta : -1;
+        } catch (Exception e) {
+            return -1; // arquivo de uma execução que terminou sem apagá-lo (queda de energia, kill -9...)
+        }
+    }
+
+    /** Apaga o arquivo da porta, se ainda for o desta execução. */
+    static void apagarArquivoDaPorta() {
+        Path p = dados.resolve(ARQ_PORTA);
+        if (String.valueOf(portaPainel).equals(lerTexto(p))) {
+            try { Files.deleteIfExists(p); } catch (IOException ignored) { }
+        }
+    }
+
+    /** Modo atalho: a cada minuto, confere há quanto tempo a tela não fala com o painel. Sem nenhuma aba aberta
+     *  por minutosSemUso minutos (e sem instalação em andamento), encerra o painel e o motor. */
+    static void vigiarUso() {
+        ScheduledExecutorService vigia = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "vigia-de-uso");
+            t.setDaemon(true);
+            return t;
+        });
+        vigia.scheduleWithFixedDelay(() -> {
+            long parado = (System.currentTimeMillis() - ultimoAcesso.get()) / 60_000;
+            boolean ocupado = atualizando || !"pronto".equals(estado) && !"erro".equals(estado);
+            if (parado >= minutosSemUso && !ocupado) {
+                log("Nenhuma aba da calculadora aberta há " + parado + (parado == 1 ? " minuto" : " minutos") + ": encerrando.");
+                System.exit(0);
+            }
+        }, 1, 1, TimeUnit.MINUTES);
+    }
+
+    /** Encerra o painel e o motor logo depois de responder (botão "Encerrar a calculadora" da aba Ajuda). */
+    static void encerrarEmSeguida() {
+        Thread t = new Thread(() -> {
+            try { Thread.sleep(500); } catch (InterruptedException ignored) { }
+            log("Encerrada pela tela.");
+            System.exit(0);
+        }, "encerrar");
+        t.setDaemon(false);
+        t.start();
+    }
+
     // ================================================================== servidor web + proxy
     /** Sobe o servidor HTTP do painel (só localhost, a menos que --rede): /painel/ (estado), /api/ (proxy para o motor)
      *  e / (arquivos da pasta web/). Se a porta estiver ocupada, tenta as 19 seguintes. */
@@ -728,9 +859,15 @@ public class CalculadoraRTC {
     /** Rotas do próprio gerenciador: status, pedido de atualização, relação NCM × classificação e log. */
     static void tratarPainel(HttpExchange ex) throws IOException {
         try (ex) {
+            ultimoAcesso.set(System.currentTimeMillis());
             String caminho = ex.getRequestURI().getPath();
             switch (caminho) {
                 case "/painel/status" -> responderJson(ex, 200, statusJson());
+                case "/painel/encerrar" -> {
+                    if (!"POST".equals(ex.getRequestMethod())) { responderJson(ex, 405, "{\"erro\":\"use POST\"}"); return; }
+                    responderJson(ex, 202, "{\"encerrando\":true}");
+                    encerrarEmSeguida();
+                }
                 case "/painel/atualizar" -> {
                     if (!"POST".equals(ex.getRequestMethod())) { responderJson(ex, 405, "{\"erro\":\"use POST\"}"); return; }
                     if (apiExterna != null) { responderJson(ex, 409, "{\"erro\":\"modo motor externo\"}"); return; }
@@ -782,6 +919,8 @@ public class CalculadoraRTC {
                 + q("atualizacaoAutomatica") + ":" + (apiExterna == null && !semAtualizacao && versaoFixa == null) + ","
                 + q("horasEntreVerificacoes") + ":" + horasEntreVerificacoes + ","
                 + q("repositorio") + ":" + q(repo) + ","
+                + q("encerraSemUso") + ":" + (atalho && minutosSemUso > 0 ? String.valueOf(minutosSemUso) : "null") + ","
+                + q("pastaDados") + ":" + q(dados.toString()) + ","
                 + q("versaoPainel") + ":" + q(VERSAO_PAINEL)
                 + "}";
     }
@@ -793,6 +932,7 @@ public class CalculadoraRTC {
     /** Repassa /api/** ao motor oficial (método, corpo, cabeçalhos e resposta) — o navegador fala com uma origem só. */
     static void tratarProxy(HttpExchange ex) throws IOException {
         try (ex) {
+            ultimoAcesso.set(System.currentTimeMillis());
             String alvo = apiExterna != null ? apiExterna : (portaMotor > 0 ? "http://127.0.0.1:" + portaMotor : null);
             if (alvo == null || (apiExterna == null && (motor == null || !motor.isAlive()))) {
                 responderJson(ex, 503, "{\"title\":\"Motor de cálculo ainda não está pronto\",\"detail\":" + q(mensagem) + "}");

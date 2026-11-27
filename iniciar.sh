@@ -4,14 +4,17 @@
 #
 #  Uso:  ./iniciar.sh                 abre a calculadora no navegador
 #        ./iniciar.sh --criar-atalho  cria um atalho no menu de aplicativos
+#        ./iniciar.sh --so-java       só baixa ou atualiza o Java portátil e encerra
 #        ./iniciar.sh --ajuda         mostra todas as opções
 #
 #  Não precisa de sudo: o Java 25 é baixado para dentro da pasta "dados/".
+#  Na versão instalada (.deb/.rpm), o lançador /usr/bin/calculadora-rtc define CALC_RTC_DADOS
+#  para a pasta do usuário, porque /usr/share não é gravável.
 # =============================================================================
 set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DADOS="$DIR/dados"
+DADOS="${CALC_RTC_DADOS:-$DIR/dados}"
 JDK="$DADOS/jdk"
 VERSAO_JAVA=25
 
@@ -100,6 +103,11 @@ elif ! java_ok "$JDK" || java_antigo; then
     fi
     rm -rf "$JDK.tmp" "$TMP"
 fi
+
+# --so-java: usado pelo lançador instalado, que mostra esta etapa numa janela de progresso
+for arg in "$@"; do
+    if [[ "$arg" == "--so-java" ]]; then info "Java pronto em $JDK"; exit 0; fi
+done
 
 # ---------------------------------------------------------------- inicia o gerenciador
 # -XX:-UseBASE64Intrinsics: mitigação do Java4Shell (CVE-2026-114938); o motor oficial também recebe a opção.

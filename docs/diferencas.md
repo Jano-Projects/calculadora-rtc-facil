@@ -17,6 +17,17 @@ Coisas parecidas que funcionam de jeitos diferentes, lado a lado.
 
 O que a ferramenta **acrescenta** são conveniências de entrada e leitura. Toda conta, validação e mensagem de erro vem da calculadora oficial. O botão *Ver JSON* mostra exatamente o que foi enviado e recebido.
 
+## Instalada × portátil
+
+| | Instalada (`.exe`, `.deb`, `.rpm`) | Portátil (ZIP ou `git clone`) |
+|---|---|---|
+| Como abre | Ícone no Menu Iniciar ou no menu de aplicativos | `iniciar.bat` ou `bash iniciar.sh` |
+| Terminal | Não aparece. O registro vai para `logs/painel.log` | Fica aberto, com o registro na tela |
+| Como fecha | Sozinha, 20 minutos depois de fechar a última aba, ou pelo botão/atalho *Encerrar* | Fechando o terminal ou com `Ctrl+C` (o botão *Encerrar* também funciona) |
+| Onde ficam o Java e o motor | Pasta do usuário (`%LOCALAPPDATA%\CalculadoraRTC` ou `~/.local/share/calculadora-rtc`) | `dados/`, ao lado dos arquivos |
+| Atualizar a ferramenta | Instalar a versão nova por cima | `git pull`, ou o ZIP novo com a pasta `dados/` copiada |
+| Cálculos | Os mesmos | Os mesmos |
+
 ## Comparar datas × Antes e depois
 
 | | Comparar datas | Antes e depois |

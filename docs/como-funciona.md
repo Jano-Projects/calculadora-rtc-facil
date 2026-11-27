@@ -1,7 +1,14 @@
 # Como funciona
 
 ```
- iniciar.sh / iniciar.bat
+ ícone (versão instalada)                          iniciar.sh / iniciar.bat (versão portátil)
+   Windows: CalculadoraRTC.exe                       dados em ./dados, registro no terminal
+   Linux:   /usr/bin/calculadora-rtc
+   dados na pasta do usuário, sem terminal, --atalho
+   │                                                   │
+   └──────────────────────┬────────────────────────────┘
+                          ▼
+ iniciar.sh / scripts/iniciar.ps1
    │  baixa o JDK 25 portátil (Eclipse Temurin) para dados/jdk na 1ª vez,
    │  e de novo a cada 90 dias (correções de segurança)
    ▼
@@ -72,6 +79,7 @@ Ao subir cada versão do motor, o gerenciador lê do banco oficial a relação e
 
 ```
 dados/
+├── painel.porta               porta do painel aberto (apagado ao encerrar)
 ├── jdk/                       Java 25 portátil (.baixado-em guarda a data do download)
 ├── motor/
 │   ├── atual                  versão em uso
@@ -80,8 +88,11 @@ dados/
 ├── fontes/                    temporário durante a compilação
 └── logs/
     ├── instalacao-<versão>.log    saída do Maven
-    └── motor.log                  saída da calculadora oficial
+    ├── motor.log                  saída da calculadora oficial
+    └── painel.log                 registro do gerenciador, quando aberto pelo ícone
 ```
+
+Na versão portátil, `dados/` fica ao lado dos arquivos; na instalada, é a pasta de dados da tabela acima.
 
 As dependências do Maven ficam no cache padrão do usuário (`~/.m2`). Para "zerar" a ferramenta, apague a pasta `dados/`.
 
@@ -93,3 +104,28 @@ As dependências do Maven ficam no cache padrão do usuário (`~/.m2`). Para "ze
 | `POST /painel/atualizar` | Procura versão nova agora. Se o motor estiver parado, tenta subir de novo. |
 | `GET /painel/log` | Últimas 200 linhas do log mais recente. |
 | `GET /painel/ncm-classificacoes` | Relação NCM × classificação tributária da versão em uso (base das sugestões da tela). |
+| `POST /painel/encerrar` | Encerra o painel e o motor oficial (botão *Encerrar a calculadora* e atalho *Encerrar*). |
+
+## Versão instalada: lançadores e instaladores
+
+Os instaladores colocam os **mesmos arquivos** da versão portátil (`app/`, `web/` e o script de inicialização) numa pasta do sistema, mais um lançador que faz o papel do terminal:
+
+| | Windows | Debian, Ubuntu, Fedora |
+|---|---|---|
+| Instalador | `CalculadoraRTC-<versão>-instalador-windows.exe` (Inno Setup, `empacotar/windows/calculadora-rtc.iss`) | `.deb` e `.rpm` (`empacotar/linux/`) |
+| Programa | `%LOCALAPPDATA%\Programs\Calculadora RTC` (ou *Arquivos de Programas*, se instalado para todos) | `/usr/share/calculadora-rtc` |
+| Lançador (o ícone) | `CalculadoraRTC.exe` (`empacotar/windows/Lancador.cs`, sem console) | `/usr/bin/calculadora-rtc` (`empacotar/linux/calculadora-rtc`) |
+| Dados (Java, motor, registros) | `%LOCALAPPDATA%\CalculadoraRTC` | `~/.local/share/calculadora-rtc` |
+| Encerrar | Menu Iniciar → *Encerrar a Calculadora RTC* | Menu de aplicativos → botão direito no ícone → *Encerrar a calculadora* |
+
+O lançador:
+
+1. aponta a pasta de dados para a do usuário (`CALC_RTC_DADOS`), porque a pasta do programa não é gravável;
+2. se falta o Java, ou a cópia tem mais de 90 dias, roda o script com `--so-java` **com uma janela visível**: no Windows, a janela do PowerShell com o andamento do download; no Linux, uma janela de progresso (`zenity` ou `kdialog`; sem eles, um aviso na área de notificações);
+3. sobe o gerenciador **em segundo plano** com `--atalho`, com o registro em `logs/painel.log` da pasta de dados.
+
+No modo `--atalho`, o gerenciador se encerra sozinho depois de `CALC_RTC_ENCERRAR_MIN` minutos (padrão 20) sem receber nenhuma consulta da tela. A tela consulta `/painel/status` a cada minuto enquanto alguma aba está aberta, então isso só acontece depois que a última aba é fechada. Durante uma instalação ou atualização do motor, ele espera terminar.
+
+**Uma calculadora por pasta de dados.** Ao subir, o painel grava a porta em `painel.porta`, dentro da pasta de dados. Ao abrir de novo, se essa porta responde, o gerenciador novo só abre o navegador nela e termina. Isso vale também para a versão portátil: duas cópias disputariam a pasta do motor durante uma atualização.
+
+Ao desinstalar no Windows, a calculadora aberta é encerrada e a pasta de dados é apagada. No Linux, o gerenciador de pacotes não mexe nas pastas dos usuários: veja [como desinstalar](solucao-de-problemas.md#desinstalar).

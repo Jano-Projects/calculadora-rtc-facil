@@ -20,14 +20,23 @@ jobs:
       - name: Java compila sem avisos
         run: javac -Xlint:all -Werror -d /tmp/classes app/CalculadoraRTC.java
       - name: ShellCheck
-        run: shellcheck iniciar.sh dev/*.sh
+        run: |
+          shellcheck iniciar.sh dev/*.sh
+          shellcheck -s sh empacotar/linux/*.sh empacotar/linux/calculadora-rtc
       - name: JavaScript válido
         run: |
           node --check web/app.js
           node --check web/exemplos.js
           node --check web/nfe.js
       - name: Python válido
-        run: python3 -m py_compile dev/*.py
+        run: python3 -m py_compile dev/*.py empacotar/icone/*.py
+      - name: Pacote .deb monta e tem o lançador, a tela e o ícone
+        run: |
+          sh empacotar/linux/montar-deb.sh
+          dpkg-deb -c saida/calculadora-rtc_*_all.deb | grep -q './usr/bin/calculadora-rtc$'
+          dpkg-deb -c saida/calculadora-rtc_*_all.deb | grep -q './usr/share/calculadora-rtc/web/index.html$'
+          dpkg-deb -c saida/calculadora-rtc_*_all.deb | grep -q 'apps/calculadora-rtc.png$'
+          python3 dev/notas-da-versao.py "$(sh empacotar/linux/versao.sh)" > /dev/null
       - name: PSScriptAnalyzer
         shell: pwsh
         run: |

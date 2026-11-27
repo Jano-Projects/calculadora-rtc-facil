@@ -1,0 +1,213 @@
+name: Lançamento
+
+# Ao criar uma tag de versão (git tag v1.7.0 && git push origin v1.7.0):
+#   1. confere se a tag bate com VERSAO_PAINEL (app/CalculadoraRTC.java) e se o CHANGELOG.md tem a seção;
+#   2. monta a versão portátil (.zip), os pacotes Linux (.deb e .rpm) e o instalador do Windows (.exe);
+#   3. homologa cada um num sistema limpo, como uma pessoa faria pelo ícone: instala, confere arquivos,
+#      atalhos e ícones, abre a calculadora (o lançador baixa o Java de verdade e sobe o painel em segundo
+#      plano), abre de novo (deve reaproveitar a aberta), encerra pelo atalho "Encerrar" e desinstala;
+#   4. só se tudo passar, publica na página de Releases, com as notas tiradas do CHANGELOG.md e o SHA256SUMS.txt.
+# À mão (Actions > Lançamento > Run workflow): gera e homologa os arquivos (ficam em "Artifacts"), sem publicar.
+# A calculadora oficial em si é testada à parte, todo dia, pelo workflow "Motor oficial".
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  montar:
+    name: Montar (portátil, .deb e .rpm)
+    runs-on: ubuntu-latest
+    outputs:
+      versao: ${{ steps.versao.outputs.versao }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Versão
+        id: versao
+        run: |
+          v=$(sh empacotar/linux/versao.sh)
+          if [ "$GITHUB_REF_TYPE" = tag ] && [ "${GITHUB_REF_NAME#v}" != "$v" ]; then
+            echo "::error::A tag $GITHUB_REF_NAME não bate com VERSAO_PAINEL ($v) em app/CalculadoraRTC.java."; exit 1
+          fi
+          echo "versao=$v" >> "$GITHUB_OUTPUT"
+      - name: Notas da versão (a seção do CHANGELOG.md precisa existir)
+        run: python3 dev/notas-da-versao.py "${{ steps.versao.outputs.versao }}" > notas.md
+      - name: Versão portátil (.zip)
+        run: |
+          mkdir -p saida
+          git archive --format=zip --prefix="calculadora-rtc-facil-${{ steps.versao.outputs.versao }}/" \
+            -o "saida/calculadora-rtc-facil-${{ steps.versao.outputs.versao }}.zip" HEAD
+      - name: Pacotes .deb e .rpm
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y -q rpm
+          sh empacotar/linux/montar-deb.sh
+          sh empacotar/linux/montar-rpm.sh
+      - uses: actions/upload-artifact@v7
+        with: { name: pacotes-linux, path: 'saida/*' }
+      - uses: actions/upload-artifact@v7
+        with: { name: notas, path: notas.md }
+
+  windows:
+    name: Instalador do Windows
+    needs: montar
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Compilar o lançador CalculadoraRTC.exe (sem console)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force build\windows | Out-Null
+          & "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /target:winexe /codepage:65001 `
+            /win32icon:empacotar\icone\calculadora-rtc.ico /r:System.Windows.Forms.dll `
+            /out:build\windows\CalculadoraRTC.exe empacotar\windows\Lancador.cs
+          if ($LASTEXITCODE -ne 0) { throw "o lançador não compilou" }
+      - name: Instalador (Inno Setup)
+        shell: pwsh
+        run: |
+          if (-not (Get-Command iscc -ErrorAction SilentlyContinue)) { choco install innosetup -y --no-progress }
+          $iscc = (Get-Command iscc -ErrorAction SilentlyContinue).Source
+          if (-not $iscc) { $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }
+          & $iscc /Q "/DVersao=${{ needs.montar.outputs.versao }}" empacotar\windows\calculadora-rtc.iss
+          if ($LASTEXITCODE -ne 0) { throw "o instalador não foi gerado" }
+      - uses: actions/upload-artifact@v7
+        with: { name: instalador-windows, path: 'saida/*.exe' }
+
+  homologar-linux:
+    name: Homologação · ${{ matrix.nome }}
+    needs: montar
+    runs-on: ubuntu-latest
+    container: ${{ matrix.imagem }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { nome: 'Debian (estável)', imagem: 'debian:stable', pacote: deb }
+          - { nome: 'Ubuntu (LTS)', imagem: 'ubuntu:latest', pacote: deb }
+          - { nome: 'Ubuntu (mais recente)', imagem: 'ubuntu:rolling', pacote: deb }
+          - { nome: 'Fedora (mais recente)', imagem: 'fedora:latest', pacote: rpm }
+    steps:
+      - uses: actions/download-artifact@v8
+        with: { name: pacotes-linux, path: pacotes }
+      - name: Instalar o pacote
+        run: |
+          if [ "${{ matrix.pacote }}" = deb ]; then
+            apt-get update -q && apt-get install -y -q --no-install-recommends ca-certificates curl ./pacotes/calculadora-rtc_*_all.deb
+          else
+            dnf install -y -q --setopt=install_weak_deps=False curl shadow-utils util-linux ./pacotes/calculadora-rtc-*.noarch.rpm
+          fi
+      - name: Conferir arquivos, ícone e atalho do menu
+        run: |
+          for f in /usr/bin/calculadora-rtc /usr/share/calculadora-rtc/iniciar.sh /usr/share/calculadora-rtc/app/CalculadoraRTC.java \
+                   /usr/share/calculadora-rtc/web/index.html /usr/share/calculadora-rtc/web/app.js \
+                   /usr/share/applications/calculadora-rtc.desktop /usr/share/icons/hicolor/256x256/apps/calculadora-rtc.png; do
+            [ -s "$f" ] || { echo "::error::faltou $f"; exit 1; }
+          done
+          grep -q '^Exec=calculadora-rtc$' /usr/share/applications/calculadora-rtc.desktop
+          grep -q '^Terminal=false' /usr/share/applications/calculadora-rtc.desktop
+      - name: Abrir como pelo ícone (baixa o Java e sobe o painel em segundo plano)
+        run: |
+          useradd -m usuario
+          # sem terminal (</dev/null >arquivo), como o menu de aplicativos abre
+          su usuario -c 'calculadora-rtc --sem-navegador --api-externa http://127.0.0.1:9 </dev/null >/tmp/lancador.txt 2>&1'
+          D=/home/usuario/.local/share/calculadora-rtc
+          for i in $(seq 120); do [ -f "$D/painel.porta" ] && break; sleep 3; done
+          cat "$D/logs/painel.log" || true
+          P=$(cat "$D/painel.porta")
+          curl -fsS "http://127.0.0.1:$P/painel/status" | tee status.json | grep -q '"encerraSemUso":20'
+          curl -fsS "http://127.0.0.1:$P/" | grep -q 'Calculadora RTC'
+          [ -x "$D/jdk/bin/java" ] && [ -s "$D/jdk/.baixado-em" ]
+      - name: Abrir de novo (reaproveita a calculadora aberta)
+        run: |
+          su usuario -c 'calculadora-rtc --sem-navegador </dev/null >/dev/null 2>&1'
+          sleep 15
+          grep -q 'já está aberta' /home/usuario/.local/share/calculadora-rtc/logs/painel.log
+      - name: Encerrar pelo atalho "Encerrar a calculadora"
+        run: |
+          su usuario -c 'calculadora-rtc --encerrar' || true
+          sleep 5
+          D=/home/usuario/.local/share/calculadora-rtc
+          [ ! -e "$D/painel.porta" ] || { echo "::error::o painel não encerrou"; exit 1; }
+      - name: Desinstalar
+        run: |
+          if [ "${{ matrix.pacote }}" = deb ]; then apt-get remove -y -q calculadora-rtc; else dnf remove -y -q calculadora-rtc; fi
+          [ ! -e /usr/bin/calculadora-rtc ] && [ ! -e /usr/share/calculadora-rtc/web/index.html ]
+      - name: Resumo
+        if: always()
+        run: echo "| ${{ matrix.nome }} | ${{ job.status }} |" >> "$GITHUB_STEP_SUMMARY"
+
+  homologar-windows:
+    name: Homologação · Windows
+    needs: windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with: { name: instalador-windows, path: pacotes }
+      - name: Instalar (silencioso, só para este usuário) e conferir arquivos e atalhos
+        shell: pwsh
+        run: |
+          $exe = (Get-ChildItem pacotes\*.exe | Select-Object -First 1).FullName
+          Start-Process $exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/CURRENTUSER','/NORESTART','/TASKS=atalho','/LOG=instalar.log' -Wait
+          $pasta = Join-Path $env:LOCALAPPDATA 'Programs\Calculadora RTC'
+          foreach ($f in 'CalculadoraRTC.exe','calculadora-rtc.ico','LICENCA.txt','app\CalculadoraRTC.java','scripts\iniciar.ps1','web\index.html','web\app.js','web\exemplos\nfe-exemplo-2027.xml') {
+            if (-not (Test-Path (Join-Path $pasta $f))) { Get-Content instalar.log; throw "faltou $f em $pasta" }
+          }
+          $menu = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Calculadora RTC'
+          foreach ($l in 'Calculadora RTC.lnk','Encerrar a Calculadora RTC.lnk') { if (-not (Test-Path (Join-Path $menu $l))) { throw "faltou o atalho $l no Menu Iniciar" } }
+          if (-not (Test-Path (Join-Path ([Environment]::GetFolderPath('Desktop')) 'Calculadora RTC.lnk'))) { throw "faltou o atalho da Área de Trabalho" }
+          "PASTA=$pasta" >> $env:GITHUB_ENV
+      - name: Abrir pelo lançador (baixa o Java e sobe o painel escondido)
+        shell: pwsh
+        run: |
+          Start-Process (Join-Path $env:PASTA 'CalculadoraRTC.exe') -ArgumentList '--sem-navegador','--api-externa','http://127.0.0.1:9' -Wait
+          $dados = Join-Path $env:LOCALAPPDATA 'CalculadoraRTC'
+          $arq = Join-Path $dados 'painel.porta'
+          for ($i = 0; $i -lt 120 -and -not (Test-Path $arq); $i++) { Start-Sleep -Seconds 3 }
+          Get-Content (Join-Path $dados 'logs\painel.log') -ErrorAction SilentlyContinue
+          $porta = (Get-Content $arq).Trim()
+          $s = Invoke-RestMethod "http://127.0.0.1:$porta/painel/status"
+          if ($s.encerraSemUso -ne 20) { throw "o painel não subiu no modo atalho: $($s | ConvertTo-Json)" }
+          if (-not ((Invoke-WebRequest "http://127.0.0.1:$porta/" -UseBasicParsing).Content -match 'Calculadora RTC')) { throw "a tela não foi servida" }
+          if (-not (Test-Path (Join-Path $dados 'jdk\bin\java.exe'))) { throw "o Java não foi baixado" }
+      - name: Encerrar pelo atalho e desinstalar
+        shell: pwsh
+        run: |
+          Start-Process (Join-Path $env:PASTA 'CalculadoraRTC.exe') -ArgumentList '--encerrar','--silencioso' -Wait
+          $dados = Join-Path $env:LOCALAPPDATA 'CalculadoraRTC'
+          if (Test-Path (Join-Path $dados 'painel.porta')) { throw "o painel não encerrou" }
+          $des = Get-ChildItem $env:PASTA -Filter 'unins*.exe' | Select-Object -First 1
+          Start-Process $des.FullName -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait
+          Start-Sleep -Seconds 5
+          if (Test-Path (Join-Path $env:PASTA 'CalculadoraRTC.exe')) { throw "a desinstalação deixou o CalculadoraRTC.exe" }
+          if (Test-Path $dados) { throw "a desinstalação deixou a pasta de dados $dados" }
+          "| Windows | success |" >> $env:GITHUB_STEP_SUMMARY
+
+  publicar:
+    name: Publicar na página de Releases
+    if: github.ref_type == 'tag'
+    needs: [montar, homologar-linux, homologar-windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with: { path: arquivos, merge-multiple: true }
+      - name: Somas de conferência (SHA256SUMS.txt)
+        run: |
+          cd arquivos
+          sha256sum *.exe *.deb *.rpm *.zip > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+      - uses: softprops/action-gh-release@v3
+        with:
+          name: Calculadora RTC Fácil ${{ needs.montar.outputs.versao }}
+          body_path: arquivos/notas.md
+          make_latest: true
+          files: |
+            arquivos/*.exe
+            arquivos/*.deb
+            arquivos/*.rpm
+            arquivos/*.zip
+            arquivos/SHA256SUMS.txt

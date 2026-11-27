@@ -1,0 +1,16 @@
+[Desktop Entry]
+Type=Application
+Name=Calculadora RTC
+GenericName=Calculadora da Reforma Tributária
+Comment=CBS, IBS e Imposto Seletivo pela calculadora oficial da Receita Federal
+Exec=calculadora-rtc
+Icon=calculadora-rtc
+Terminal=false
+Categories=Office;Finance;
+Keywords=cbs;ibs;imposto;seletivo;reforma;tributária;nfe;receita;tributos;
+StartupNotify=false
+Actions=encerrar;
+
+[Desktop Action encerrar]
+Name=Encerrar a calculadora
+Exec=calculadora-rtc --encerrar

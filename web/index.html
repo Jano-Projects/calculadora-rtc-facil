@@ -354,54 +354,170 @@
   </section>
 
   <!-- ============================================================ AJUDA -->
-  <section id="aba-ajuda" class="aba texto" role="tabpanel" hidden>
-    <h2>Como usar</h2>
-    <ol>
-      <li>Em <strong>Operação</strong>, escolha a data e o local da venda. A data define as regras aplicadas: 2026 é o ano de teste, e a CBS passa a valer de verdade em 2027.</li>
-      <li>Adicione os itens. Para cada um, informe o <strong>NCM</strong> (produto) ou a <strong>NBS</strong> (serviço), o valor e a quantidade. Abaixo do item aparecem as <strong>classificações tributárias vinculadas ao NCM</strong> na base oficial, com o trecho do anexo da lei; é só clicar na que corresponde à operação. Comece por um exemplo se preferir.</li>
-      <li>Os <strong>itens</strong> e o <strong>local</strong> valem em todas as abas (marcados como <span class="escopo comum">vale em todas as abas</span>). A <strong>data</strong> e as <strong>alíquotas</strong> são de cada aba (<span class="escopo local">só nesta aba</span>): a nota pode estar em 2026 no cálculo e ser comparada com 2027 sem mudar nada.</li>
-      <li>Clique em <strong>Calcular tributos</strong>. O cupom mostra o total de CBS, IBS e Imposto Seletivo, e o detalhamento mostra a conta de cada item.</li>
-      <li>Para ver a carga de <strong>hoje</strong> (PIS/Cofins, ICMS/ISS, IPI) ao lado da de <strong>depois</strong> da reforma, use a aba <strong>Antes e depois</strong>. Ela mostra o que migra, o que fica e o preço estimado. Para empresas do <strong>Simples Nacional</strong>, compara recolher CBS e IBS dentro ou fora do DAS.</li>
-      <li>Para conferir uma nota emitida, abra o XML na aba <strong>Conferir NF-e</strong>. A calculadora oficial refaz a base, a CBS, o IBS e o Imposto Seletivo de cada item e mostra o que diverge.</li>
-      <li><strong>Copiar link</strong> leva a mesma nota para outra Calculadora RTC Fácil, e <strong>Imprimir ou salvar PDF</strong> gera o resultado com as premissas.</li>
-      <li>Tudo isso fica guardado neste navegador entre um uso e outro. Para limpar restos de testes antigos, use <strong>Começar do zero</strong>, no alto da tela. Antes de apagar, ele mostra o que sai e oferece salvar os itens num arquivo.</li>
-    </ol>
+  <section id="aba-ajuda" class="aba texto ajuda" role="tabpanel" hidden>
+    <h2>Ajuda</h2>
+    <p class="nota">Este manual vem junto com a calculadora e funciona sem internet. A documentação completa, com mais exemplos, fica no <a href="https://github.com/Jano-Projects/calculadora-rtc-facil/tree/main/docs" target="_blank" rel="noopener">repositório do projeto</a>.</p>
+    <nav class="indice-ajuda" aria-label="Assuntos da ajuda">
+      <a href="#aj-o-que-e">O que é</a>
+      <a href="#aj-abrir">Abrir e fechar</a>
+      <a href="#aj-como-usar">Como usar cada aba</a>
+      <a href="#aj-o-que-mostra">O que a tela mostra</a>
+      <a href="#aj-origem">De onde vem cada número</a>
+      <a href="#aj-reforma">A reforma em um quadro</a>
+      <a href="#aj-como-funciona">Como funciona por dentro</a>
+      <a href="#aj-cuidados">Antes de usar os resultados</a>
+      <a href="#aj-atualizacoes">Atualizações</a>
+    </nav>
 
-    <h2>De onde vêm os cálculos</h2>
-    <p>Todo cálculo é feito pela <a href="https://github.com/ReceitaFederal/calculadora-rtc-regime-regular" target="_blank" rel="noopener">calculadora oficial da Receita Federal</a> (código aberto), rodando no seu computador. Esta tela só organiza a entrada e o resultado. Nada é enviado para a internet.</p>
-
-    <h2>Atualizações</h2>
-    <p id="ajuda-status">—</p>
-    <p>Quando a Receita publica uma versão nova, ela é baixada, compilada e colocada em uso sozinha, sem fechar esta tela. A verificação acontece ao abrir a calculadora e depois a cada poucas horas. O Java que vem junto também é renovado sozinho, a cada 90 dias, para receber as correções de segurança.</p>
-    <p class="acoes-ajuda">
-      <button class="btn" id="btn-verificar">Procurar atualização agora</button>
-      <a class="btn btn-sec" href="/painel/log" target="_blank">Ver registro técnico</a>
-      <a class="btn btn-sec" href="/api/swagger-ui.html" target="_blank">Abrir a API (Swagger)</a>
-    </p>
-
-    <h2>Antes de usar os resultados</h2>
+    <h2 id="aj-o-que-e">O que é a Calculadora RTC Fácil</h2>
+    <p>A Receita Federal publicou como software livre a <a href="https://github.com/ReceitaFederal/calculadora-rtc-regime-regular" target="_blank" rel="noopener">calculadora oficial da Reforma Tributária do Consumo</a> (LC 214/2025): o programa que calcula a <strong>CBS</strong>, o <strong>IBS</strong> e o <strong>Imposto Seletivo</strong> de cada item de uma nota fiscal. Ela é um serviço sem tela, feito para outros sistemas consultarem, e para rodar exige instalar Java, Maven, gerar um banco de dados e compilar.</p>
+    <p>Esta ferramenta faz isso sozinha e põe uma tela por cima. Ela:</p>
     <ul>
-      <li>O resultado mostra <strong>só os tributos novos</strong> (CBS, IBS e Imposto Seletivo). PIS, Cofins, ICMS, ISS e IPI não aparecem, então o total não é o imposto do produto nem a variação de preço.</li>
-      <li>Em 2027 a CBS <strong>substitui</strong> o PIS e a Cofins. O salto que aparece entre 2026 e 2027 é essa troca, e não um aumento de preço. O que é novo de verdade é o Imposto Seletivo.</li>
-      <li>Em 2026 os valores são <strong>de teste</strong>: são destacados na nota, mas compensados com PIS/Cofins por quem cumpre as obrigações acessórias.</li>
-      <li>A classificação tributária depende da <strong>operação</strong> (quem vende, para quem, para quê), e não só do produto.</li>
+      <li><strong>instala e atualiza</strong> a calculadora oficial no seu computador, sempre na versão mais recente publicada pela Receita;</li>
+      <li><strong>monta o pedido</strong> que a calculadora oficial entende a partir de um formulário: itens, códigos, valores, data e local;</li>
+      <li><strong>mostra a resposta</strong> em forma de cupom e de tabela, com a conta de cada item;</li>
+      <li>acrescenta o que a calculadora oficial não faz: <strong>comparar datas</strong>, estimar a carga de <strong>hoje × depois da reforma</strong>, <strong>conferir uma NF-e</strong> contra o cálculo oficial e sugerir a classificação tributária pelo NCM.</li>
+    </ul>
+    <p><strong>Quem calcula é sempre a calculadora oficial.</strong> Toda CBS, todo IBS e todo Imposto Seletivo que aparecem aqui saíram dela, rodando neste computador. Nenhum dado das suas notas é enviado para a internet.</p>
+
+    <h2 id="aj-abrir">Abrir e fechar</h2>
+    <h3>Primeira abertura</h3>
+    <p>Na primeira vez, a calculadora baixa o Java (cerca de 200 MB) e a calculadora oficial, gera o banco de dados dela e compila tudo. Isso leva de <strong>5 a 15 minutos</strong>, e a tela mostra o andamento. Nas outras vezes, abre em segundos.</p>
+    <h3>Como fechar</h3>
+    <table class="tabela-ajuda">
+      <thead><tr><th>Como você abriu</th><th>Como fechar</th></tr></thead>
+      <tbody>
+        <tr><td>Pelo ícone do instalador (Windows, Debian/Ubuntu, Fedora)</td><td>Basta fechar as abas da calculadora: ela se encerra sozinha <span id="ajuda-minutos">alguns minutos</span> depois. Para fechar na hora, use o botão <strong>Encerrar a calculadora</strong>, no fim desta página, ou <em>Encerrar a Calculadora RTC</em> no menu de aplicativos.</td></tr>
+        <tr><td>Pelo <code>iniciar.bat</code> ou <code>iniciar.sh</code> (versão portátil)</td><td>Feche a janela preta (terminal) ou aperte <kbd>Ctrl</kbd>+<kbd>C</kbd> nela. O botão <strong>Encerrar a calculadora</strong> também funciona.</td></tr>
+      </tbody>
+    </table>
+    <p>Abrir de novo com a calculadora já aberta não cria uma segunda cópia: ela só abre outra aba na mesma.</p>
+
+    <h2 id="aj-como-usar">Como usar cada aba</h2>
+    <p>Os <strong>itens</strong> da nota e o <strong>local</strong> valem em todas as abas (marcados com <span class="escopo comum">vale em todas as abas</span>). A <strong>data</strong> e as <strong>alíquotas</strong> são de cada aba (<span class="escopo local">só nesta aba</span>): a mesma nota pode estar em 2026 no cálculo e ser comparada com 2027 sem mudar nada.</p>
+
+    <h3>Calcular nota</h3>
+    <ol>
+      <li><strong>Operação:</strong> escolha a data e o local (UF e município). A data define as regras: 2026 é o ano de teste, e a CBS passa a valer de verdade em 2027. O município define a parte municipal do IBS.</li>
+      <li><strong>Itens:</strong> para cada um, informe o <strong>NCM</strong> (produto, 8 dígitos) ou a <strong>NBS</strong> (serviço, 9 dígitos), a classificação tributária e o valor. Digite os primeiros dígitos do NCM para ver sugestões. Se preferir, comece por um dos exemplos prontos.</li>
+      <li><strong>Classificação tributária</strong> (<code>cClassTrib</code>): abaixo do item aparecem as classificações que a base oficial vincula àquele NCM, com o trecho do anexo da lei. Clique na que corresponde à sua operação. Sem benefício vinculado, a tela já escolhe <code>000001</code> (tributação integral).</li>
+      <li><strong>Alíquotas</strong> (de 2027 em diante): a calculadora oficial exige que elas sejam informadas. A tela preenche estimativas e diz de onde vêm; você pode trocá-las.</li>
+      <li>Clique em <strong>Calcular tributos</strong>. O cupom mostra os totais, e a tabela embaixo mostra a conta de cada item. Clique numa linha para ver a memória de cálculo oficial.</li>
+    </ol>
+    <p>Os itens ficam guardados neste navegador. <strong>Salvar itens</strong> grava um arquivo; <strong>Abrir itens ou NF-e</strong> lê esse arquivo, um JSON da API oficial ou o XML de uma nota; <strong>Copiar link</strong> gera um endereço com a nota inteira dentro dele.</p>
+
+    <h3>Comparar datas</h3>
+    <p>Calcula a mesma nota em duas datas (por exemplo, dezembro de 2026 e julho de 2027) e mostra a diferença de CBS, IBS e Imposto Seletivo, item a item. Serve para ver <em>como cada item passa a ser tributado</em>: se ganha redução, se paga Imposto Seletivo, quanto muda a alíquota efetiva.</p>
+
+    <h3>Antes e depois</h3>
+    <p>A única aba que mostra também os tributos de <strong>hoje</strong>. Ela trata o valor de cada item como o preço de venda atual e estima, a partir de alíquotas que você pode ajustar:</p>
+    <ul>
+      <li><strong>hoje:</strong> PIS/Cofins, ICMS ou ISS, FCP, IPI, PIS/Cofins monofásico e ICMS-ST, mais a CBS e o IBS de teste de 2026;</li>
+      <li><strong>depois</strong> (na data que você escolher, de 2027 em diante): CBS, IBS e Imposto Seletivo pela calculadora oficial, mais o ICMS ou ISS que ainda existir naquele ano;</li>
+      <li>o <strong>preço estimado</strong> se as mudanças de tributo forem repassadas por inteiro, e o que migra (PIS/Cofins → CBS, IPI → Imposto Seletivo), o que fica (ICMS/ISS até 2032) e o que vem embutido no custo.</li>
+    </ul>
+    <p>Escolha quem vende (comércio ou indústria) e o regime (lucro real, presumido ou <strong>Simples Nacional</strong>). No Simples, um quadro compara recolher CBS e IBS dentro ou fora do DAS, para o consumidor final e para um cliente empresa.</p>
+
+    <h3>Conferir NF-e</h3>
+    <p>Abra o XML de uma NF-e ou NFC-e. A calculadora oficial refaz, para cada item, a base de cálculo (com os valores da própria nota) e a CBS, o IBS e o Imposto Seletivo, e a tela compara com o que a nota destacou:</p>
+    <ul>
+      <li><strong>Confere:</strong> tudo igual, com até 1 centavo de diferença;</li>
+      <li><strong>Diverge:</strong> algum valor ou a classificação é diferente (a linha mostra o valor da nota e o oficial);</li>
+      <li><strong>Erro:</strong> a calculadora oficial recusou o item (a linha mostra o motivo);</li>
+      <li><strong>Sem destaque:</strong> a nota não traz CBS e IBS.</li>
+    </ul>
+    <p>É a aba para homologar um sistema emissor: emita notas de teste, abra os XMLs aqui e veja onde o sistema diverge. O XML é lido no navegador e não sai do computador.</p>
+
+    <h3>Consultar códigos</h3>
+    <p>Procure um NCM pelo código ou pela descrição, e veja as classificações tributárias vigentes na data, com o CST e o percentual de redução de cada uma.</p>
+
+    <h2 id="aj-o-que-mostra">O que a tela mostra, efetivamente</h2>
+    <table class="tabela-ajuda">
+      <thead><tr><th>Na tela</th><th>O que é</th></tr></thead>
+      <tbody>
+        <tr><td>Valor / Base de cálculo</td><td>O valor sobre o qual a alíquota incide. Na aba <em>Calcular nota</em>, é o valor que você digitou. Com Imposto Seletivo, a base da CBS e do IBS é o valor <strong>mais</strong> o IS.</td></tr>
+        <tr><td>CBS</td><td>Contribuição sobre Bens e Serviços, federal. Substitui o PIS e a Cofins.</td></tr>
+        <tr><td>IBS</td><td>Imposto sobre Bens e Serviços, somando a parte do estado e a do município. Substitui, aos poucos, o ICMS e o ISS.</td></tr>
+        <tr><td>Imposto Seletivo (IS)</td><td>Federal, só para produtos listados em lei (bebidas açucaradas e alcoólicas, cigarros, veículos, embarcações, aeronaves, bens minerais, apostas). Cobrado uma vez, na indústria ou na importação.</td></tr>
+        <tr><td>Redução</td><td>O desconto da alíquota previsto na lei para a classificação escolhida. Os mais comuns são 30%, 40%, 60% e 100% (alíquota zero); há casos isolados de 50%, 70% e 80%.</td></tr>
+        <tr><td>CBS efetiva</td><td>A alíquota depois da redução. Exemplo: CBS de 11,2% com redução de 60% dá 4,48%.</td></tr>
+        <tr><td>Tributos novos (cupom)</td><td>CBS + IBS + Imposto Seletivo da nota, e quanto isso representa do valor dos itens.</td></tr>
+        <tr><td>Situação <em>Calculado</em></td><td>Conta feita só com dados da base oficial (datas de 2026).</td></tr>
+        <tr><td>Situação <em>Simulado</em></td><td>Conta feita com alíquotas informadas (de 2027 em diante, porque ainda não há alíquota oficial publicada na base). O resultado depende dessas alíquotas.</td></tr>
+        <tr><td>Situação <em>Erro nos dados</em></td><td>A calculadora oficial recusou o item, por exemplo um NCM que não pertence à classificação escolhida (erro REG-011). O item fica fora do total.</td></tr>
+        <tr><td>Memória de cálculo</td><td>O texto da própria calculadora oficial explicando a conta do item. Clique na linha do detalhamento.</td></tr>
+        <tr><td>Ver JSON</td><td>Exatamente o que foi enviado à calculadora oficial e o que ela respondeu. Útil para comparar com um sistema emissor.</td></tr>
+      </tbody>
+    </table>
+    <p><strong>O que a tela não mostra:</strong> nas abas <em>Calcular nota</em>, <em>Comparar datas</em> e <em>Conferir NF-e</em>, aparecem só os tributos novos. PIS, Cofins, ICMS, ISS e IPI, que continuam valendo em 2026 (e o ICMS e o ISS até 2032), não aparecem. Por isso o total não é o imposto do produto, e a diferença entre 2026 e 2027 não é aumento de preço. Para ver os dois lados, use <em>Antes e depois</em>. Nem ela mostra a carga tributária completa: tributos sobre a renda e a folha das empresas da cadeia ficam de fora.</p>
+
+    <h2 id="aj-origem">De onde vem cada número</h2>
+    <table class="tabela-ajuda">
+      <thead><tr><th>Número</th><th>Origem</th></tr></thead>
+      <tbody>
+        <tr><td>CBS, IBS e Imposto Seletivo calculados, bases, reduções, memória de cálculo, erros</td><td><strong>Calculadora oficial da Receita</strong>, sempre.</td></tr>
+        <tr><td>Alíquotas de 2026 (CBS 0,9%, IBS 0,1%)</td><td>Base oficial.</td></tr>
+        <tr><td>CBS de 11,2% em 2027 e 2028</td><td><strong>Estimativa da tela</strong>, marcada como tal: referência de 11,3% calculada pelo TCU, menos 0,1 ponto (LC 214, art. 347), até o Senado fixar a alíquota e a base oficial trazê-la.</td></tr>
+        <tr><td>IBS de 0,05% + 0,05% em 2027 e 2028</td><td>Fixado pela Emenda Constitucional 132. Preenchido pela tela, porque a base oficial não o traz.</td></tr>
+        <tr><td>IBS de 2029 em diante</td><td>Ainda sem valor publicado: <strong>você informa</strong>.</td></tr>
+        <tr><td>Imposto Seletivo de 2027</td><td>Medida Provisória 1.399/2026. A tela preenche 2,6% (bebidas açucaradas, NCM 2202.10.00) e 4,2% (cervejas de malte); nos outros produtos, você informa. Antes de 2 de fevereiro de 2027, zero (a MP só vale a partir daí).</td></tr>
+        <tr><td>Sugestões de classificação pelo NCM</td><td>Base oficial (anexos da LC 214 vinculados a cada NCM).</td></tr>
+        <tr><td>Tributos de hoje e preço estimado (<em>Antes e depois</em>)</td><td><strong>Estimativa da tela</strong>, com alíquotas padrão que você ajusta item a item.</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="aj-reforma">A reforma em um quadro</h2>
+    <table class="tabela-ajuda">
+      <thead><tr><th>Período</th><th>CBS</th><th>IBS</th><th>Tributos antigos</th></tr></thead>
+      <tbody>
+        <tr><td>2026</td><td>0,9% (teste)</td><td>0,1% (teste)</td><td>Todos continuam. A CBS e o IBS de teste são compensados com PIS/Cofins.</td></tr>
+        <tr><td>2027 e 2028</td><td>Cheia, menos 0,1 ponto</td><td>0,05% + 0,05%</td><td>PIS e Cofins acabam; IPI zerado (exceto Zona Franca); começa o Imposto Seletivo; ICMS e ISS continuam.</td></tr>
+        <tr><td>2029 a 2032</td><td>Cheia</td><td>Sobe: 10%, 20%, 30% e 40% da cheia</td><td>ICMS e ISS caem: 90%, 80%, 70% e 60%.</td></tr>
+        <tr><td>2033</td><td>Cheia</td><td>Cheio</td><td>ICMS e ISS acabam.</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="aj-como-funciona">Como funciona por dentro</h2>
+    <div class="fluxo-ajuda" aria-label="Caminho de um cálculo">
+      <div><strong>Esta tela</strong><span>no navegador</span></div>
+      <div class="seta" aria-hidden="true">→</div>
+      <div><strong>Painel local</strong><span>programa Java desta ferramenta, em localhost</span></div>
+      <div class="seta" aria-hidden="true">→</div>
+      <div><strong>Calculadora oficial</strong><span>o programa da Receita, compilado no seu computador</span></div>
+    </div>
+    <ol>
+      <li>Ao abrir, o <strong>painel local</strong> procura no GitHub da Receita a versão mais recente da calculadora oficial. Se for nova, ele baixa o código, gera o banco de dados, compila e põe em uso sem fechar a tela. A versão anterior fica guardada.</li>
+      <li>Quando você calcula, a tela monta o pedido no formato da calculadora oficial (o mesmo JSON que um sistema emissor enviaria) e manda ao painel, que o repassa à calculadora oficial e devolve a resposta.</li>
+      <li>A tela lê a resposta e desenha o cupom, a tabela e as comparações. As contas de CBS, IBS e IS não são refeitas aqui.</li>
+      <li>Tudo isso roda neste computador. A internet só é usada para baixar o Java, a calculadora oficial e as atualizações deles, sempre do GitHub e do site do Java (Adoptium).</li>
+    </ol>
+    <p class="nota" id="ajuda-pasta"></p>
+
+    <h2 id="aj-cuidados">Antes de usar os resultados</h2>
+    <ul>
+      <li>De 2027 em diante, os resultados são <strong>simulações</strong>: dependem das alíquotas informadas, que ainda não são definitivas.</li>
+      <li>A classificação tributária depende da <strong>operação</strong> (quem vende, para quem, para quê), e não só do produto. Na dúvida, confira o <code>cClassTrib</code> na NF-e do fornecedor ou com o contador.</li>
       <li>Itens com erro <strong>ficam fora do total</strong>. Confira a coluna Situação.</li>
-      <li>Anote a <strong>versão do motor</strong> ao registrar uma conferência: versões novas da Receita podem mudar resultados.</li>
-      <li>Nem a aba <strong>Antes e depois</strong> mostra a carga tributária completa: ela traz só os tributos sobre o consumo, destacados na venda ou embutidos no custo. Tributos sobre a renda e a folha das empresas da cadeia ficam de fora.</li>
+      <li>Anote a <strong>versão do motor</strong> (no canto superior direito) ao registrar uma conferência: versões novas da Receita podem mudar resultados.</li>
+      <li>O Imposto Seletivo de 2027 vem de uma Medida Provisória, que ainda precisa virar lei.</li>
+      <li>Esta ferramenta serve para estudo, simulação e conferência. Ela não substitui a orientação de um contador.</li>
     </ul>
     <p>Explicação completa de cada ponto: <a href="https://github.com/Jano-Projects/calculadora-rtc-facil/blob/main/docs/pontos-de-atencao.md" target="_blank" rel="noopener">pontos de atenção</a>,
+      <a href="https://github.com/Jano-Projects/calculadora-rtc-facil/blob/main/docs/guia-de-uso.md" target="_blank" rel="noopener">guia de uso</a>,
       <a href="https://github.com/Jano-Projects/calculadora-rtc-facil/blob/main/docs/entenda-a-reforma.md" target="_blank" rel="noopener">entenda a reforma</a>,
       <a href="https://github.com/Jano-Projects/calculadora-rtc-facil/blob/main/docs/tributos-e-bases.md" target="_blank" rel="noopener">tributos e bases</a>,
       <a href="https://github.com/Jano-Projects/calculadora-rtc-facil/blob/main/docs/diferencas.md" target="_blank" rel="noopener">diferenças que confundem</a> e
       <a href="https://github.com/Jano-Projects/calculadora-rtc-facil/blob/main/docs/perguntas-frequentes.md" target="_blank" rel="noopener">perguntas frequentes</a>.</p>
 
-    <h2>Avisos importantes</h2>
-    <ul>
-      <li>A partir de 2027, as alíquotas da CBS e do IBS precisam ser informadas, e os resultados aparecem como <em>cálculo simulado</em>. A base oficial ainda não traz alíquotas de referência para esses anos. Por isso a tela preenche estimativas e avisa quando faz isso: CBS de 11,2% em 2027 e 2028 (a referência de 11,3% calculada pelo TCU, pendente de resolução do Senado até 15/12/2026, menos 0,1 ponto) e IBS de 0,05% + 0,05% em 2027 e 2028, valores fixados pela Emenda Constitucional 132.</li>
-      <li>As sugestões de classificação tributária vêm da base oficial: são as classificações às quais o NCM está vinculado nos anexos da LC 214. A escolha certa depende também da operação (quem compra, para quê). Em caso de dúvida, confira na NF-e do fornecedor (campo cClassTrib) ou com o contador.</li>
-      <li>As alíquotas do Imposto Seletivo de 2027 foram fixadas pela Medida Provisória 1.399/2026, que ainda precisa virar lei. A tela já preenche as de bebidas açucaradas (2,6%) e cervejas de malte (4,2%); nos outros produtos, você informa. Pela MP, a cobrança começa em 2 de fevereiro de 2027, e numa data anterior a tela usa zero e avisa. Os exemplos usam essas alíquotas e preços fictícios.</li>
-      <li>Esta ferramenta serve para estudo e conferência. Ela não substitui a orientação de um contador.</li>
-    </ul>
+    <h2 id="aj-atualizacoes">Atualizações</h2>
+    <p id="ajuda-status">—</p>
+    <p>Quando a Receita publica uma versão nova da calculadora oficial, ela é baixada, compilada e colocada em uso sozinha, sem fechar esta tela. A verificação acontece ao abrir e depois a cada poucas horas. O Java que vem junto é renovado a cada 90 dias, para receber as correções de segurança. Esta tela (a Calculadora RTC Fácil) se atualiza instalando a versão nova da <a href="https://github.com/Jano-Projects/calculadora-rtc-facil/releases/latest" target="_blank" rel="noopener">página de versões</a>.</p>
+    <p class="acoes-ajuda">
+      <button class="btn" id="btn-verificar">Procurar atualização agora</button>
+      <a class="btn btn-sec" href="/painel/log" target="_blank">Ver registro técnico</a>
+      <a class="btn btn-sec" href="/api/swagger-ui.html" target="_blank">Abrir a API (Swagger)</a>
+      <button class="btn btn-apagar" id="btn-encerrar" type="button">Encerrar a calculadora</button>
+    </p>
   </section>
 </main>
 
