@@ -80,6 +80,7 @@ jobs:
     name: Homologação · ${{ matrix.nome }}
     needs: montar
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     container: ${{ matrix.imagem }}
     strategy:
       fail-fast: false
@@ -143,6 +144,7 @@ jobs:
     name: Homologação · Windows
     needs: windows
     runs-on: windows-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/download-artifact@v8
         with: { name: instalador-windows, path: pacotes }
@@ -162,7 +164,10 @@ jobs:
       - name: Abrir pelo lançador (baixa o Java e sobe o painel escondido)
         shell: pwsh
         run: |
-          Start-Process (Join-Path $env:PASTA 'CalculadoraRTC.exe') -ArgumentList '--sem-navegador','--api-externa','http://127.0.0.1:9' -Wait
+          # Espera só o CalculadoraRTC.exe (que baixa o Java e termina). "Start-Process -Wait" esperaria também
+          # os processos filhos, e a calculadora que ele deixa aberta em segundo plano é um deles.
+          $lancador = Start-Process (Join-Path $env:PASTA 'CalculadoraRTC.exe') -ArgumentList '--sem-navegador','--api-externa','http://127.0.0.1:9' -PassThru
+          if (-not $lancador.WaitForExit(900000)) { throw "o lançador não terminou em 15 minutos" }
           $dados = Join-Path $env:LOCALAPPDATA 'CalculadoraRTC'
           $arq = Join-Path $dados 'painel.porta'
           for ($i = 0; $i -lt 120 -and -not (Test-Path $arq); $i++) { Start-Sleep -Seconds 3 }
@@ -175,7 +180,8 @@ jobs:
       - name: Encerrar pelo atalho e desinstalar
         shell: pwsh
         run: |
-          Start-Process (Join-Path $env:PASTA 'CalculadoraRTC.exe') -ArgumentList '--encerrar','--silencioso' -Wait
+          $encerrar = Start-Process (Join-Path $env:PASTA 'CalculadoraRTC.exe') -ArgumentList '--encerrar','--silencioso' -PassThru
+          if (-not $encerrar.WaitForExit(120000)) { throw "o --encerrar não terminou em 2 minutos" }
           $dados = Join-Path $env:LOCALAPPDATA 'CalculadoraRTC'
           if (Test-Path (Join-Path $dados 'painel.porta')) { throw "o painel não encerrou" }
           $des = Get-ChildItem $env:PASTA -Filter 'unins*.exe' | Select-Object -First 1
