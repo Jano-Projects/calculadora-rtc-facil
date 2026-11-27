@@ -29,9 +29,10 @@ Todo o código é comentado em português: cada função diz o que faz e por qu�
 1. **`iniciar.sh`** (ou `scripts/iniciar.ps1`): como o Java portátil é baixado, renovado e iniciado.
 2. **`app/CalculadoraRTC.java`**, de cima para baixo: `main` → `prepararNaInicializacao` → `verificarEAtualizar` → `instalarVersao` (baixar, gerar o banco, compilar) → `trocarMotor` → `tratarProxy`. É o ciclo de vida do motor oficial.
 3. **`web/app.js`**: comece por `montarOperacao` (o JSON enviado à calculadora oficial, com a estrutura comentada) e `interpretar` (onde fica cada valor na resposta). Depois, `aliquotasReferencia` e `ESTIMATIVAS` (alíquotas de 2027 em diante) e o bloco do Imposto Seletivo (`INICIO_IS`, `sugestaoIS2027`).
-4. **Aba *Antes e depois*** (`web/app.js`, a partir do comentário "antes e depois da reforma"): as fórmulas dos tributos de hoje, `tributosAtuais` e a partilha do Simples (`PARTILHA_SN`).
-5. **`web/nfe.js`**: leitura do XML (`lerNfe`), base oficial de cada item (`basesOficiais`) e a conferência (`conferirNfe`).
-6. **`dev/motor_simulado.py`**: uma versão simplificada das contas da calculadora oficial, boa para entender a lógica sem ler o código Java dela.
+4. **Aba *Antes e depois*** (`web/app.js`, a partir do comentário "antes e depois da reforma"): as fórmulas dos tributos de hoje e `tributosAtuais`.
+5. **`web/simples.js`**: as tabelas do Simples da LC 214/2025 (`ANEXOS_SN`), a alíquota efetiva e a partilha (`aliquotaEfetivaSN`, `partilhaSN`, `simplesNoAno`), o painel *Quem emite a nota* e `calcularNota`, que decide entre a calculadora do regime regular e a do Simples.
+6. **`web/nfe.js`**: leitura do XML (`lerNfe`), base oficial de cada item (`basesOficiais`) e a conferência (`conferirNfe`).
+7. **`dev/motor_simulado.py`**: uma versão simplificada das contas da calculadora oficial, boa para entender a lógica sem ler o código Java dela.
 
 ## Trabalhar no front sem compilar a calculadora oficial
 

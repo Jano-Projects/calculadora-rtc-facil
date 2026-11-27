@@ -97,6 +97,70 @@ with sync_playwright() as p:
     conferir(status(pg, "#nfe-status") == "", f"status: {status(pg, '#nfe-status')!r}")
     conferir([s for s, _ in sit] == ["confere", "confere", "diverge", "confere"], f"situações esperadas (itens 1, 2 e 4 conferem; 3 diverge): {sit}")
 
+    print("Simples Nacional (exemplo: serviço de microempresa, Anexo III, 1ª faixa)")
+    pg.click("[data-aba=calcular]")
+    pg.select_option("#sel-exemplo", "simples")
+    pg.wait_for_function("estado.itens.length === 1 && document.querySelector('#em-regime').value === 'simples'")
+    conferir(pg.is_visible("#em-sn"), "painel do Simples visível")
+
+    def calcular_em(data):
+        pg.fill("#op-data", data); pg.dispatch_event("#op-data", "change"); pg.wait_for_timeout(1500)
+        pg.click("#btn-calcular"); pg.wait_for_function("!document.querySelector('#btn-calcular').disabled", timeout=60_000)
+        return pg.evaluate("estado.ultimoCalculo?.resultado")
+
+    r = calcular_em("2026-10-15")
+    conferir(r and r["modo"] == "sn-2026" and r["tot"]["cbs"] == 0 and r["tot"]["ibs"] == 0, f"2026: Simples sem CBS e IBS: {r and (r['modo'], r['tot'])}")
+    conferir(r and r["regular"] and r["regular"]["cbs"] > 0, "2026: referência do regime regular calculada")
+    # DAS de 6%: IRPJ 24,07 + CSLL 21,06 + PIS/Cofins 93,86 + CPP 261,12 + ISS 201,55 = 601,66 (soma das partes, como no PGDAS)
+    conferir(r and r["das"]["total"] == 601.66, f"2026: DAS da nota R$ 601,66: {r and r['das']['total']}")
+    conferir(pg.is_hidden("#bloco-aliquotas"), "2026: sem quadro de alíquotas")
+
+    r = calcular_em("2027-03-01")
+    conferir(pg.is_hidden("#bloco-aliquotas"), "2027 dentro do DAS: sem quadro de alíquotas do regime regular")
+    # NFS-e: alíquota com 2 casas (0,9258% → 0,93%); 10.027,50 × 0,93% = 93,26; IBS 0,0102% → 0,01% = 1,00
+    conferir(r and r["modo"] == "sn-dentro" and r["tot"]["cbs"] == 93.26 and r["tot"]["ibs"] == 1.0, f"2027: CBS 93,26 e IBS 1,00 dentro do DAS: {r and (r['modo'], r['tot'])}")
+    conferir(r and r["itens"][0]["estado"] == "CALCULADO", f"2027: calculado pela calculadora do Simples: {r and r['itens'][0]['estado']}")
+    conferir(r and abs(r["das"]["total"] - 601.66) <= 0.01, f"2027: o DAS não muda: {r and r['das']['total']}")
+    conferir("DAS desta nota" in pg.inner_text("#cupom"), "cupom mostra o DAS da nota")
+
+    pg.select_option("#em-opcao", "fora"); pg.wait_for_timeout(1500)
+    conferir(pg.is_visible("#bloco-aliquotas"), "2027 por fora: quadro de alíquotas do regime regular")
+    r = calcular_em("2027-03-01")
+    conferir(r and r["modo"] == "sn-fora" and r["tot"]["cbs"] > 900, f"2027 por fora: CBS do regime regular: {r and r['tot']['cbs']}")
+    conferir(r and r["das"]["total"] < 520, f"2027 por fora: DAS sem CBS e IBS: {r and r['das']['total']}")
+    pg.select_option("#em-opcao", "dentro"); pg.wait_for_timeout(1000)
+
+    print("Simples: comparar 2026 × 2027")
+    pg.click("[data-aba=comparar]")
+    pg.fill("#cmp-a", "2026-10-15"); pg.dispatch_event("#cmp-a", "change")
+    pg.fill("#cmp-b", "2027-03-01"); pg.dispatch_event("#cmp-b", "change"); pg.wait_for_timeout(2000)
+    pg.click("#btn-comparar"); pg.wait_for_function("!document.querySelector('#btn-comparar').disabled", timeout=60_000)
+    c = pg.evaluate("estado.ultimaComparacao")
+    conferir(status(pg, "#cmp-status") == "", f"status: {status(pg, '#cmp-status')!r}")
+    conferir(c and abs(c["ra"]["das"]["total"] - c["rb"]["das"]["total"]) < 0.02, "DAS igual nas duas datas")
+    conferir("o mesmo nas duas datas" in pg.inner_text("#cmp-resultado"), "explicação do Simples na comparação")
+
+    print("Simples: antes e depois")
+    pg.click("[data-aba=antesdepois]"); pg.wait_for_timeout(1500)
+    pg.click("#btn-antesdepois"); pg.wait_for_function("!document.querySelector('#btn-antesdepois').disabled", timeout=60_000)
+    ad = pg.evaluate("(estado.ultimoAntesDepois || []).map(x => ({erro: x.erro || null, simples: !!x.simples, P: x.P, preco: x.preco, pc: x.antes.pc}))")
+    conferir(status(pg, "#ad-status") == "", f"status: {status(pg, '#ad-status')!r}")
+    conferir(ad and all(x["simples"] and not x["erro"] for x in ad), f"antes e depois pelo Simples: {ad}")
+    # PIS/Cofins de hoje = parte do DAS (6% × 15,6% do Anexo III) + o do fornecedor do lucro real embutido nas compras
+    # (padrão: compras de 60% do preço, 9,25%)
+    esperado = 10027.5 * 0.06 * 0.156 + 0.0925 * 0.6 * 10027.5
+    conferir(ad and abs(ad[0]["pc"] - esperado) < 0.05, f"PIS/Cofins de hoje pela partilha do Anexo III: {ad and ad[0]['pc']} (esperado {esperado:.2f})")
+
+    print("Simples: conferir NF-e de emitente do Simples (CRT 1, 2027)")
+    pg.click("[data-aba=nfe]")
+    pg.evaluate("""async () => { const t = await (await fetch('exemplos/nfe-exemplo-2027.xml')).text();
+        await importarNfe(t.replace('<CRT>3</CRT>', '<CRT>1</CRT>').replace(/<IBSCBS>[\\s\\S]*?<\\/IBSCBS>/g, '')); }""")
+    pg.wait_for_function("estado.nfe && estado.nfe.cab.emitente.crt === '1'", timeout=30_000); pg.wait_for_timeout(1500)
+    conferir(pg.input_value("#em-regime") == "simples", "CRT 1 leva o painel para o Simples")
+    pg.click("#btn-conferir"); pg.wait_for_function("!document.querySelector('#btn-conferir').disabled", timeout=60_000)
+    sit = pg.evaluate("(estado.nfeConferencia?.linhas || []).map(l => [l.situacao, l.of.vCBS])")
+    conferir(sit and all(s == "evento" and v > 0 for s, v in sit), f"valores do Simples calculados para o evento: {sit}")
+
     conferir(not erros_js, f"sem erros de JavaScript: {erros_js}")
     nav.close()
 

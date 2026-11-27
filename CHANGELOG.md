@@ -1,5 +1,23 @@
 # Mudanças
 
+## 1.8.0 — 2026-11-27
+
+O regime de quem emite a nota passa a valer em todas as abas, com o Simples Nacional calculado como na realidade: sem CBS e IBS em 2026, e de 2027 em diante pela calculadora oficial do Simples Nacional da Receita, com o DAS da nota tributo por tributo.
+
+### Simples Nacional
+- **Painel Quem emite a nota** (aba *Calcular nota*, vale em todas as abas): lucro real, lucro presumido ou Simples Nacional. No Simples: receita dos últimos 12 meses (RBT12), atividade dos produtos e dos serviços (lista da calculadora oficial), fator "r", ISS retido e CBS e IBS dentro ou fora do DAS de 2027 em diante. Mostra anexo, faixa, alíquota efetiva e as alíquotas de CBS e IBS dentro do DAS.
+- **Tabelas da LC 214/2025** (Anexos XVIII a XXII) em `web/simples.js`: alíquotas, parcela a deduzir e partilha de cada anexo e faixa, de 2026 a 2033, com o teto do ISS na 5ª faixa, o par sem redistribuição do ISS e o sublimite.
+- **Calculadora oficial do Simples Nacional** (`calculadora-rtc-simples-nacional`) instalada, atualizada e iniciada junto com a do regime regular, usando o mesmo banco. A tela a usa por `/api-simples`. Sem ela, a tela estima pelas mesmas regras e avisa.
+- **Calcular nota:** em 2026, sem CBS e IBS (LC 214, art. 348, III, "c"), com a referência do regime regular; de 2027 em diante, dentro do DAS, CBS e IBS do Simples (NFS-e com alíquota de 2 casas); por fora, pelo regime regular. O cupom traz o **DAS desta nota**, somado como no PGDAS.
+- **Comparar datas:** cada cartão mostra o DAS da nota, e o terceiro cartão mostra a diferença no DAS.
+- **Antes e depois:** usa as tabelas da lei pela faixa e pelo anexo do painel; saem os campos próprios de regime e de anexo da aba.
+- **Conferir NF-e:** o CRT ajusta o painel. Nota do Simples em 2026 e MEI: não se aplica. De 2027 em diante: calcula os valores do Evento de Tributação do Simples Nacional; acima do sublimite, confere o IBS da nota.
+- Novo exemplo: *Serviço de uma microempresa do Simples Nacional*.
+
+### Desenvolvimento
+- Motor simulado com as rotas do Simples; teste de tela e teste de fumaça com casos do Simples; o teste diário do motor oficial também acompanha as versões da calculadora do Simples.
+- Teste de fumaça sem falso erro de SIGPIPE (`grep -c` no lugar de `grep -q`).
+
 ## 1.7.0 — 2026-11-27
 
 Instaladores com ícone para Windows, Debian/Ubuntu e Fedora: a calculadora abre pelo menu, sem terminal, e se encerra sozinha quando você fecha a aba. A aba *Ajuda* virou um manual completo do que a ferramenta é, de como usar e do que cada número significa.

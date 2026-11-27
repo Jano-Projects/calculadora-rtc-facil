@@ -36,19 +36,24 @@ public class CalculadoraRTC {
 
     // ------------------------------------------------------------------ configuração
     static final String REPO_PADRAO = "https://github.com/ReceitaFederal/calculadora-rtc-regime-regular";
-    static final String VERSAO_PAINEL = "1.7.0";
+    // Segunda calculadora oficial: CBS e IBS de quem é do Simples Nacional (dentro do DAS). Usa o mesmo banco de
+    // dados da calculadora do regime regular, por isso sobe na pasta do motor do regime regular em uso.
+    static final String REPO_SIMPLES_PADRAO = "https://github.com/ReceitaFederal/calculadora-rtc-simples-nacional";
+    static final String VERSAO_PAINEL = "1.8.0";
 
     // Pastas: base = onde estão app/ e web/; dados = o que é baixado e gerado (motores, fontes, logs, JDK).
     // Na versão portátil (ZIP ou git clone), dados fica dentro da própria pasta (base/dados). Na versão
     // instalada, a pasta do programa não é gravável, e os lançadores apontam dados para a pasta do usuário
     // (CALC_RTC_DADOS ou --dados): ~/.local/share/calculadora-rtc no Linux, %LOCALAPPDATA%\CalculadoraRTC no Windows.
-    static Path base, dados, dirWeb, dirMotores, dirFontes, dirLogs;
+    static Path base, dados, dirWeb, dirMotores, dirMotoresSimples, dirFontes, dirLogs;
     static String dadosEscolhido = env("CALC_RTC_DADOS", null);
     static String repo = env("CALC_RTC_REPO", REPO_PADRAO);
+    static String repoSimples = env("CALC_RTC_REPO_SIMPLES", REPO_SIMPLES_PADRAO);
     static int portaWeb = Integer.parseInt(env("CALC_RTC_PORTA", "8090"));
     static long horasEntreVerificacoes = Long.parseLong(env("CALC_RTC_HORAS_VERIFICACAO", "6"));
     static boolean abrirNavegador = true, rede = false, semAtualizacao = false, instalarESair = false;
     static String apiExterna = null; // modo desenvolvimento: não gerencia o motor
+    static String apiExternaSimples = null; // idem, para o motor do Simples (padrão: o mesmo endereço de --api-externa)
     static String versaoFixa = env("CALC_RTC_VERSAO", null);
     // Modo atalho (aberto pelo ícone, sem terminal): não há Ctrl+C, então o painel se encerra sozinho
     // depois de alguns minutos sem nenhuma aba da calculadora aberta (a tela consulta /painel/status a cada minuto).
@@ -69,6 +74,15 @@ public class CalculadoraRTC {
     static volatile Process motor = null;
     static volatile int portaMotor = -1;
     static final AtomicReference<Path> ultimoLog = new AtomicReference<>();
+
+    // Estado do motor do Simples Nacional. Ele é opcional: se não instalar ou não subir, a tela continua
+    // funcionando e calcula o Simples pelas tabelas da lei (marcando o resultado como estimativa).
+    static volatile String estadoSimples = "aguardando";   // aguardando|baixando|compilando|subindo|pronto|erro
+    static volatile String mensagemSimples = "O motor do Simples Nacional é preparado depois do motor principal.";
+    static volatile String versaoSimples = null;
+    static volatile String versaoSimplesDisponivel = null;
+    static volatile Process motorSimples = null;
+    static volatile int portaMotorSimples = -1;
 
     // http: downloads no GitHub (segue redirecionamentos); httpLocal: conversa com o motor em 127.0.0.1
     static final HttpClient http = HttpClient.newBuilder()
@@ -93,9 +107,10 @@ public class CalculadoraRTC {
         dados = dadosEscolhido != null ? Paths.get(dadosEscolhido).toAbsolutePath().normalize() : base.resolve("dados");
         dirWeb = base.resolve("web");
         dirMotores = dados.resolve("motor");
+        dirMotoresSimples = dados.resolve("motor-simples");
         dirFontes = dados.resolve("fontes");
         dirLogs = dados.resolve("logs");
-        for (Path p : List.of(dados, dirMotores, dirFontes, dirLogs)) Files.createDirectories(p);
+        for (Path p : List.of(dados, dirMotores, dirMotoresSimples, dirFontes, dirLogs)) Files.createDirectories(p);
 
         log("Calculadora RTC Fácil " + VERSAO_PAINEL + " | Java " + Runtime.version());
         log("Pasta: " + base + (dados.startsWith(base) ? "" : " | dados: " + dados));
@@ -113,12 +128,13 @@ public class CalculadoraRTC {
         }
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            pararMotor(motorSimples);
             pararMotor(motor);
             apagarArquivoDaPorta();
         }, "desligamento"));
 
         if (instalarESair) { // usado na CI e para pré-instalar: prepara, testa o motor e sai
-            prepararNaInicializacao();
+            prepararNaInicializacao(false);
             boolean ok = "pronto".equals(estado) && motor != null && motor.isAlive();
             if (ok) {
                 String falha = calculoDeTeste();
@@ -126,6 +142,13 @@ public class CalculadoraRTC {
                 if (!ok) mensagem = falha;
             }
             log(ok ? "OK: motor " + versaoInstalada + " instalado e calculando." : "FALHOU: " + mensagem);
+            if (ok) { // o motor do Simples também precisa instalar e calcular
+                prepararSimples();
+                String falha = "pronto".equals(estadoSimples) ? calculoDeTesteSimples() : mensagemSimples;
+                ok = falha == null;
+                log(ok ? "OK: motor do Simples Nacional " + versaoSimples + " instalado e calculando." : "FALHOU (Simples Nacional): " + falha);
+            }
+            pararMotor(motorSimples);
             pararMotor(motor);
             System.exit(ok ? 0 : 1);
         }
@@ -141,9 +164,13 @@ public class CalculadoraRTC {
             estado = "pronto";
             mensagem = "Usando motor externo em " + apiExterna;
             versaoInstalada = "externo";
+            if (apiExternaSimples == null) apiExternaSimples = apiExterna;
+            estadoSimples = "pronto";
+            mensagemSimples = "Usando motor do Simples externo em " + apiExternaSimples;
+            versaoSimples = "externo";
         } else {
-            // Primeira preparação (pode levar alguns minutos na primeira vez)
-            agendador.execute(CalculadoraRTC::prepararNaInicializacao);
+            // Primeira preparação (pode levar alguns minutos na primeira vez); o motor do Simples vem em seguida
+            agendador.execute(() -> prepararNaInicializacao(true));
             if (!semAtualizacao && versaoFixa == null && horasEntreVerificacoes > 0) {
                 agendador.scheduleWithFixedDelay(() -> verificarEAtualizar(false),
                         horasEntreVerificacoes, horasEntreVerificacoes, TimeUnit.HOURS);
@@ -172,6 +199,7 @@ public class CalculadoraRTC {
                 case "--instalar-e-sair" -> { instalarESair = true; abrirNavegador = false; }
                 case "--versao" -> versaoFixa = args[++i];
                 case "--api-externa" -> apiExterna = args[++i].replaceAll("/+$", "");
+                case "--api-externa-simples" -> apiExternaSimples = args[++i].replaceAll("/+$", "");
                 case "--dados" -> dadosEscolhido = args[++i];
                 case "--atalho" -> atalho = true;
                 case "--ajuda", "-h", "--help" -> { ajuda(); System.exit(0); }
@@ -193,6 +221,7 @@ public class CalculadoraRTC {
               --versao X           usa uma versão específica da calculadora oficial (ex.: 1.7.3)
               --instalar-e-sair    só instala/atualiza o motor, testa e encerra (útil para CI)
               --api-externa URL    não gerencia o motor; usa um já em execução (desenvolvimento)
+              --api-externa-simples URL  idem, para o motor do Simples Nacional (padrão: o de --api-externa)
               --dados PASTA        onde guardar o Java, o motor e os logs (padrão: ./dados)
               --atalho             modo do ícone: encerra sozinha quando nenhuma aba estiver aberta
               --so-java            (só nos scripts) baixa ou atualiza o Java portátil e encerra
@@ -202,12 +231,13 @@ public class CalculadoraRTC {
     // ================================================================== ciclo do motor
     /** Primeira preparação ao abrir: usa a versão fixada (--versao), ou procura a mais recente e instala se preciso;
      *  sem internet, sobe a última versão já instalada. */
-    static void prepararNaInicializacao() {
+    static void prepararNaInicializacao(boolean comSimples) {
         try {
             versaoInstalada = lerTexto(dirMotores.resolve("atual"));
             if (versaoFixa != null) {
                 if (!motorValido(versaoFixa)) instalarVersao(versaoFixa);
                 trocarMotor(versaoFixa);
+                if (comSimples) prepararSimples();
                 return;
             }
             if (!semAtualizacao) verificarEAtualizar(true); // instala e sobe se houver versão nova
@@ -218,6 +248,7 @@ public class CalculadoraRTC {
                 }
                 trocarMotor(versaoInstalada);
             }
+            if (comSimples) prepararSimples();
         } catch (Exception e) {
             estado = "erro";
             mensagem = descrever(e);
@@ -252,12 +283,19 @@ public class CalculadoraRTC {
         } finally {
             atualizando = false;
         }
+        // versão nova do motor do Simples (independente da do regime regular)
+        if (!inicializacao && motor != null && motor.isAlive()) prepararSimples();
     }
 
     /** Maior tag de versão publicada no repositório oficial (ex.: 1.7.3). */
     static String descobrirUltimaVersao() throws IOException, InterruptedException {
+        return descobrirUltimaVersao(repo);
+    }
+
+    /** Maior tag de versão publicada num repositório do GitHub. */
+    static String descobrirUltimaVersao(String repositorio) throws IOException, InterruptedException {
         // Endpoint "smart HTTP" do git: lista as tags sem precisar de git nem da API (sem limite de requisições)
-        String url = repo + ".git/info/refs?service=git-upload-pack";
+        String url = repositorio + ".git/info/refs?service=git-upload-pack";
         HttpResponse<String> r = http.send(HttpRequest.newBuilder(URI.create(url))
                 .header("User-Agent", "calculadora-rtc-facil").timeout(Duration.ofSeconds(30)).build(),
                 HttpResponse.BodyHandlers.ofString(StandardCharsets.ISO_8859_1));
@@ -413,6 +451,163 @@ public class CalculadoraRTC {
         }
     }
 
+    // ================================================================== motor do Simples Nacional
+    // A calculadora oficial do Simples Nacional (calculadora-rtc-simples-nacional) calcula a CBS e o IBS que uma ME
+    // ou EPP do Simples destaca na nota quando recolhe esses tributos DENTRO do DAS (a partir de 2027). Ela não tem
+    // banco próprio: lê o mesmo calculadora-pro.db da calculadora do regime regular. Por isso:
+    //   - é instalada só compilando o JAR (sem o passo do Flyway);
+    //   - sobe com a pasta de trabalho na pasta do motor do regime regular em uso (onde está calculadora/db/);
+    //   - quando o motor do regime regular muda de versão, sobe de novo, para ler o banco novo.
+    // Na tela, as chamadas a /api-simples/** são repassadas a ela como /api/**.
+
+    static volatile Path bancoDoSimples = null; // pasta do motor do regime regular cujo banco o motor do Simples está lendo
+    static final Object travaSimples = new Object(); // uma preparação do motor do Simples por vez
+
+    /** Instala (se preciso) a versão mais recente do motor do Simples e o sobe. Falhas não param a calculadora. */
+    static void prepararSimples() {
+        if (apiExterna != null) return;
+        synchronized (travaSimples) {
+            prepararSimplesAgora();
+        }
+    }
+
+    static void prepararSimplesAgora() {
+        try {
+            if (motor == null || versaoInstalada == null) return; // depende do banco do motor do regime regular
+            String atual = lerTexto(dirMotoresSimples.resolve("atual"));
+            String alvo;
+            if ((semAtualizacao || versaoFixa != null) && motorSimplesValido(atual)) {
+                alvo = atual; // atualização desligada: fica na instalada
+            } else {
+                try {
+                    alvo = descobrirUltimaVersao(repoSimples);
+                    versaoSimplesDisponivel = alvo;
+                } catch (IOException e) {
+                    if (!motorSimplesValido(atual)) throw e;
+                    alvo = atual; // sem internet: usa a já instalada
+                    log("Simples Nacional: não foi possível procurar versão nova (" + descrever(e) + "); usando a " + atual + ".");
+                }
+            }
+            Path banco = dirMotores.resolve(versaoInstalada);
+            boolean emUso = alvo.equals(versaoSimples) && motorSimples != null && motorSimples.isAlive() && banco.equals(bancoDoSimples);
+            if (emUso) return;
+            if (!motorSimplesValido(alvo)) instalarSimples(alvo);
+            subirSimples(alvo, banco);
+        } catch (Exception e) {
+            estadoSimples = motorSimples != null && motorSimples.isAlive() ? "pronto" : "erro";
+            mensagemSimples = "Motor do Simples Nacional indisponível: " + descrever(e)
+                    + ". A tela calcula o Simples pelas tabelas da lei, como estimativa.";
+            log(mensagemSimples);
+        }
+    }
+
+    static boolean motorSimplesValido(String versao) {
+        return versao != null && Files.isRegularFile(dirMotoresSimples.resolve(versao).resolve("api-simples-nacional.jar"));
+    }
+
+    /** Baixa o código-fonte da versão do motor do Simples e compila o JAR (o banco é o do regime regular). */
+    static void instalarSimples(String versao) throws Exception {
+        if (!versao.matches("[A-Za-z0-9._-]+")) throw new IllegalArgumentException("versão inválida: " + versao);
+        Path log = dirLogs.resolve("instalacao-simples-" + versao + ".log");
+        ultimoLog.set(log);
+        Files.writeString(log, "Instalação do motor do Simples Nacional " + versao + " em " + agora() + "\n");
+        estadoSimples = "baixando";
+        mensagemSimples = "Baixando a calculadora oficial do Simples Nacional " + versao + "...";
+        log(mensagemSimples);
+        Path zip = dirFontes.resolve("simples-" + versao + ".zip");
+        baixar(repoSimples + "/archive/refs/tags/" + versao + ".zip", zip);
+        Path destino = dirFontes.resolve("simples-" + versao);
+        apagar(destino);
+        Path raiz = extrairZip(zip, destino);
+        Files.deleteIfExists(zip);
+
+        estadoSimples = "compilando";
+        mensagemSimples = "Compilando a calculadora oficial do Simples Nacional " + versao + " (alguns minutos)...";
+        log(mensagemSimples);
+        Path mvnw = raiz.resolve(windows() ? "mvnw.cmd" : "mvnw");
+        if (!Files.exists(mvnw)) throw new IOException("o pacote baixado não contém o Maven Wrapper (" + mvnw.getFileName() + ")");
+        mvnw.toFile().setExecutable(true);
+        if (windows()) converterParaCrlf(raiz);
+        garantirWrapperJar(raiz, log);
+        executar(raiz, log, List.of("clean", "package", "-DskipTests", "--batch-mode", "--errors"));
+        Path jar;
+        try (Stream<Path> s = Files.list(raiz.resolve("target"))) {
+            jar = s.filter(p -> p.getFileName().toString().endsWith(".jar"))
+                    .filter(p -> !p.getFileName().toString().endsWith("-plain.jar"))
+                    .findFirst().orElseThrow(() -> new IOException("o JAR do Simples não foi gerado (veja " + log + ")"));
+        }
+        Path tmp = dirMotoresSimples.resolve(versao + ".tmp");
+        apagar(tmp);
+        Files.createDirectories(tmp);
+        Files.copy(jar, tmp.resolve("api-simples-nacional.jar"));
+        Path final_ = dirMotoresSimples.resolve(versao);
+        apagar(final_);
+        Files.move(tmp, final_, StandardCopyOption.ATOMIC_MOVE);
+        apagar(destino);
+        log("Motor do Simples Nacional " + versao + " instalado.");
+    }
+
+    /** Sobe o motor do Simples na pasta do motor do regime regular (para ler o banco dele) e desliga o anterior. */
+    static void subirSimples(String versao, Path pastaBanco) throws Exception {
+        estadoSimples = "subindo";
+        mensagemSimples = "Iniciando o motor do Simples Nacional " + versao + "...";
+        int porta = portaLivre();
+        Path log = dirLogs.resolve("motor-simples.log");
+        Path jar = dirMotoresSimples.resolve(versao).resolve("api-simples-nacional.jar").toAbsolutePath();
+        // management.server.port=-1: desliga a porta de métricas (9103 fixa no projeto oficial), que não é usada aqui
+        List<String> cmd = List.of(javaExe(), "-XX:-UseBASE64Intrinsics", "-Xms64m", "-Dspring.profiles.active=offline",
+                "-Dserver.address=127.0.0.1", "-Dserver.port=" + porta, "-Dmanagement.server.port=-1", "-jar", jar.toString());
+        Process novo = new ProcessBuilder(cmd).directory(pastaBanco.toFile()).redirectErrorStream(true)
+                .redirectOutput(ProcessBuilder.Redirect.to(log.toFile())).start();
+        long limite = System.currentTimeMillis() + 240_000;
+        while (true) {
+            if (!novo.isAlive()) throw new IOException("o motor do Simples " + versao + " encerrou ao iniciar (veja " + log + ")");
+            if (respondendo(porta, "/api/versao")) break;
+            if (System.currentTimeMillis() > limite) {
+                novo.destroyForcibly();
+                throw new IOException("o motor do Simples " + versao + " não respondeu em 4 minutos (veja " + log + ")");
+            }
+            Thread.sleep(1000);
+        }
+        Process antigo = motorSimples;
+        motorSimples = novo;
+        portaMotorSimples = porta;
+        versaoSimples = versao;
+        bancoDoSimples = pastaBanco;
+        Files.writeString(dirMotoresSimples.resolve("atual"), versao);
+        pararMotor(antigo);
+        limparVersoesAntigas(dirMotoresSimples, versao);
+        estadoSimples = "pronto";
+        mensagemSimples = "Motor do Simples Nacional " + versao + " pronto.";
+        log(mensagemSimples);
+    }
+
+    /** Calcula, no motor do Simples, uma NFS-e de serviço de informática de 2027 (Anexo III, 1ª faixa, dentro do DAS).
+     *  Devolve null se deu certo ou a falha. */
+    static String calculoDeTesteSimples() {
+        String corpo = """
+                {"id":"teste-simples","versao":"3.0.0","data":"2027-03-01","tpDoc":"91","opSimpNac":"3","regApIBSCBSSN":"1",
+                 "regApTribSN":"1","aliquotasEfetivas":{"fatorR":false,"impedimentoSublimite":false,
+                 "anexoIII":{"pCBSSN":"0.9258","pIBSSN":"0.0102"}},
+                 "itens":[{"numero":1,"cAtivSN":"07","cClassTrib":"000001","nbs":"115013000","baseCalculo":"10027.50",
+                 "tribISSQN":"1","tpRetISSQN":"1"}]}""";
+        try {
+            var r = httpLocal.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + portaMotorSimples
+                    + "/api/calculadora/observabilidade/simples-nacional/nao-assistido")).timeout(Duration.ofMinutes(1))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(corpo)).build(), HttpResponse.BodyHandlers.ofString());
+            String b = r.body();
+            // 10.027,50 × 0,93% (na NFS-e a alíquota é arredondada a 2 casas) = 93,25575 → 93,26 (meio para o par)
+            if (r.statusCode() != 200 || !b.contains("\"CALCULADO\"") || !b.contains("93.26")) {
+                return "cálculo de teste do Simples falhou (HTTP " + r.statusCode() + "): " + b.substring(0, Math.min(800, b.length()));
+            }
+            log("Cálculo de teste do Simples OK: " + b.replaceAll("\\s+", " ").substring(0, Math.min(400, b.length())));
+            return null;
+        } catch (Exception e) {
+            return "cálculo de teste do Simples falhou: " + descrever(e);
+        }
+    }
+
     // ================================================================== relação NCM × classificação
     static final String ARQ_RELACAO = "ncm-classificacoes.json";
 
@@ -526,9 +721,14 @@ public class CalculadoraRTC {
 
     /** O motor na porta indicada já responde? Usa uma rota leve dos dados abertos. */
     static boolean respondendo(int porta) {
+        return respondendo(porta, "/api/calculadora/dados-abertos/versao");
+    }
+
+    /** O serviço na porta já responde 200 no caminho indicado? */
+    static boolean respondendo(int porta, String caminho) {
         try {
             var r = httpLocal.send(HttpRequest.newBuilder(URI.create(
-                    "http://127.0.0.1:" + porta + "/api/calculadora/dados-abertos/versao"))
+                    "http://127.0.0.1:" + porta + caminho))
                     .timeout(Duration.ofSeconds(5)).build(), HttpResponse.BodyHandlers.discarding());
             return r.statusCode() == 200;
         } catch (Exception e) {
@@ -549,6 +749,11 @@ public class CalculadoraRTC {
 
     /** Mantém a versão em uso e a anterior (para voltar atrás manualmente se precisar). */
     static void limparVersoesAntigas(String atual) {
+        limparVersoesAntigas(dirMotores, atual);
+    }
+
+    /** Idem, numa pasta de motores qualquer (o do regime regular ou o do Simples). */
+    static void limparVersoesAntigas(Path dirMotores, String atual) {
         try (Stream<Path> s = Files.list(dirMotores)) {
             List<String> versoes = s.filter(Files::isDirectory).map(p -> p.getFileName().toString())
                     .filter(v -> !v.endsWith(".tmp")).sorted(CalculadoraRTC::compararVersoes).toList();
@@ -844,6 +1049,7 @@ public class CalculadoraRTC {
                 HttpServer s = HttpServer.create(new InetSocketAddress(endereco, p), 64);
                 s.createContext("/painel/", CalculadoraRTC::tratarPainel);
                 s.createContext("/api/", CalculadoraRTC::tratarProxy);
+                s.createContext("/api-simples/", CalculadoraRTC::tratarProxySimples);
                 s.createContext("/", CalculadoraRTC::tratarEstatico);
                 s.setExecutor(Executors.newFixedThreadPool(16));
                 s.start();
@@ -874,7 +1080,7 @@ public class CalculadoraRTC {
                     Process m = motor;
                     boolean parado = m == null || !m.isAlive();
                     if (!parado && (semAtualizacao || versaoFixa != null)) { responderJson(ex, 409, "{\"erro\":\"atualização automática desativada\"}"); return; }
-                    if (!atualizando) agendador.execute(parado ? CalculadoraRTC::prepararNaInicializacao : () -> verificarEAtualizar(false));
+                    if (!atualizando) agendador.execute(parado ? () -> prepararNaInicializacao(true) : () -> verificarEAtualizar(false));
                     responderJson(ex, 202, statusJson());
                 }
                 case "/painel/ncm-classificacoes" -> {
@@ -919,6 +1125,10 @@ public class CalculadoraRTC {
                 + q("atualizacaoAutomatica") + ":" + (apiExterna == null && !semAtualizacao && versaoFixa == null) + ","
                 + q("horasEntreVerificacoes") + ":" + horasEntreVerificacoes + ","
                 + q("repositorio") + ":" + q(repo) + ","
+                + q("simples") + ":{" + q("estado") + ":" + q(estadoSimples) + "," + q("mensagem") + ":" + q(mensagemSimples) + ","
+                + q("pronto") + ":" + (apiExternaSimples != null || (motorSimples != null && motorSimples.isAlive() && portaMotorSimples > 0)) + ","
+                + q("versaoInstalada") + ":" + q(versaoSimples) + "," + q("versaoDisponivel") + ":" + q(versaoSimplesDisponivel) + ","
+                + q("repositorio") + ":" + q(repoSimples) + "},"
                 + q("encerraSemUso") + ":" + (atalho && minutosSemUso > 0 ? String.valueOf(minutosSemUso) : "null") + ","
                 + q("pastaDados") + ":" + q(dados.toString()) + ","
                 + q("versaoPainel") + ":" + q(VERSAO_PAINEL)
@@ -938,34 +1148,52 @@ public class CalculadoraRTC {
                 responderJson(ex, 503, "{\"title\":\"Motor de cálculo ainda não está pronto\",\"detail\":" + q(mensagem) + "}");
                 return;
             }
-            URI uri = URI.create(alvo + ex.getRequestURI().getRawPath()
-                    + (ex.getRequestURI().getRawQuery() != null ? "?" + ex.getRequestURI().getRawQuery() : ""));
-            byte[] corpo = ex.getRequestBody().readAllBytes();
-            HttpRequest.Builder rb = HttpRequest.newBuilder(uri).timeout(Duration.ofMinutes(2))
-                    .method(ex.getRequestMethod(), corpo.length == 0 ? HttpRequest.BodyPublishers.noBody()
-                            : HttpRequest.BodyPublishers.ofByteArray(corpo));
-            ex.getRequestHeaders().forEach((k, vs) -> {
-                if (!CABECALHOS_PROIBIDOS.contains(k.toLowerCase(Locale.ROOT))) vs.forEach(v -> rb.header(k, v));
-            });
-            HttpResponse<byte[]> r;
-            try {
-                r = httpLocal.send(rb.build(), HttpResponse.BodyHandlers.ofByteArray());
-            } catch (Exception e) {
-                responderJson(ex, 502, "{\"title\":\"Falha ao falar com o motor de cálculo\",\"detail\":" + q(String.valueOf(e.getMessage())) + "}");
-                return;
-            }
-            r.headers().map().forEach((k, vs) -> {
-                String kl = k.toLowerCase(Locale.ROOT);
-                if (!CABECALHOS_PROIBIDOS.contains(kl) && !kl.startsWith(":")) vs.forEach(v -> ex.getResponseHeaders().add(k, v));
-            });
-            byte[] b = r.body();
-            boolean semCorpo = "HEAD".equals(ex.getRequestMethod()) || r.statusCode() == 204 || r.statusCode() == 304;
-            ex.sendResponseHeaders(r.statusCode(), semCorpo ? -1 : (b.length == 0 ? -1 : b.length));
-            if (!semCorpo && b.length > 0) ex.getResponseBody().write(b);
+            repassar(ex, alvo, ex.getRequestURI().getRawPath());
         }
     }
 
-    // Tipo de conteúdo pela extensão dos arquivos servidos da pasta web/
+    /** /api-simples/** → motor do Simples Nacional, como /api/** (o contexto da aplicação oficial é /api). */
+    static void tratarProxySimples(HttpExchange ex) throws IOException {
+        try (ex) {
+            ultimoAcesso.set(System.currentTimeMillis());
+            String alvo = apiExternaSimples != null ? apiExternaSimples
+                    : (portaMotorSimples > 0 && motorSimples != null && motorSimples.isAlive() ? "http://127.0.0.1:" + portaMotorSimples : null);
+            if (alvo == null) {
+                responderJson(ex, 503, "{\"title\":\"Motor do Simples Nacional indisponível\",\"detail\":" + q(mensagemSimples) + "}");
+                return;
+            }
+            repassar(ex, alvo, "/api" + ex.getRequestURI().getRawPath().substring("/api-simples".length()));
+        }
+    }
+
+    /** Repassa a requisição (método, corpo, cabeçalhos) a alvo + caminho e devolve a resposta como veio. */
+    static void repassar(HttpExchange ex, String alvo, String caminho) throws IOException {
+        URI uri = URI.create(alvo + caminho
+                + (ex.getRequestURI().getRawQuery() != null ? "?" + ex.getRequestURI().getRawQuery() : ""));
+        byte[] corpo = ex.getRequestBody().readAllBytes();
+        HttpRequest.Builder rb = HttpRequest.newBuilder(uri).timeout(Duration.ofMinutes(2))
+                .method(ex.getRequestMethod(), corpo.length == 0 ? HttpRequest.BodyPublishers.noBody()
+                        : HttpRequest.BodyPublishers.ofByteArray(corpo));
+        ex.getRequestHeaders().forEach((k, vs) -> {
+            if (!CABECALHOS_PROIBIDOS.contains(k.toLowerCase(Locale.ROOT))) vs.forEach(v -> rb.header(k, v));
+        });
+        HttpResponse<byte[]> r;
+        try {
+            r = httpLocal.send(rb.build(), HttpResponse.BodyHandlers.ofByteArray());
+        } catch (Exception e) {
+            responderJson(ex, 502, "{\"title\":\"Falha ao falar com o motor de cálculo\",\"detail\":" + q(String.valueOf(e.getMessage())) + "}");
+            return;
+        }
+        r.headers().map().forEach((k, vs) -> {
+            String kl = k.toLowerCase(Locale.ROOT);
+            if (!CABECALHOS_PROIBIDOS.contains(kl) && !kl.startsWith(":")) vs.forEach(v -> ex.getResponseHeaders().add(k, v));
+        });
+        byte[] b = r.body();
+        boolean semCorpo = "HEAD".equals(ex.getRequestMethod()) || r.statusCode() == 204 || r.statusCode() == 304;
+        ex.sendResponseHeaders(r.statusCode(), semCorpo ? -1 : (b.length == 0 ? -1 : b.length));
+        if (!semCorpo && b.length > 0) ex.getResponseBody().write(b);
+    }
+
     static final Map<String, String> TIPOS = Map.ofEntries(
             Map.entry("html", "text/html; charset=utf-8"), Map.entry("js", "text/javascript; charset=utf-8"),
             Map.entry("css", "text/css; charset=utf-8"), Map.entry("json", "application/json; charset=utf-8"),

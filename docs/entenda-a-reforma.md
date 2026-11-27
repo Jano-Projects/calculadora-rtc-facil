@@ -76,7 +76,9 @@ A partir de 2027, a empresa pode escolher, por semestre, recolher **CBS e IBS po
 | Dentro do DAS | Só o valor pago na guia: alíquota efetiva × parte de CBS e IBS (Anexo I, 1ª faixa: 4% × 15,50% = 0,62% da venda) |
 | Por fora | A CBS e o IBS cheios destacados na nota |
 
-Na aba *Antes e depois*, escolha *Simples Nacional* no regime para comparar as duas opções. Veja o [guia de uso](guia-de-uso.md#simples-nacional) e o [ponto de atenção 17](pontos-de-atencao.md#17-simples-nacional-dentro-ou-fora-do-das-é-uma-decisão-com-o-contador).
+Na tela, escolha *Simples Nacional* no painel *Quem emite a nota*: a nota passa a ser calculada pela calculadora oficial do Simples, com o DAS da nota no cupom, e a aba *Antes e depois* compara as duas opções.
+
+Em 2026, o Simples não aplica a CBS e o IBS de teste (LC 214/2025, art. 348, III, "c"). De 2027 em diante, dentro do DAS, a nota informa a CBS e o IBS do Simples, calculados pela alíquota efetiva de cada um: alíquota efetiva do DAS × parte do tributo na partilha. A Receita publicou uma calculadora própria para isso, a [calculadora-rtc-simples-nacional](https://github.com/ReceitaFederal/calculadora-rtc-simples-nacional), que esta ferramenta instala junto com a do regime regular. Veja o [guia de uso](guia-de-uso.md#simples-nacional) e o [ponto de atenção 17](pontos-de-atencao.md#17-simples-nacional-dentro-ou-fora-do-das-é-uma-decisão-com-o-contador).
 
 ## Termos que aparecem na tela
 

@@ -22,6 +22,7 @@ permissions:
 
 env:
   REPO_RECEITA: https://github.com/ReceitaFederal/calculadora-rtc-regime-regular
+  REPO_SIMPLES: https://github.com/ReceitaFederal/calculadora-rtc-simples-nacional
 
 jobs:
   verificar:
@@ -36,8 +37,11 @@ jobs:
         run: |
           v=$(git ls-remote --tags --refs "$REPO_RECEITA" | sed 's#.*refs/tags/##' | sort -V | tail -n1)
           [ -n "$v" ] || { echo "Não consegui ler as versões da Receita"; exit 1; }
-          echo "versao=$v" >> "$GITHUB_OUTPUT"
-          echo "Última versão da Receita: $v" >> "$GITHUB_STEP_SUMMARY"
+          # a calculadora do Simples Nacional tem versões próprias: versão nova de qualquer uma das duas dispara o teste
+          s=$(git ls-remote --tags --refs "$REPO_SIMPLES" | sed 's#.*refs/tags/##' | sort -V | tail -n1)
+          [ -n "$s" ] || { echo "Não consegui ler as versões da calculadora do Simples"; exit 1; }
+          echo "versao=$v-simples-$s" >> "$GITHUB_OUTPUT"
+          echo "Últimas versões da Receita: regime regular $v, Simples Nacional $s" >> "$GITHUB_STEP_SUMMARY"
       - name: Já foi testada?
         id: cache
         uses: actions/cache/restore@v6

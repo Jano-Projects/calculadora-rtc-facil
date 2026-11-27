@@ -133,7 +133,7 @@ A regra de base de cada tributo está em [tributos e bases](tributos-e-bases.md)
 
 ## 17. Simples Nacional: dentro ou fora do DAS é uma decisão com o contador
 
-**O que pode enganar.** O quadro do Simples no *Antes e depois* usa a partilha do DAS da **1ª faixa** do anexo escolhido, considera **fornecedores do lucro real** e aplica a mesma margem nas duas opções. Faixas maiores mudam um pouco a divisão da guia. A divisão de 2027 a 2033 é a dos Anexos XVIII a XX da LC 214/2025 (por exemplo, na 1ª faixa de 2027 e 2028: CBS de 15,33% e IBS de 0,17% no Anexo I; 13,85% e 0,15% no Anexo II; 15,43% e 0,17% no Anexo III). A conta não inclui o custo de apurar CBS e IBS por fora (obrigações acessórias, sistema, contador) nem o efeito no fluxo de caixa.
+**O que pode enganar.** O quadro do Simples no *Antes e depois* considera **fornecedores do lucro real** e aplica a mesma margem nas duas opções. A alíquota efetiva e a partilha do DAS vêm das tabelas da LC 214/2025 (Anexos XVIII a XXII), pela receita dos últimos 12 meses que você informa no painel *Quem emite a nota*: se ela estiver errada, a faixa e todos os valores do Simples ficam errados. Confira a alíquota efetiva com o extrato do PGDAS. A conta não inclui o custo de apurar CBS e IBS por fora (obrigações acessórias, sistema, contador) nem o efeito no fluxo de caixa.
 
 **O que fazer.** Use o quadro para ver o **sentido e a ordem de grandeza** da escolha: quem vende a consumidor final tende a ficar melhor dentro do DAS, e quem vende a empresas do regime regular tende a ficar melhor por fora, porque o cliente aproveita o crédito cheio. A opção é feita por semestre, nos prazos do Comitê Gestor do Simples Nacional. Decida com o seu contador, com os números reais da empresa.
 
@@ -141,9 +141,20 @@ A regra de base de cada tributo está em [tributos e bases](tributos-e-bases.md)
 
 **O que pode enganar.**
 - A conferência usa as alíquotas de **referência** da data da nota. Enquanto a referência de 2027 for uma estimativa (veja o [item 4](#4-de-2027-em-diante-o-cálculo-é-simulado-e-as-alíquotas-são-estimativas)), uma nota correta com outra alíquota aparece como *Diverge*.
-- A calculadora oficial calcula pelas regras do **regime regular**. Para emitente do Simples Nacional, a conferência só mostra o que seria devido no regime regular.
+- Emitente do Simples Nacional, de 2027 em diante, dentro do DAS: a CBS e o IBS do Simples vão no Evento de Tributação do Simples Nacional, não no XML da nota. A conferência mostra o que a calculadora oficial do Simples calcula, com a receita e a atividade do painel *Quem emite a nota*, mas não tem o evento para comparar.
 - Os grupos de diferimento, crédito presumido, devolução de tributo, Zona Franca de Manaus e compra governamental não são conferidos. Só o valor final de CBS, IBS e Imposto Seletivo de cada item é comparado.
 - O local da operação é o do **destinatário**. Em operações em que a lei manda usar outro local (alguns serviços, operações com bens imóveis, exportação), confira a aba *Calcular nota* com o local correto.
 - No *Antes e depois*, os tributos de hoje vêm da própria nota. Uma nota de 2027 em diante não traz PIS/Cofins, e por isso o "antes" volta para os padrões da tela.
 
 **O que fazer.** Trate *Diverge* como um sinal para investigar, não como um erro certo. Veja o valor oficial, abra **Ver JSON** e compare com as regras da nota técnica (NT 2025.002) e da LC 214/2025.
+
+## 19. Simples Nacional: a nota mostra uma parte do DAS, não um imposto a mais
+
+**O que pode enganar.** Em 2026 a nota do Simples não tem CBS nem IBS. Em 2027, dentro do DAS, ela passa a destacar CBS e IBS do Simples (no Anexo III, 1ª faixa, 0,93% na NFS-e). Comparando as duas datas, parece um imposto novo. Não é: é a parte da guia que era PIS/Cofins, agora com outro nome, e o DAS da nota é o mesmo. Já o regime regular destaca a CBS cheia (cerca de 11%), e por isso uma nota do Simples comparada com a de uma empresa do lucro presumido mostra uma diferença enorme.
+
+**O que fazer.** Confira sempre o regime no painel *Quem emite a nota* e olhe o **DAS desta nota** no cupom e nos cartões de *Comparar datas*. Outros pontos do Simples que a tela trata, mas que dependem do que você informa:
+- **Receita dos últimos 12 meses:** define a faixa. A tela não acompanha a receita mês a mês nem a proporcionaliza no início de atividade.
+- **Atividade:** produtos e serviços podem estar em anexos diferentes; a atividade 09 depende do fator "r".
+- **NFS-e:** a alíquota vai com 2 casas decimais, e o destaque difere alguns centavos da parte da CBS no DAS.
+- **ICMS-ST, monofásico e outras receitas segregadas no PGDAS** (que tiram a parte do ICMS ou do PIS/Cofins da guia) não são descontados no DAS desta nota.
+- **Sublimite (R$ 3,6 milhões) e limite (R$ 4,8 milhões):** acima do primeiro, ICMS, ISS e IBS saem do DAS; acima do segundo, a tela calcula como regime regular. O MEI não está coberto.

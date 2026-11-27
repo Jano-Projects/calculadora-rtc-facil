@@ -122,11 +122,27 @@ async function importarNfe(xmlTexto) {
   const uf = estado.ufs.find((u) => u.sigla === nfe.cab.local.uf);
   if (uf) { $("#op-uf").value = uf.sigla; await carregarMunicipios(uf.sigla, Number(nfe.cab.local.mun)); }
   $("#op-data").value = nfe.cab.dhEmi.slice(0, 10);
-  if (ehSimples(nfe.cab)) $("#ad-regime").value = "simples";
-  else if ($("#ad-regime").value === "simples") $("#ad-regime").value = "9.25";
+  aplicarEmitente(emitenteDaNfe(nfe)); // o regime de quem emitiu passa a valer em todas as abas
   await aoMudarData();
   await renderizarNfe();
   return true;
+}
+
+/** Quem emitiu a nota, para o painel "Quem emite a nota":
+ *  - CRT 1, 2 ou 4: Simples Nacional. CRT 2 (excesso de sublimite) leva a receita para acima de R$ 3,6 milhões se a
+ *    do painel estiver abaixo. Nota do Simples de 2027 em diante com CBS destacada no grupo IBSCBS: o emitente optou
+ *    por recolher CBS e IBS por fora (regime regular).
+ *  - CRT 3: regime regular; PIS de 0,65% indica lucro presumido (cumulativo), e o resto, lucro real. */
+function emitenteDaNfe(n) {
+  const crt = n.cab.emitente.crt;
+  if (SIMPLES.has(crt)) {
+    const porFora = crt === "1" && anoDe(n.cab.dhEmi) >= ANO_ALIQ_OBRIGATORIA && n.itens.some((x) => (x.ibscbs?.pCBS || 0) > 0);
+    const em = { regime: "simples", opcao: porFora ? "fora" : "dentro" };
+    if (crt === "2" && faixaSN(emitente().rbt12) < 6) em.rbt12 = 4000000;
+    if (crt !== "2" && faixaSN(emitente().rbt12) >= 6) em.rbt12 = 180000;
+    return em;
+  }
+  return { regime: n.itens.some((x) => x.pis.p === 0.65) ? "presumido" : "real" };
 }
 
 /* ====================================================================== aba Conferir NF-e */
@@ -153,13 +169,16 @@ async function renderizarNfe() {
       <div><dt>Valor da nota</dt><dd>${brl(c.totais.vNF)}</dd></div>
     </dl>
     ${c.chave ? `<p class="nota">Chave de acesso: <code>${esc(c.chave)}</code></p>` : ""}
-    ${ehSimples(c) ? `<p class="aviso-nfe"><strong>Emitente do Simples Nacional.</strong> A calculadora oficial calcula pelas regras do regime regular. Se o emitente recolhe CBS e IBS dentro do DAS, a nota não destaca esses tributos e a conferência mostra só o que seria devido no regime regular.</p>` : ""}
-    ${!comGrupo ? `<p class="aviso-nfe">Esta nota não traz o grupo de CBS e IBS (IBSCBS). A conferência mostra o que a calculadora oficial calcularia para ela.</p>` : ""}`;
+    ${ehSimples(c) ? `<p class="aviso-nfe">${avisoSimplesNfe(c, d)}</p>` : ""}
+    ${!comGrupo && !ehSimples(c) ? `<p class="aviso-nfe">Esta nota não traz o grupo de CBS e IBS (IBSCBS). A conferência mostra o que a calculadora oficial calcularia para ela.</p>` : ""}`;
 
   // alíquotas: a partir de 2027 são obrigatórias; preenchidas com a referência para a data da nota
   const box = $("#nfe-aliq");
   if (anoDe(d) < ANO_ALIQ_OBRIGATORIA) {
     box.innerHTML = `<p class="cmp-sem-aliq">Nota de ${anoDe(d)}: as alíquotas vêm da base oficial. Não há nada a informar.</p>`;
+    refAliqNfe = null;
+  } else if (ehSimples(c) && (c.emitente.crt === "4" || !precisaAliquotas(d))) {
+    box.innerHTML = `<p class="cmp-sem-aliq">${c.emitente.crt === "4" ? "MEI: não há CBS e IBS por nota." : "Simples Nacional, CBS e IBS dentro do DAS: valem as alíquotas efetivas do Simples, calculadas pela receita dos últimos 12 meses do painel Quem emite a nota (aba Calcular nota). Não há nada a informar aqui."}</p>`;
     refAliqNfe = null;
   } else {
     const chave = `${d}|${$("#op-uf").value}|${$("#op-mun").value}`;
@@ -229,6 +248,9 @@ async function conferirNfe() {
   const st = $("#nfe-status"), n = estado.nfe;
   st.className = "calc-status erro";
   if (!n) { st.textContent = "Abra o XML de uma nota primeiro."; return; }
+  if (ehSimples(n.cab) && (anoDe(n.cab.dhEmi) < ANO_ALIQ_OBRIGATORIA || n.cab.emitente.crt === "4" || emitente().opcao !== "fora")) {
+    return conferirNfeSimples(n);
+  }
   let aliq = null;
   if (anoDe(n.cab.dhEmi) >= ANO_ALIQ_OBRIGATORIA) {
     aliq = aliquotasDoLado("nfe");
@@ -276,10 +298,11 @@ async function conferirNfe() {
 }
 
 // Situação de cada item na conferência → texto do selo
-const NOME_SITUACAO = { confere: "Confere", diverge: "Diverge", erro: "Erro", "sem-destaque": "Sem destaque" };
+const NOME_SITUACAO = { confere: "Confere", diverge: "Diverge", erro: "Erro", "sem-destaque": "Sem destaque",
+  "nao-se-aplica": "Não se aplica", evento: "Valor do Simples" };
 
 /** Tabela da conferência: situação de cada item, valores da nota × oficiais e totais. */
-function renderizarConferencia({ linhas }) {
+function renderizarConferencia({ linhas, simples }) {
   const n = estado.nfe;
   const conta = (s) => linhas.filter((l) => l.situacao === s).length;
   const soma = (f) => arred2(linhas.reduce((a, l) => a + (f(l) || 0), 0));
@@ -304,7 +327,10 @@ function renderizarConferencia({ linhas }) {
       <div class="placar diverge"><strong>${conta("diverge")}</strong> divergem</div>
       <div class="placar erro"><strong>${conta("erro")}</strong> com erro na calculadora</div>
       ${conta("sem-destaque") ? `<div class="placar"><strong>${conta("sem-destaque")}</strong> sem destaque na nota</div>` : ""}
+      ${conta("evento") ? `<div class="placar"><strong>${conta("evento")}</strong> calculados pelo Simples</div>` : ""}
+      ${conta("nao-se-aplica") ? `<div class="placar"><strong>${conta("nao-se-aplica")}</strong> sem CBS e IBS a conferir</div>` : ""}
     </div>
+    ${simples ? `<p class="aviso-nfe">${simples}</p>` : ""}
     ${avisoTotal}
     <div class="tabela-rolagem"><table class="tab-nfe-tot">
       <thead><tr><th>Total</th><th class="n">Na nota</th><th class="n">Calculadora oficial</th><th class="n">Diferença</th></tr></thead>
@@ -326,6 +352,98 @@ function renderizarConferencia({ linhas }) {
     ${(() => { const av = [...new Set(linhas.flatMap((l) => l.avisos))]; return av.length
       ? `<details class="nfe-avisos"><summary>Avisos da calculadora oficial sobre a base (${av.length})</summary><ul>${av.map((a) => `<li>${esc(a)}</li>`).join("")}</ul></details>` : ""; })()}
     <p class="nota">A calculadora oficial monta a base de cada item com os valores da própria nota (produto, frete, seguro, outras despesas, desconto, ICMS, PIS/Cofins quando vigentes...) e calcula CBS, IBS e Imposto Seletivo pelas regras da data de emissão. Diferenças de até 1 centavo são tratadas como arredondamento.</p>`;
+}
+
+/* ---------------------------------------------------------------- notas de emitente do Simples Nacional */
+
+/** Texto do resumo da nota quando o emitente é do Simples (CRT 1, 2 ou 4). */
+function avisoSimplesNfe(c, d) {
+  const crt = c.emitente.crt, ano = anoDe(d);
+  if (crt === "4") return "<strong>Emitente MEI.</strong> O MEI paga valor fixo mensal (DAS-MEI) e fica fora do cálculo da CBS e do IBS por nota. Não há o que conferir.";
+  if (ano < ANO_ALIQ_OBRIGATORIA) return `<strong>Emitente do Simples Nacional.</strong> Em ${ano}, o Simples não destaca a CBS e o IBS de teste (LC 214/2025, art. 348, III, "c"). Os itens foram levados para as outras abas com o regime do Simples.`;
+  if (emitente().opcao === "fora") return "<strong>Emitente do Simples que recolhe CBS e IBS por fora</strong> (pelo regime regular): a nota destaca CBS e IBS no grupo IBSCBS, conferidos pela calculadora oficial do regime regular.";
+  return `<strong>Emitente do Simples Nacional${crt === "2" ? " acima do sublimite (CRT 2)" : ""}.</strong> Dentro do DAS, a CBS${crt === "2" ? "" : " e o IBS"} do Simples não vão no grupo IBSCBS da nota: vão no Evento de Tributação do Simples Nacional (tpEvento 412140, NT 2026.005), com as alíquotas efetivas do PGDAS.
+    A conferência calcula esses valores pela calculadora oficial do Simples, com a receita e a atividade do painel Quem emite a nota (aba Calcular nota).${crt === "2" ? " O IBS, acima do sublimite, é do regime regular e vai no grupo IBSCBS: esse é conferido." : ""}`;
+}
+
+/** Conferência de nota do Simples: em 2026 e no MEI não há CBS e IBS; de 2027 em diante, dentro do DAS, calcula pela
+ *  calculadora oficial do Simples (rota não assistida, com o CRT e o modelo da própria nota) o que vai no evento.
+ *  Acima do sublimite (CRT 2), o IBS destacado no grupo IBSCBS é conferido pela calculadora do regime regular. */
+async function conferirNfeSimples(n) {
+  const st = $("#nfe-status"), c = n.cab, d = c.dhEmi.slice(0, 10), crt = c.emitente.crt;
+  const em = emitente();
+  st.className = "calc-status"; st.textContent = "Conferindo...";
+  $("#btn-conferir").disabled = true;
+  try {
+    let linhas, enviado = null, recebido = null;
+    if (anoDe(d) < ANO_ALIQ_OBRIGATORIA || crt === "4") {
+      linhas = n.itens.map((x, k) => {
+        const nota = x.ibscbs ? { vBC: x.ibscbs.vBC, vCBS: x.ibscbs.vCBS, vIBS: x.ibscbs.vIBS, pCBS: x.ibscbs.pCBS } : null;
+        const destacou = nota && ((nota.vCBS || 0) > 0 || (nota.vIBS || 0) > 0);
+        return { k: k + 1, x, nota, of: { vBC: null, vCBS: 0, vIBS: 0, pCBS: 0, vIS: null }, erros: [], avisos: [],
+          div: destacou ? [crt === "4" ? "MEI não destaca CBS e IBS" : "Em 2026 o Simples não destaca CBS e IBS de teste"] : [],
+          situacao: destacou ? "diverge" : "nao-se-aplica" };
+      });
+    } else {
+      // valores do Simples (evento), pela calculadora do Simples
+      const corpo = { id: "conferencia-sn-" + (c.chave || Date.now()), versao: "3.0.0", data: d, tpDoc: String(c.modelo), CRT: crt,
+        aliquotasEfetivas: aliquotasEfetivasSN(d, em),
+        itens: n.itens.map((x, k) => {
+          const p = x.comp;
+          const base = (p.vProd || 0) + (p.vFrete || 0) + (p.vSeg || 0) + (p.vOutro || 0) - (p.vDesc || 0); // sem o IS (leiaute do evento)
+          return { numero: k + 1, cAtivSN: em.ativProd, cClassTrib: x.ibscbs?.cClassTrib || "000001", ncm: x.ncm,
+            baseCalculo: base.toFixed(2), valorImpostoSeletivo: Number(x.is?.vIS || 0).toFixed(2) };
+        }) };
+      let resp, estimado = false;
+      try {
+        resp = (await api("", { caminhoCompleto: `${API_SN}/observabilidade/simples-nacional/nao-assistido`, method: "POST", body: JSON.stringify(corpo) })).corpo;
+      } catch (e) {
+        if (e.status && e.status !== 502 && e.status !== 503) throw e;
+        resp = estimarSimples({ corpo }, em, d); estimado = true;
+      }
+      enviado = corpo; recebido = resp;
+      // acima do sublimite: IBS do regime regular, destacado no grupo IBSCBS da nota
+      let ibsRegular = null;
+      if (crt === "2") {
+        const aliq = aliquotasDoLado("nfe");
+        if (aliq.cbs === null || aliq.ibsEstadual === null || aliq.ibsMunicipal === null) throw new Error("Preencha as alíquotas de CBS e IBS (o IBS acima do sublimite é do regime regular).");
+        const bases = await basesOficiais(n);
+        const op = operacaoDaNfe(n, aliq, bases);
+        const r = await api("/observabilidade/regime-geral", { method: "POST", body: JSON.stringify(op) });
+        ibsRegular = new Map((r.corpo.objetos || []).map((o) => { const g = o.tribCalc?.IBSCBS?.gIBSCBS || {};
+          return [o.nObj, num(g.vIBS ?? (n2(g.gIBSUF?.vIBSUF) + n2(g.gIBSMun?.vIBSMun)))]; }));
+        enviado = { simples: corpo, regimeRegular: op }; recebido = { simples: resp, regimeRegular: r.corpo };
+      }
+      const porItem = new Map((resp.objetos || []).map((o) => [o.nObj, o]));
+      linhas = n.itens.map((x, k) => {
+        const o = porItem.get(k + 1) || {}, t = o.tribCalc || {};
+        const of = { vBC: num(t.vBC), vCBS: num(t.vCBSSN), vIBS: crt === "2" ? ibsRegular.get(k + 1) ?? null : num(t.vIBSSN), pCBS: num(t.pCBSSN),
+          vIS: t.IS ? num(t.IS.valor) : null };
+        const erros = o.erros || [];
+        const div = [];
+        let nota = null;
+        if (crt === "2" && x.ibscbs) {
+          nota = { vBC: null, vCBS: null, vIBS: x.ibscbs.vIBS, pCBS: null };
+          if (of.vIBS !== null && nota.vIBS !== null && Math.abs(nota.vIBS - of.vIBS) > TOLERANCIA) div.push(`IBS: nota ${brl(nota.vIBS)}, oficial ${brl(of.vIBS)}`);
+        }
+        if (o.motivoEstado?.descricao) div.push(o.motivoEstado.descricao);
+        const situacao = erros.length ? "erro" : o.estadoItem === "NAO_CALCULADO" ? "nao-se-aplica" : nota ? (div.length ? "diverge" : "confere") : "evento";
+        return { k: k + 1, x, nota, of, erros, div, situacao, avisos: [] };
+      });
+      if (estimado) st.textContent = "O motor do Simples Nacional não respondeu: valores estimados pelas tabelas da lei.";
+    }
+    const simples = anoDe(d) < ANO_ALIQ_OBRIGATORIA || crt === "4" ? avisoSimplesNfe(c, d)
+      : `Valores do Simples para o evento de tributação: alíquota efetiva da CBS de ${pct(linhas[0]?.of.pCBS ?? 0, 4)} sobre a receita de cada item (${esc(textoEmitente(em))}). Confira a receita dos últimos 12 meses e a atividade no painel Quem emite a nota.`;
+    estado.nfeConferencia = { linhas, simples, enviado, recebido, em: new Date().toISOString() };
+    estado.ultimoCalculo = { enviado, recebido };
+    renderizarConferencia(estado.nfeConferencia);
+    if (!st.textContent.startsWith("O motor")) st.textContent = "";
+    salvar();
+  } catch (e) {
+    st.className = "calc-status erro"; st.textContent = e.message;
+  } finally {
+    $("#btn-conferir").disabled = false;
+  }
 }
 
 /** Exporta a conferência em CSV (separador ;, vírgula decimal). */

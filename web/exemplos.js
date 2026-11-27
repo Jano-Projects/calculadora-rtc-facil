@@ -1,7 +1,8 @@
 /* Exemplos prontos. Os códigos (NCM × cClassTrib) foram conferidos na base oficial da calculadora.
  * Os preços são estimativas de mercado; troque pelos seus.
  * Imposto Seletivo: alíquotas de 2027 da MP 1.399/2026 (bebidas açucaradas 2,6%; cerveja de malte 4,2%). */
-/* Formato de cada exemplo: { nome, local: { uf, municipio (código IBGE) }, itens: [linha, ...] }.
+/* Formato de cada exemplo: { nome, local: { uf, municipio (código IBGE) }, emitente?: { regime, rbt12, ativServ, ... }
+ * (painel Quem emite a nota; ausente = não muda o painel), antesDepois?: { iss }, itens: [linha, ...] }.
  * Cada linha: [descrição, NCM ou NBS, cClassTrib, valor (R$), quantidade, unidade, alíquota do IS % (opcional), "nbs" para serviço].
  * cClassTrib usados aqui (base oficial): 000001 tributação integral; 200003 cesta básica nacional (Anexo I da LC 214,
  * alíquota zero); 200014 hortícolas, frutas e ovos (Anexo XV, alíquota zero); 200028 educação (Anexo II), 200034
@@ -57,11 +58,23 @@ window.EXEMPLOS = {
     nome: "Serviços de uma empresa do lucro presumido",
     local: { uf: "SP", municipio: 3533403 },
     // PIS/Cofins cumulativo (3,65%) e ISS: é o caso em que a troca por CBS mais pesa
-    antesDepois: { regime: "3.65", iss: 5 },
+    emitente: { regime: "presumido" },
+    antesDepois: { iss: 5 },
     itens: [
       ["Consultoria em TI (8 horas)", "115011000", "000001", 1600.00, null, null, null, "nbs"],
       ["Limpeza do escritório (mensal)", "118031000", "000001", 900.00, null, null, null, "nbs"],
       ["Manutenção de veículo (mão de obra)", "120013110", "000001", 450.00, null, null, null, "nbs"]
+    ]
+  },
+  simples: {
+    nome: "Serviço de uma microempresa do Simples Nacional",
+    local: { uf: "SP", municipio: 3550308 },
+    // Anexo III (atividade 07), 1ª faixa: DAS de 6% da receita. Em 2026, sem CBS e IBS. De 2027 em diante, dentro do
+    // DAS: CBS de 0,9258% e IBS de 0,0102% da receita (na NFS-e as alíquotas vão com 2 casas: 0,93% e 0,01%)
+    emitente: { regime: "simples", rbt12: 120000, ativServ: "07", opcao: "dentro", issRetido: false },
+    antesDepois: { iss: 5 },
+    itens: [
+      ["Suporte em tecnologia da informação (mensal)", "115013000", "000001", 10027.50, null, null, null, "nbs"]
     ]
   },
   oficial: {

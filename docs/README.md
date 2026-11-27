@@ -11,6 +11,7 @@ Por onde começar, conforme o que você quer fazer.
 | Entender CBS, IBS, Imposto Seletivo e o cronograma | [Entenda a reforma](entenda-a-reforma.md) |
 | Saber sobre o que cada tributo incide e o que é "imposto sobre imposto" | [Tributos e bases](tributos-e-bases.md) |
 | Tirar dúvidas de termos parecidos (calculado × simulado, CST × cClassTrib...) | [Diferenças que confundem](diferencas.md) |
+| Calcular a nota de uma empresa do Simples Nacional | [Guia: Quem emite a nota](guia-de-uso.md#quem-emite-a-nota) e [ponto de atenção 19](pontos-de-atencao.md#19-simples-nacional-a-nota-mostra-uma-parte-do-das-não-um-imposto-a-mais) |
 | Decidir no Simples Nacional entre dentro e fora do DAS | [Guia: Simples Nacional](guia-de-uso.md#simples-nacional) e [ponto de atenção 17](pontos-de-atencao.md#17-simples-nacional-dentro-ou-fora-do-das-é-uma-decisão-com-o-contador) |
 | Conferir notas emitidas por um sistema (homologação) | [Guia: Conferir NF-e](guia-de-uso.md#conferir-nf-e) e [ponto de atenção 18](pontos-de-atencao.md#18-conferir-nf-e-o-que-a-conferência-não-pega) |
 | Resolver um problema na instalação ou na tela | [Solução de problemas](solucao-de-problemas.md) |

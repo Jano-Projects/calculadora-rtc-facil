@@ -52,7 +52,7 @@
     <div class="grade">
       <div class="coluna-form">
         <p class="legenda-escopo">
-          <span class="escopo comum">vale em todas as abas</span> itens e local da operação
+          <span class="escopo comum">vale em todas as abas</span> local, quem emite e itens
           <span class="escopo local">só nesta aba</span> data e alíquotas
         </p>
         <fieldset class="bloco">
@@ -66,6 +66,48 @@
               <span>Município</span>
               <select id="op-mun"></select>
             </label>
+          </div>
+        </fieldset>
+
+        <fieldset class="bloco" id="bloco-emitente">
+          <legend>Quem emite a nota <span class="escopo comum">vale em todas as abas</span></legend>
+          <div class="campos">
+            <label class="caixa larga">
+              <span>Regime de quem vende</span>
+              <select id="em-regime">
+                <option value="real">Regime regular — lucro real (PIS/Cofins não cumulativo)</option>
+                <option value="presumido">Regime regular — lucro presumido (PIS/Cofins cumulativo)</option>
+                <option value="simples">Simples Nacional — microempresa ou empresa de pequeno porte</option>
+              </select>
+            </label>
+          </div>
+          <div id="em-sn" hidden>
+            <div class="campos">
+              <label class="caixa">
+                <span>Receita bruta dos últimos 12 meses (RBT12), R$</span>
+                <input type="number" id="em-rbt12" step="0.01" min="0" value="180000">
+              </label>
+              <label class="caixa larga">
+                <span>Atividade dos produtos (NF-e)</span>
+                <select id="em-ativ-prod"><option value="01">01 — Anexo I: revenda de mercadorias</option></select>
+              </label>
+              <label class="caixa larga">
+                <span>Atividade dos serviços (NFS-e)</span>
+                <select id="em-ativ-serv"><option value="07">07 — Anexo III: serviços tributados pelo Anexo III</option></select>
+              </label>
+            </div>
+            <div class="campos">
+              <label class="caixa larga">
+                <span>CBS e IBS de 2027 em diante</span>
+                <select id="em-opcao">
+                  <option value="dentro">Dentro do DAS (padrão do Simples)</option>
+                  <option value="fora">Por fora, pelo regime regular (opção do Simples)</option>
+                </select>
+              </label>
+              <label class="ad-marca" id="em-fatorr-caixa" hidden><input type="checkbox" id="em-fatorr"> Fator "r" de 28% ou mais (folha dos últimos 12 meses ÷ receita): Anexo III em vez do V</label>
+              <label class="ad-marca"><input type="checkbox" id="em-iss-retido"> ISS retido pelo tomador do serviço</label>
+            </div>
+            <div class="nota em-resumo" id="em-resumo"></div>
           </div>
         </fieldset>
 
@@ -179,6 +221,7 @@
     <div id="cmp-resultado"></div>
     <aside class="aviso-leitura">
       <h3>Como ler a comparação</h3>
+      <p><strong>Simples Nacional:</strong> em 2026 a nota do Simples não destaca CBS nem IBS. De 2027 em diante, dentro do DAS, ela destaca a CBS e o IBS do Simples, que são uma <em>parte</em> da guia (a que antes era PIS/Cofins), e não um imposto a mais. Por isso cada cartão mostra também o DAS da nota: compare os dois.</p>
       <p>A calculadora oficial mostra só os <strong>tributos novos</strong> (CBS, IBS e Imposto Seletivo). PIS, Cofins, ICMS, ISS e IPI não aparecem. Em 2026 a CBS e o IBS são de teste e compensados com PIS/Cofins. Em 2027 a CBS substitui o PIS e a Cofins. Por isso, o aumento que aparece aqui não é, sozinho, o aumento de preço para o consumidor.</p>
       <p>O que é novo de verdade a partir de 2027 é o <strong>Imposto Seletivo</strong> (bebidas açucaradas, alcoólicas, cigarros, veículos...). Ele também entra na base da CBS e do IBS.</p>
     </aside>
@@ -223,32 +266,11 @@
         </label>
         <label class="caixa" id="ad-fabrica-caixa"><span>Preço de fábrica (% do preço de venda)</span><input type="number" id="ad-fabrica" step="1" min="1" max="100" value="60"></label>
       </div>
+      <p class="nota">Regime de quem vende: <span id="ad-regime-texto"></span> Muda no painel <strong>Quem emite a nota</strong>, na aba Calcular nota. <button type="button" class="link-btn" data-ir="calcular">Mudar</button>
+        (lucro real: PIS/Cofins não cumulativo, 9,25%; lucro presumido: cumulativo, 3,65%; Simples: PIS/Cofins e ICMS ou ISS dentro do DAS)</p>
       <div class="campos">
-        <label class="caixa larga"><span>Regime de PIS/Cofins de quem vende</span>
-          <select id="ad-regime">
-            <option value="9.25">Não cumulativo (lucro real): 1,65% + 7,6% = 9,25%</option>
-            <option value="3.65">Cumulativo (lucro presumido): 0,65% + 3% = 3,65%</option>
-            <option value="simples">Simples Nacional: PIS/Cofins e ICMS ou ISS dentro do DAS</option>
-          </select>
-        </label>
         <label class="caixa"><span>ICMS padrão % (<span id="ad-uf">UF</span>)</span><input type="number" id="ad-icms" step="0.01" min="0" max="40"></label>
         <label class="caixa"><span>ISS dos serviços %</span><input type="number" id="ad-iss" step="0.01" min="0" max="5" value="5"></label>
-      </div>
-      <div class="campos" id="ad-sn" hidden>
-        <label class="caixa larga"><span>Anexo do Simples (atividade principal)</span>
-          <select id="ad-sn-anexo">
-            <option value="I">Anexo I: comércio</option>
-            <option value="II">Anexo II: indústria</option>
-            <option value="III">Anexo III: serviços</option>
-          </select>
-        </label>
-        <label class="caixa"><span>Alíquota efetiva do DAS %</span><input type="number" id="ad-sn-aliq" step="0.01" min="0" max="33" value="4"></label>
-        <label class="caixa larga"><span>De 2027 em diante, CBS e IBS</span>
-          <select id="ad-sn-opcao">
-            <option value="dentro">Dentro do DAS (padrão)</option>
-            <option value="fora">Por fora, pelo regime regular (Simples híbrido)</option>
-          </select>
-        </label>
       </div>
       <div class="campos">
         <label class="caixa larga"><span>ICMS de 2027 em diante (ponto em aberto na lei)</span>
@@ -282,7 +304,7 @@
         <li><strong>Hoje:</strong> ICMS/ISS "por dentro" do preço. PIS/Cofins sobre o preço sem ICMS, conforme a decisão do STF no Tema 69. IPI embutido no preço. A CBS e o IBS de teste de 2026 aparecem, mas não somam ao preço, porque são compensados com PIS/Cofins.</li>
         <li><strong>Depois:</strong> PIS/Cofins extintos. IPI zerado, sem considerar as exceções da Zona Franca de Manaus. ICMS/ISS mantidos até 2028 e reduzidos em 10% ao ano de 2029 a 2032. CBS e IBS "por fora", sobre a base sem ICMS/ISS e com o Imposto Seletivo, como na base de cálculo unificada oficial.</li>
         <li><strong>Cadeia:</strong> nos tributos não cumulativos (ICMS, PIS/Cofins do lucro real, CBS e IBS), o valor destacado na venda final é a carga inteira daquele tributo, porque cada etapa abate o que pagou na anterior. Não modela combustíveis.</li>
-        <li><strong>Simples Nacional:</strong> usa a partilha do DAS da 1ª faixa do anexo escolhido (faixas maiores mudam um pouco a divisão) e supõe fornecedores do lucro real. Como a empresa do Simples não aproveita crédito do que compra, o PIS/Cofins e o ICMS do fornecedor ficam no custo; de 2027 em diante, dentro do DAS, a CBS e o IBS do fornecedor também. A divisão de 2027 e 2028 do Anexo I é a da LC 214/2025; a dos Anexos II e III é estimada na mesma proporção.</li>
+        <li><strong>Simples Nacional:</strong> usa a alíquota efetiva e a partilha do DAS das tabelas da LC 214/2025 (Anexos XVIII a XXII), pela receita dos últimos 12 meses e pela atividade informadas no painel Quem emite a nota, ano a ano (2026, 2027–2028, 2029 a 2032 e 2033). Supõe fornecedores do lucro real. Como a empresa do Simples não aproveita crédito do que compra, o PIS/Cofins e o ICMS do fornecedor ficam no custo; de 2027 em diante, dentro do DAS, a CBS e o IBS do fornecedor também. Acima do sublimite de R$ 3,6 milhões, ICMS, ISS e IBS são pagos fora do DAS.</li>
         <li><strong>Comércio:</strong> IPI, Imposto Seletivo e PIS/Cofins monofásico incidem uma vez, na indústria, e são calculados sobre o preço de fábrica informado. O ICMS-ST foi pago antecipado pela indústria e é aproximado pela alíquota do ICMS sobre o preço de venda. Todos entram como custo embutido. A venda do comércio destaca só ICMS normal, PIS/Cofins normal, CBS e IBS.</li>
         <li><strong>Padrões:</strong>
           <ul>
@@ -394,10 +416,11 @@
     <p>Abrir de novo com a calculadora já aberta não cria uma segunda cópia: ela só abre outra aba na mesma.</p>
 
     <h2 id="aj-como-usar">Como usar cada aba</h2>
-    <p>Os <strong>itens</strong> da nota e o <strong>local</strong> valem em todas as abas (marcados com <span class="escopo comum">vale em todas as abas</span>). A <strong>data</strong> e as <strong>alíquotas</strong> são de cada aba (<span class="escopo local">só nesta aba</span>): a mesma nota pode estar em 2026 no cálculo e ser comparada com 2027 sem mudar nada.</p>
+    <p>Os <strong>itens</strong> da nota, o <strong>local</strong> e <strong>quem emite</strong> valem em todas as abas (marcados com <span class="escopo comum">vale em todas as abas</span>). A <strong>data</strong> e as <strong>alíquotas</strong> são de cada aba (<span class="escopo local">só nesta aba</span>): a mesma nota pode estar em 2026 no cálculo e ser comparada com 2027 sem mudar nada.</p>
 
     <h3>Calcular nota</h3>
     <ol>
+      <li><strong>Quem emite a nota:</strong> regime regular (lucro real ou presumido) ou Simples Nacional. No Simples, informe a receita dos últimos 12 meses (a mesma do PGDAS), a atividade dos produtos e a dos serviços, se o ISS é retido pelo tomador e se, de 2027 em diante, a empresa recolhe CBS e IBS dentro do DAS (o padrão) ou por fora. Veja <a href="#aj-simples">Simples Nacional</a>.</li>
       <li><strong>Operação:</strong> escolha a data e o local (UF e município). A data define as regras: 2026 é o ano de teste, e a CBS passa a valer de verdade em 2027. O município define a parte municipal do IBS.</li>
       <li><strong>Itens:</strong> para cada um, informe o <strong>NCM</strong> (produto, 8 dígitos) ou a <strong>NBS</strong> (serviço, 9 dígitos), a classificação tributária e o valor. Digite os primeiros dígitos do NCM para ver sugestões. Se preferir, comece por um dos exemplos prontos.</li>
       <li><strong>Classificação tributária</strong> (<code>cClassTrib</code>): abaixo do item aparecem as classificações que a base oficial vincula àquele NCM, com o trecho do anexo da lei. Clique na que corresponde à sua operação. Sem benefício vinculado, a tela já escolhe <code>000001</code> (tributação integral).</li>
@@ -407,7 +430,7 @@
     <p>Os itens ficam guardados neste navegador. <strong>Salvar itens</strong> grava um arquivo; <strong>Abrir itens ou NF-e</strong> lê esse arquivo, um JSON da API oficial ou o XML de uma nota; <strong>Copiar link</strong> gera um endereço com a nota inteira dentro dele.</p>
 
     <h3>Comparar datas</h3>
-    <p>Calcula a mesma nota em duas datas (por exemplo, dezembro de 2026 e julho de 2027) e mostra a diferença de CBS, IBS e Imposto Seletivo, item a item. Serve para ver <em>como cada item passa a ser tributado</em>: se ganha redução, se paga Imposto Seletivo, quanto muda a alíquota efetiva.</p>
+    <p>Calcula a mesma nota em duas datas (por exemplo, dezembro de 2026 e julho de 2027) e mostra a diferença de CBS, IBS e Imposto Seletivo, item a item. Serve para ver <em>como cada item passa a ser tributado</em>: se ganha redução, se paga Imposto Seletivo, quanto muda a alíquota efetiva. No Simples, cada data mostra também o DAS da nota, e o terceiro cartão mostra a diferença <em>no DAS</em>: dentro dele, a CBS de 2027 é a antiga parte do PIS/Cofins, e a guia não muda.</p>
 
     <h3>Antes e depois</h3>
     <p>A única aba que mostra também os tributos de <strong>hoje</strong>. Ela trata o valor de cada item como o preço de venda atual e estima, a partir de alíquotas que você pode ajustar:</p>
@@ -416,7 +439,7 @@
       <li><strong>depois</strong> (na data que você escolher, de 2027 em diante): CBS, IBS e Imposto Seletivo pela calculadora oficial, mais o ICMS ou ISS que ainda existir naquele ano;</li>
       <li>o <strong>preço estimado</strong> se as mudanças de tributo forem repassadas por inteiro, e o que migra (PIS/Cofins → CBS, IPI → Imposto Seletivo), o que fica (ICMS/ISS até 2032) e o que vem embutido no custo.</li>
     </ul>
-    <p>Escolha quem vende (comércio ou indústria) e o regime (lucro real, presumido ou <strong>Simples Nacional</strong>). No Simples, um quadro compara recolher CBS e IBS dentro ou fora do DAS, para o consumidor final e para um cliente empresa.</p>
+    <p>Escolha quem vende (comércio ou indústria). O regime vem do painel <strong>Quem emite a nota</strong>. No Simples, a partilha do DAS sai das tabelas da lei, pela faixa da receita e pelo anexo da atividade, e um quadro compara recolher CBS e IBS dentro ou fora do DAS, para o consumidor final e para um cliente empresa.</p>
 
     <h3>Conferir NF-e</h3>
     <p>Abra o XML de uma NF-e ou NFC-e. A calculadora oficial refaz, para cada item, a base de cálculo (com os valores da própria nota) e a CBS, o IBS e o Imposto Seletivo, e a tela compara com o que a nota destacou:</p>
@@ -427,6 +450,7 @@
       <li><strong>Sem destaque:</strong> a nota não traz CBS e IBS.</li>
     </ul>
     <p>É a aba para homologar um sistema emissor: emita notas de teste, abra os XMLs aqui e veja onde o sistema diverge. O XML é lido no navegador e não sai do computador.</p>
+    <p>O <strong>CRT</strong> do emitente ajusta o painel Quem emite a nota. Nota do Simples (CRT 1 ou 2): em 2026, não há CBS e IBS a conferir; de 2027 em diante, dentro do DAS, a CBS e o IBS do Simples não vão no grupo IBSCBS da nota, e sim no Evento de Tributação do Simples Nacional (NT 2026.005). A aba calcula esses valores pela calculadora oficial do Simples (situação <em>Valor do Simples</em>). Acima do sublimite (CRT 2), o IBS é do regime regular e é conferido com o da nota. MEI (CRT 4) não tem CBS e IBS por nota.</p>
 
     <h3>Consultar códigos</h3>
     <p>Procure um NCM pelo código ou pela descrição, e veja as classificações tributárias vigentes na data, com o CST e o percentual de redução de cada uma.</p>
@@ -444,6 +468,8 @@
         <tr><td>Tributos novos (cupom)</td><td>CBS + IBS + Imposto Seletivo da nota, e quanto isso representa do valor dos itens.</td></tr>
         <tr><td>Situação <em>Calculado</em></td><td>Conta feita só com dados da base oficial (datas de 2026).</td></tr>
         <tr><td>Situação <em>Simulado</em></td><td>Conta feita com alíquotas informadas (de 2027 em diante, porque ainda não há alíquota oficial publicada na base). O resultado depende dessas alíquotas.</td></tr>
+        <tr><td>Situações do Simples</td><td><em>Simples: sem destaque</em> (2026, sem CBS e IBS); <em>Calculado</em> pela calculadora oficial do Simples; <em>Estimado</em> pelas tabelas da lei, quando ela não responde; <em>Não calculado</em> (atividade que não se aplica ao documento).</td></tr>
+        <tr><td>DAS desta nota (cupom, Simples)</td><td>Quanto a nota soma na guia do Simples, tributo por tributo: receita × alíquota efetiva × partilha do anexo. Cada parte é arredondada e o total é a soma delas, como no PGDAS.</td></tr>
         <tr><td>Situação <em>Erro nos dados</em></td><td>A calculadora oficial recusou o item, por exemplo um NCM que não pertence à classificação escolhida (erro REG-011). O item fica fora do total.</td></tr>
         <tr><td>Memória de cálculo</td><td>O texto da própria calculadora oficial explicando a conta do item. Clique na linha do detalhamento.</td></tr>
         <tr><td>Ver JSON</td><td>Exatamente o que foi enviado à calculadora oficial e o que ela respondeu. Útil para comparar com um sistema emissor.</td></tr>
@@ -462,6 +488,8 @@
         <tr><td>IBS de 2029 em diante</td><td>Ainda sem valor publicado: <strong>você informa</strong>.</td></tr>
         <tr><td>Imposto Seletivo de 2027</td><td>Medida Provisória 1.399/2026. A tela preenche 2,6% (bebidas açucaradas, NCM 2202.10.00) e 4,2% (cervejas de malte); nos outros produtos, você informa. Antes de 2 de fevereiro de 2027, zero (a MP só vale a partir daí).</td></tr>
         <tr><td>Sugestões de classificação pelo NCM</td><td>Base oficial (anexos da LC 214 vinculados a cada NCM).</td></tr>
+        <tr><td>CBS e IBS do Simples (dentro do DAS)</td><td><strong>Calculadora oficial do Simples Nacional</strong> (da Receita), com as alíquotas efetivas que a tela calcula pelas tabelas da LC 214/2025 a partir da receita dos últimos 12 meses que <strong>você informa</strong>.</td></tr>
+        <tr><td>DAS da nota e sua divisão</td><td><strong>Estimativa da tela</strong>, pelas tabelas da LC 123 com a redação da LC 214/2025 (alíquotas, parcela a deduzir e partilha de cada anexo e faixa, ano a ano).</td></tr>
         <tr><td>Tributos de hoje e preço estimado (<em>Antes e depois</em>)</td><td><strong>Estimativa da tela</strong>, com alíquotas padrão que você ajusta item a item.</td></tr>
       </tbody>
     </table>
@@ -477,16 +505,35 @@
       </tbody>
     </table>
 
+    <h2 id="aj-simples">Simples Nacional</h2>
+    <p>Quem é do Simples paga quase tudo numa guia só, o DAS: receita do mês × <strong>alíquota efetiva</strong>. A alíquota efetiva depende do anexo da atividade e da receita dos últimos 12 meses (RBT12): (RBT12 × alíquota da faixa − parcela a deduzir) ÷ RBT12. A <strong>partilha</strong> diz que parte da guia é de cada tributo. A reforma não muda a alíquota do Simples, muda a partilha:</p>
+    <table class="tabela-ajuda">
+      <thead><tr><th>Período</th><th>Na nota do Simples</th><th>No DAS</th></tr></thead>
+      <tbody>
+        <tr><td>2026</td><td>Sem CBS e sem IBS (o teste não vale para o Simples).</td><td>PIS/Cofins e ICMS ou ISS, como sempre.</td></tr>
+        <tr><td>2027 e 2028</td><td>CBS e IBS do Simples destacados, pela alíquota efetiva de cada um (ex.: Anexo III, 1ª faixa: 0,9258% e 0,0102% da receita).</td><td>A parte do PIS/Cofins vira CBS e um pouco de IBS. O total da guia não muda.</td></tr>
+        <tr><td>2029 a 2032</td><td>CBS e IBS do Simples; o IBS cresce.</td><td>O IBS toma 10% ao ano da parte do ICMS/ISS.</td></tr>
+        <tr><td>2033</td><td>CBS e IBS do Simples.</td><td>ICMS e ISS saem; o IBS ocupa a parte deles.</td></tr>
+      </tbody>
+    </table>
+    <ul>
+      <li><strong>Por fora:</strong> de 2027 em diante a empresa pode optar por recolher CBS e IBS pelo regime regular (alíquota cheia, com crédito das compras). O DAS fica sem as partes deles. Interessa a quem vende para empresas, que passam a aproveitar o crédito cheio.</li>
+      <li><strong>NFS-e:</strong> a alíquota efetiva vai com 2 casas decimais (0,9258% → 0,93%), por isso o destaque pode diferir alguns centavos da parte da CBS no DAS.</li>
+      <li><strong>ISS retido</strong> pelo tomador sai do DAS, e a CBS e o IBS usam o par de alíquotas "sem redistribuição do ISS".</li>
+      <li><strong>Acima de R$ 3,6 milhões</strong> (sublimite), ICMS, ISS e IBS saem do DAS. <strong>Acima de R$ 4,8 milhões</strong>, a empresa deixa o Simples. <strong>MEI</strong> não está coberto.</li>
+      <li>A receita dos últimos 12 meses vem de você: confira a alíquota efetiva com o extrato do PGDAS.</li>
+    </ul>
+
     <h2 id="aj-como-funciona">Como funciona por dentro</h2>
     <div class="fluxo-ajuda" aria-label="Caminho de um cálculo">
       <div><strong>Esta tela</strong><span>no navegador</span></div>
       <div class="seta" aria-hidden="true">→</div>
       <div><strong>Painel local</strong><span>programa Java desta ferramenta, em localhost</span></div>
       <div class="seta" aria-hidden="true">→</div>
-      <div><strong>Calculadora oficial</strong><span>o programa da Receita, compilado no seu computador</span></div>
+      <div><strong>Calculadoras oficiais</strong><span>regime regular e Simples Nacional, programas da Receita compilados no seu computador</span></div>
     </div>
     <ol>
-      <li>Ao abrir, o <strong>painel local</strong> procura no GitHub da Receita a versão mais recente da calculadora oficial. Se for nova, ele baixa o código, gera o banco de dados, compila e põe em uso sem fechar a tela. A versão anterior fica guardada.</li>
+      <li>Ao abrir, o <strong>painel local</strong> procura no GitHub da Receita a versão mais recente da calculadora oficial. Se for nova, ele baixa o código, gera o banco de dados, compila e põe em uso sem fechar a tela. A versão anterior fica guardada. Em seguida faz o mesmo com a <strong>calculadora oficial do Simples Nacional</strong>, que usa o mesmo banco de dados. Se ela não puder ser instalada, a tela calcula o Simples pelas tabelas da lei, como estimativa, e avisa.</li>
       <li>Quando você calcula, a tela monta o pedido no formato da calculadora oficial (o mesmo JSON que um sistema emissor enviaria) e manda ao painel, que o repassa à calculadora oficial e devolve a resposta.</li>
       <li>A tela lê a resposta e desenha o cupom, a tabela e as comparações. As contas de CBS, IBS e IS não são refeitas aqui.</li>
       <li>Tudo isso roda neste computador. A internet só é usada para baixar o Java, a calculadora oficial e as atualizações deles, sempre do GitHub e do site do Java (Adoptium).</li>
@@ -596,6 +643,7 @@
 <div id="sugestoes" class="sugestoes" role="listbox" hidden></div>
 
 <script src="exemplos.js"></script>
+<script src="simples.js"></script>
 <script src="app.js"></script>
 <script src="nfe.js"></script>
 </body>

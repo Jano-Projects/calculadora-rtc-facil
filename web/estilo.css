@@ -193,6 +193,7 @@ main { max-width: 1320px; margin: 0 auto; padding: 1.5rem; }
 .cupom .carga { color: var(--tinta-2); font-size: .8rem; text-align: right; }
 .cupom .alerta { color: var(--ambar); font-size: .78rem; margin: .6rem 0 0; font-family: var(--sans); }
 .cupom .alerta.erro { color: var(--erro); }
+.cupom .nota-cupom { color: var(--tinta-2); font-size: .76rem; margin: .5rem 0 0; font-family: var(--sans); line-height: 1.4; }
 .cupom-acoes { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
 
 /* ---------------------------------------------------------------- tabelas */
@@ -424,6 +425,14 @@ td.diverge { background: var(--ambar-claro); color: var(--ambar); }
 .selo-nfe.confere { border-color: var(--fiscal); color: var(--fiscal); background: var(--fiscal-claro); }
 .selo-nfe.diverge { border-color: var(--ambar); color: var(--ambar); background: var(--ambar-claro); }
 .selo-nfe.erro { border-color: var(--erro); color: var(--erro); background: var(--erro-claro); }
+.selo-nfe.evento { border-color: var(--fiscal); color: var(--fiscal); }
+
+/* Quem emite a nota (Simples Nacional) */
+#bloco-emitente .ad-marca { white-space: normal; display: flex; align-items: center; gap: .4rem; font-size: .85rem; align-self: end; padding-bottom: .4rem; }
+#bloco-emitente select { max-width: 100%; }
+.em-resumo { margin-top: .4rem; }
+.em-lista { margin: 0 0 .3rem; padding-left: 1.1rem; }
+.cmp-nota-sn { margin: .2rem 0 1rem; }
 
 /* ---------------------------------------------------------------- Simples no antes e depois */
 .simples-ad { background: var(--branco); border: 1px solid var(--regua-forte); border-left: 4px solid var(--fiscal); border-radius: var(--raio); padding: .8rem 1rem; margin: 1.25rem 0; }

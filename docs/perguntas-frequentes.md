@@ -51,9 +51,13 @@ A calculadora serve para simular e conferir. A emissão deve seguir o seu sistem
 ### O resultado de hoje é diferente do da semana passada. Por quê?
 Provavelmente a Receita publicou uma versão nova da calculadora, e ela foi instalada sozinha. A versão em uso aparece no canto superior direito. Veja o [ponto de atenção 10](pontos-de-atencao.md#10-a-versão-da-calculadora-oficial-muda-os-resultados).
 
+### Sou do Simples. Por que a nota de 2027 destaca CBS se em 2026 não destacava?
+
+Porque de 2027 em diante a parte da guia que era PIS/Cofins passa a se chamar CBS (e um pouco de IBS), e a nota informa esse valor. O DAS não aumenta. Escolha *Simples Nacional* no painel *Quem emite a nota*, informe a receita dos últimos 12 meses e compare as datas: os cartões mostram o DAS da nota, igual nas duas. Se o painel estiver no regime regular, a tela mostra a CBS cheia, de cerca de 11%, que não é a do Simples. Veja o [ponto de atenção 19](pontos-de-atencao.md#19-simples-nacional-a-nota-mostra-uma-parte-do-das-não-um-imposto-a-mais).
+
 ### Minha empresa é do Simples Nacional. Recolho CBS e IBS dentro ou fora do DAS?
 
-Depende de para quem você vende. Dentro do DAS, o cliente empresa só aproveita como crédito a parte de CBS e IBS paga na guia (na 1ª faixa do comércio, 0,62% da venda). Por fora, ele aproveita a CBS e o IBS cheios, e você passa a aproveitar o que o seu fornecedor cobrou, mas paga a alíquota cheia e faz a apuração. Na aba *Antes e depois*, escolha *Simples Nacional* no regime e compare as duas opções no quadro do Simples. Leve os números ao seu contador: veja o [ponto de atenção 17](pontos-de-atencao.md#17-simples-nacional-dentro-ou-fora-do-das-é-uma-decisão-com-o-contador).
+Depende de para quem você vende. Dentro do DAS, o cliente empresa só aproveita como crédito a parte de CBS e IBS paga na guia (na 1ª faixa do comércio, 0,62% da venda). Por fora, ele aproveita a CBS e o IBS cheios, e você passa a aproveitar o que o seu fornecedor cobrou, mas paga a alíquota cheia e faz a apuração. Escolha *Simples Nacional* no painel *Quem emite a nota* (aba *Calcular nota*) e compare as duas opções no quadro do Simples da aba *Antes e depois*. Leve os números ao seu contador: veja o [ponto de atenção 17](pontos-de-atencao.md#17-simples-nacional-dentro-ou-fora-do-das-é-uma-decisão-com-o-contador).
 
 ### Como confiro se o meu sistema emissor calcula a CBS e o IBS certo?
 

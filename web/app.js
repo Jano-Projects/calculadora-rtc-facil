@@ -37,8 +37,8 @@ const salvar = () => {
     localStorage.setItem("calc-rtc", JSON.stringify({
       itens: estado.itens.map(({ verOpcoes, ...i }) => i), data: $("#op-data").value, uf: $("#op-uf").value, mun: $("#op-mun").value,
       cmpA: $("#cmp-a").value, cmpB: $("#cmp-b").value, adData: $("#ad-data").value,
-      adVendedor: $("#ad-vendedor").value, adFabrica: $("#ad-fabrica").value, adIcmsBase: $("#ad-icms-base").value, adRegime: $("#ad-regime").value,
-      snAnexo: $("#ad-sn-anexo").value, snAliq: $("#ad-sn-aliq").value, snOpcao: $("#ad-sn-opcao").value,
+      adVendedor: $("#ad-vendedor").value, adFabrica: $("#ad-fabrica").value, adIcmsBase: $("#ad-icms-base").value,
+      emitente: emitente(),
       nfe: estado.nfe || null,
     }));
   } catch { /* navegador sem armazenamento: segue sem salvar */ }
@@ -100,9 +100,10 @@ const carregarSalvo = () => {
 
 /* ====================================================================== chamadas */
 /** Chama a calculadora oficial (pelo proxy local) e devolve { corpo, cabecalhos }. Em erro HTTP, lança um Error
- *  com a mensagem já traduzida por mensagemDeErro() e o corpo original em e.corpo. */
-async function api(caminho, opcoes = {}) {
-  const r = await fetch(API + caminho, {
+ *  com a mensagem já traduzida por mensagemDeErro() e o corpo original em e.corpo.
+ *  opcoes.caminhoCompleto: endereço fora de /api/calculadora (o motor do Simples Nacional, em /api-simples). */
+async function api(caminho, { caminhoCompleto, ...opcoes } = {}) {
+  const r = await fetch(caminhoCompleto || API + caminho, {
     ...opcoes,
     headers: { Accept: "application/json", ...(opcoes.body ? { "Content-Type": "application/json" } : {}), ...(opcoes.headers || {}) },
   });
@@ -207,6 +208,8 @@ function atualizarChip(s) {
     ? `Em uso: calculadora oficial versão ${s.versaoInstalada}. Mais recente publicada: ${s.versaoDisponivel || "não verificado"}${s.ultimaVerificacao ? " (verificado em " + s.ultimaVerificacao + ")" : ""}.`
       + (s.atualizacaoAutomatica ? ` Atualização automática ligada (a cada ${s.horasEntreVerificacoes} h).` : " Atualização automática desligada.")
       + (s.erroAtualizacao ? " Última tentativa falhou: " + s.erroAtualizacao : "")
+      + (s.simples ? (s.simples.pronto ? ` Calculadora do Simples Nacional: versão ${s.simples.versaoInstalada}${s.simples.versaoDisponivel ? ` (mais recente: ${s.simples.versaoDisponivel})` : ""}.`
+        : ` Calculadora do Simples Nacional: ${s.simples.mensagem || s.simples.estado}`) : "")
     : s.mensagem;
 }
 
@@ -263,9 +266,10 @@ async function aoMudarData() {
   f.textContent = txt;
   f.className = "fase " + cls;
   $("#cons-data").textContent = new Date(d + "T12:00").toLocaleDateString("pt-BR");
-  $("#bloco-aliquotas").hidden = anoDe(d) < ANO_ALIQ_OBRIGATORIA;
+  $("#bloco-aliquotas").hidden = !precisaAliquotas(d);
   await Promise.allSettled([carregarClassificacoes(d), preencherAliquotasReferencia(true)]);
   renderizarItens();
+  renderizarEmitente();
   salvar();
 }
 
@@ -882,12 +886,15 @@ function interpretar(resposta, operacao) {
 const nomeEstado = {
   CALCULADO: ["Calculado", "ok"], CALCULO_SIMULADO: ["Simulado", "sim"], INCONSISTENCIA_ENTRADA: ["Erro nos dados", "erro"],
   NAO_IMPLEMENTADO: ["Não implementado", "erro"], FALHA_TECNICA: ["Falha técnica", "erro"],
+  // calculadora oficial do Simples Nacional e estados próprios desta tela
+  NAO_CALCULADO: ["Não calculado", "erro"], ESTIMADO: ["Estimado", "sim"], SIMPLES_SEM_TESTE: ["Simples: sem destaque", "sim"],
 };
 const selo = (e) => { const [t, c] = nomeEstado[e] || [e, ""]; return `<span class="selo ${c}">${esc(t)}</span>`; };
 
 /* ====================================================================== calcular */
-/** Botão Calcular: monta a operação, chama a rota de observabilidade (que devolve também a memória de cálculo)
- *  e mostra o cupom e o detalhamento. */
+/** Botão Calcular: calcula a nota pelo regime de quem emite (calcularNota, em simples.js: regime regular pela
+ *  rota de observabilidade, que devolve também a memória de cálculo; Simples pela calculadora do Simples) e mostra
+ *  o cupom e o detalhamento. */
 async function calcular() {
   const st = $("#calc-status");
   const btn = $("#btn-calcular");
@@ -897,16 +904,14 @@ async function calcular() {
   btn.disabled = true;
   try {
     const data = dataOp();
-    const { erros, avisos, operacao } = await montarOperacao(data);
+    const { erros, avisos, resultado, enviado, recebido, aviso } = await calcularNota(data);
     if (erros.length) {
       st.className = "calc-status erro";
       st.textContent = erros[0] + (erros.length > 1 ? ` (+${erros.length - 1} pendência${erros.length > 2 ? "s" : ""})` : "");
       marcarInvalidos();
       return;
     }
-    const r = await api("/observabilidade/regime-geral", { method: "POST", body: JSON.stringify(operacao) });
-    const resultado = interpretar(r.corpo, operacao);
-    estado.ultimoCalculo = { enviado: operacao, recebido: r.corpo, resultado, aviso: r.cabecalhos.get("x-warning-dados-simulados"), data };
+    estado.ultimoCalculo = { enviado, recebido, resultado, aviso, data };
     renderizarCupom(estado.ultimoCalculo);
     renderizarDetalhe(resultado);
     st.textContent = resultado.comErro ? `${resultado.comErro} item(ns) com erro — veja o detalhamento.` : "Pronto.";
@@ -940,6 +945,12 @@ function renderizarCupom({ resultado: r, data, aviso }) {
   const mun = $("#op-mun").selectedOptions[0]?.textContent || "";
   const t = r.tot;
   const carga = t.valor ? (t.tributos / t.valor) * 100 : 0;
+  const sn = r.modo && r.modo.startsWith("sn-");
+  const rotCbs = r.modo === "sn-dentro" ? "CBS (Simples, no DAS)" : "CBS (federal)";
+  const rotIbs = r.modo === "sn-dentro" ? "IBS (Simples, no DAS)" : "IBS (estado + município)";
+  const fonte = r.modo === "sn-dentro"
+    ? (r.itens.some((i) => i.estado === "ESTIMADO") ? "CBS e IBS estimados pelas tabelas da LC 214/2025 (calculadora do Simples indisponível)" : "Calculado pela calculadora oficial do Simples Nacional (Receita Federal)")
+    : r.modo === "sn-2026" ? "Simples Nacional: sem CBS e IBS em 2026" : "Calculado pela calculadora oficial da Receita Federal";
   const linhas = r.itens.map((i) => `
     <div class="linha"><span>${String(i.numero).padStart(2, "0")} ${esc((i.descricao || i.codigo).slice(0, 22))}</span><span>${brl(i.valor)}</span></div>`).join("");
   $("#cupom").className = "cupom";
@@ -948,15 +959,16 @@ function renderizarCupom({ resultado: r, data, aviso }) {
     <p class="sub">${esc(mun)} / ${esc(uf)} — ${new Date(data + "T12:00").toLocaleDateString("pt-BR")}</p>
     <hr>${linhas}<hr>
     <div class="linha"><span>Valor dos itens</span><span>${brl(t.valor)}</span></div>
-    <div class="linha cbs"><span>CBS (federal)</span><span>${brl(t.cbs)}</span></div>
-    <div class="linha"><span>IBS (estado + município)</span><span>${brl(t.ibs)}</span></div>
+    <div class="linha cbs"><span>${rotCbs}</span><span>${brl(t.cbs)}</span></div>
+    <div class="linha"><span>${rotIbs}</span><span>${brl(t.ibs)}</span></div>
     ${t.is || anoDe(data) >= 2027 ? `<div class="linha is"><span>Imposto Seletivo</span><span>${brl(t.is)}</span></div>` : ""}
     <hr>
     <div class="linha total"><span>Tributos novos</span><span>${brl(t.tributos)}</span></div>
     <div class="carga">${pct(carga)} do valor dos itens</div>
-    ${aviso || r.itens.some((i) => i.estado === "CALCULO_SIMULADO") ? `<p class="alerta">Cálculo simulado: usa alíquotas informadas, ainda não definitivas.</p>` : ""}
+    ${!sn && (aviso || r.itens.some((i) => i.estado === "CALCULO_SIMULADO")) ? `<p class="alerta">Cálculo simulado: usa alíquotas informadas, ainda não definitivas.</p>` : ""}
     ${r.comErro ? `<p class="alerta erro">${r.comErro} item(ns) não entraram no total por erro nos dados.</p>` : ""}
-    <p class="sub">Calculado pela calculadora oficial da Receita Federal</p>`;
+    ${blocoDasCupom(r, data)}
+    <p class="sub">${fonte}</p>`;
   $("#cupom-acoes").hidden = false;
 }
 
@@ -996,7 +1008,7 @@ async function renderizarPainelComparacao() {
   const uf = $("#op-uf").value, munNome = $("#op-mun").selectedOptions[0]?.textContent || "", mun = $("#op-mun").value;
   const total = estado.itens.reduce((a, i) => a + (num(i.valor) || 0), 0);
   $("#cmp-resumo").innerHTML = estado.itens.length
-    ? `<strong>${estado.itens.length} ${estado.itens.length === 1 ? "item" : "itens"}</strong> · ${esc(munNome)} / ${esc(uf)} · ${brl(total)}`
+    ? `<strong>${estado.itens.length} ${estado.itens.length === 1 ? "item" : "itens"}</strong> · ${esc(munNome)} / ${esc(uf)} · ${brl(total)}<br>${esc(textoEmitente())}`
     : `Nenhum item na nota. Adicione itens na aba <strong>Calcular nota</strong>.`;
   $("#cmp-itens").innerHTML = `<thead><tr><th>#</th><th>Item</th><th>Código</th><th>Classificação</th><th class="n">Valor</th></tr></thead><tbody>`
     + estado.itens.map((i, n) => `<tr><td>${n + 1}</td><td>${esc(i.descricao)}</td><td>${esc(i.codigo)}</td>
@@ -1008,12 +1020,14 @@ async function renderizarPainelComparacao() {
     const box = $(`.cmp-data[data-lado="${lado}"] .cmp-aliq`);
     box.hidden = !d;
     if (!d) continue;
-    if (anoDe(d) < ANO_ALIQ_OBRIGATORIA) {
-      box.innerHTML = `<p class="cmp-sem-aliq">Antes de 2027 as alíquotas vêm da base oficial. Não há nada a informar.</p>`;
+    if (anoDe(d) >= ANO_ALIQ_OBRIGATORIA) algumaPos2027 = true;
+    if (!precisaAliquotas(d)) {
+      box.innerHTML = `<p class="cmp-sem-aliq">${anoDe(d) < ANO_ALIQ_OBRIGATORIA
+        ? (emiteSimples() ? `Simples Nacional em ${anoDe(d)}: sem CBS e IBS. Não há nada a informar.` : "Antes de 2027 as alíquotas vêm da base oficial. Não há nada a informar.")
+        : "Simples Nacional, CBS e IBS dentro do DAS: valem as alíquotas efetivas do Simples, calculadas pela receita dos últimos 12 meses (painel Quem emite a nota). Não há nada a informar."}</p>`;
       delete refAliqCmp[lado];
       continue;
     }
-    algumaPos2027 = true;
     const chave = `${d}|${uf}|${mun}`;
     if (refAliqCmp[lado] !== chave) {
       const ref = await aliquotasReferencia(d, uf, mun);
@@ -1061,22 +1075,22 @@ async function comparar() {
   const avisosCmp = [];
   try {
     // Calcula a mesma nota numa data, com as alíquotas do quadro daquele lado (a ou b)
+    // Calcula a mesma nota numa data, pelo regime de quem emite, com as alíquotas do quadro daquele lado (a ou b)
     const rodar = async (d, lado) => {
       let aliquotas = null;
-      if (anoDe(d) >= ANO_ALIQ_OBRIGATORIA) {
+      if (precisaAliquotas(d)) {
         aliquotas = aliquotasDoLado(lado);
         if (aliquotas.cbs === null || aliquotas.ibsEstadual === null || aliquotas.ibsMunicipal === null) {
           throw new Error(`Preencha as alíquotas de ${fmtData(d)} no quadro "Datas e alíquotas", acima.`);
         }
       }
-      const { erros, avisos, operacao } = await montarOperacao(d, { aliquotas });
+      const { erros, avisos, resultado } = await calcularNota(d, { aliquotas });
       if (erros.length) {
         const msg = erros[0].replace(`no campo "Imposto Seletivo %" do item`, `no quadro "Imposto Seletivo", acima,`);
         throw new Error(`Em ${fmtData(d)}: ${msg}`);
       }
       if (avisos.length) avisosCmp.push(`Em ${fmtData(d)}: ${avisos[0]}`);
-      const r = await api("/observabilidade/regime-geral", { method: "POST", body: JSON.stringify(operacao) });
-      return interpretar(r.corpo, operacao);
+      return resultado;
     };
     const [ra, rb] = await Promise.all([rodar(a, "a"), rodar(b, "b")]);
     estado.ultimaComparacao = { a, b, ra, rb };
@@ -1096,7 +1110,14 @@ function renderizarComparacao(a, b, ra, rb) {
   const fmt = (d) => new Date(d + "T12:00").toLocaleDateString("pt-BR");
   const card = (d, r) => `<div class="cmp-card"><h3>${fmt(d)}</h3><div class="valor">${brl(r.tot.tributos)}</div>
     <div class="det">CBS ${brl(r.tot.cbs)} · IBS ${brl(r.tot.ibs)}${r.tot.is ? " · IS " + brl(r.tot.is) : ""}<br>
-    ${pct(r.tot.valor ? r.tot.tributos / r.tot.valor * 100 : 0)} do valor dos itens${r.comErro ? ` · <span class="mais">${r.comErro} com erro</span>` : ""}</div></div>`;
+    ${pct(r.tot.valor ? r.tot.tributos / r.tot.valor * 100 : 0)} do valor dos itens${r.comErro ? ` · <span class="mais">${r.comErro} com erro</span>` : ""}
+    ${r.das ? `<br>DAS desta nota: <strong>${brl(r.das.total)}</strong>${r.modo === "sn-dentro" ? " (CBS e IBS dentro dele)" : r.modo === "sn-fora" ? " (sem CBS e IBS)" : ""}` : ""}</div></div>`;
+  // Simples: a CBS e o IBS de 2027 em diante saem de dentro do DAS. Mostra que a guia não muda.
+  const notaSimples = ra.das && rb.das
+    ? `<p class="nota cmp-nota-sn">${Math.abs(ra.das.total - rb.das.total) < 0.02
+        ? `<strong>Simples Nacional:</strong> o DAS desta nota é o mesmo nas duas datas (${brl(rb.das.total)}). A diferença acima é só o que passa a ser <em>destacado</em> na nota: a parte da guia que antes era PIS/Cofins passa a ser CBS (e um pouco de IBS). Não é um imposto a mais.`
+        : `<strong>Simples Nacional:</strong> o DAS desta nota vai de ${brl(ra.das.total)} para ${brl(rb.das.total)}. ${rb.modo === "sn-fora" || ra.modo === "sn-fora" ? "Com CBS e IBS por fora, eles saem da guia e são pagos à parte, com crédito das compras." : "A alíquota efetiva muda entre os anos (6ª faixa) ou a faixa mudou."}`}</p>`
+    : "";
   const dif = rb.tot.tributos - ra.tot.tributos;
   const maxT = Math.max(...ra.itens.map((i) => i.cbs + i.ibs + i.is), ...rb.itens.map((i) => i.cbs + i.ibs + i.is), 0.01);
   let linhas = "";
@@ -1110,8 +1131,13 @@ function renderizarComparacao(a, b, ra, rb) {
   }
   $("#cmp-resultado").innerHTML = `
     <div class="cmp-cards">${card(a, ra)}${card(b, rb)}
-      <div class="cmp-card"><h3>Diferença</h3><div class="valor ${dif > 0 ? "mais" : dif < 0 ? "menos" : ""}">${dif > 0 ? "+" : ""}${brl(dif)}</div>
-      <div class="det">nos tributos novos da nota, de uma data para a outra</div></div></div>
+      ${ra.das && rb.das ? (() => { const dd = arred2(rb.das.total - ra.das.total); return `<div class="cmp-card"><h3>Diferença no DAS</h3>
+        <div class="valor ${dd > 0.01 ? "mais" : dd < -0.01 ? "menos" : ""}">${dd > 0.01 ? "+" : ""}${brl(Math.abs(dd) < 0.02 ? 0 : dd)}</div>
+        <div class="det">no que a empresa do Simples paga na guia${Math.abs(dd) < 0.02 ? " (centavos de arredondamento não contam)" : ""}.<br>
+        Destacado na nota: ${dif > 0 ? "+" : ""}${brl(dif)} de CBS e IBS</div></div>`; })()
+      : `<div class="cmp-card"><h3>Diferença</h3><div class="valor ${dif > 0 ? "mais" : dif < 0 ? "menos" : ""}">${dif > 0 ? "+" : ""}${brl(dif)}</div>
+      <div class="det">nos tributos novos da nota, de uma data para a outra</div></div>`}</div>
+    ${notaSimples}
     <div class="tabela-rolagem"><table><thead><tr><th>#</th><th>Item</th><th class="n">Valor</th>
       <th class="n">${fmt(a)}</th><th></th><th class="n">${fmt(b)}</th><th></th><th class="n">Diferença</th></tr></thead>
       <tbody>${linhas}</tbody></table></div>`;
@@ -1149,32 +1175,30 @@ function monofasicoPadrao(ncm) {
 }
 const stPadrao = (ncm) => /^220[123]/.test(ncm); // bebidas: ICMS-ST é comum em todos os estados
 
-/** Simples Nacional: parte de cada tributo sobre o consumo dentro do DAS, na 1ª faixa.
- *  Hoje (LC 123/2006, Anexos I a III): pc = PIS + Cofins, icms = ICMS (ou ISS no Anexo III), ipi = IPI.
- *    Anexo I: Cofins 12,74% + PIS 2,76% = 15,50%; ICMS 34%. Anexo II: Cofins 11,51% + PIS 2,49% = 14,00%; IPI 7,5%;
- *    ICMS 32%. Anexo III: Cofins 12,82% + PIS 2,78% = 15,60%; ISS 33,5%.
- *  2027 e 2028 (LC 214/2025, Anexos XVIII, XIX e XX, que reescrevem os Anexos I a III da LC 123): a parte de
- *    PIS/Cofins vira CBS + um pouco de IBS — Anexo I 15,33% + 0,17%, Anexo II 13,85% + 0,15%, Anexo III 15,43% + 0,17%.
- *  2029 a 2032: a CBS volta a ocupar toda a antiga parte de PIS/Cofins e o IBS absorve 10% por ano da parte do
- *    ICMS/ISS (ex.: Anexo I em 2029: CBS 15,50%, ICMS 30,60%, IBS 3,40%). Em 2033 o ICMS/ISS sai do DAS.
- *  A alíquota total do Simples não muda: só a divisão interna (a "partilha"). */
-const PARTILHA_SN = {
-  I: { nome: "Anexo I (comércio)", aliqFaixa1: 4, pc: 0.155, icms: 0.34, ipi: 0, cbs27: 0.1533, ibs27: 0.0017 },
-  II: { nome: "Anexo II (indústria)", aliqFaixa1: 4.5, pc: 0.14, icms: 0.32, ipi: 0.075, cbs27: 0.1385, ibs27: 0.0015 },
-  III: { nome: "Anexo III (serviços)", aliqFaixa1: 6, pc: 0.156, icms: 0.335, ipi: 0, cbs27: 0.1543, ibs27: 0.0017 },
-};
-/** O regime escolhido no Antes e depois é o Simples Nacional? */
-const ehSimplesAd = () => $("#ad-regime").value === "simples";
-/** Partilha do anexo escolhido (serviços usam sempre o Anexo III) e a alíquota efetiva do DAS informada. */
+/** Simples Nacional na aba Antes e depois: partes do DAS de cada tributo sobre o consumo, em fração da receita
+ *  (alíquota efetiva × partilha), pelas tabelas da LC 214/2025 em simples.js. O anexo vem da atividade do painel
+ *  "Quem emite a nota" (produtos e serviços podem estar em anexos diferentes); a faixa, da receita dos últimos
+ *  12 meses. Hoje (2026): pc = PIS + Cofins, icms = ICMS (ou ISS), ipi = IPI (Anexo II). null = fora do DAS
+ *  (acima do sublimite de R$ 3,6 milhões o ICMS e o ISS são pagos pelas regras normais). */
 function parametrosSimples(servico) {
-  const anexo = servico ? "III" : $("#ad-sn-anexo").value;
-  return { anexo, ...PARTILHA_SN[anexo], a: (num($("#ad-sn-aliq").value) ?? PARTILHA_SN[anexo].aliqFaixa1) / 100, opcao: $("#ad-sn-opcao").value };
+  const em = emitente();
+  const anexo = anexoDaAtividade(servico ? em.ativServ : em.ativProd, em.fatorR);
+  const s = simplesNoAno(anexo, em.rbt12, dataAntes());
+  const f = (k) => (s.partilha[k] === null ? null : s.efetiva * s.partilha[k] / 10000);
+  return { anexo, nome: ANEXOS_SN[anexo].nome, faixa: s.faixa, efetiva: s.efetiva, pc: f("pc"), icms: f(ANEXOS_SN[anexo].local), ipi: f("ipi") || 0,
+    opcao: em.opcao, sublimite: s.acimaSublimite };
 }
-/** Partes de CBS, IBS e ICMS/ISS no DAS em cada ano. */
-function partesSimplesNoAno(sn, ano, fator) {
-  if (ano <= 2028) return { cbs: sn.cbs27, ibs: sn.ibs27, icms: sn.icms };
-  return { cbs: sn.pc, ibs: sn.icms * (1 - fator), icms: sn.icms * fator };
+/** Partes de CBS, IBS e ICMS/ISS no DAS na data do cenário Depois, em fração da receita. Acima do sublimite o IBS
+ *  não está no DAS (fica 0 aqui e é somado pelo regime regular). */
+function partesSimplesNoAno(sn, data) {
+  const s = simplesNoAno(sn.anexo, emitente().rbt12, data);
+  const f = (k) => (s.partilha[k] === null ? null : s.efetiva * s.partilha[k] / 10000);
+  return { cbs: f("cbs") || 0, ibs: f("ibs") || 0, icms: f(ANEXOS_SN[sn.anexo].local) };
 }
+/** O regime de quem vende (painel Quem emite a nota) é o Simples Nacional? */
+const ehSimplesAd = () => emiteSimples();
+/** PIS/Cofins do regime regular de quem vende: 9,25% no lucro real (não cumulativo), 3,65% no presumido. */
+const pcDoRegime = () => (emitente().regime === "presumido" ? 3.65 : 9.25);
 
 /** Parte do ICMS/ISS que ainda existe no ano (transição da EC 132: −10% ao ano de 2029 a 2032, extinto em 2033). */
 const fatorIcmsIss = (ano) => (ano <= 2028 ? 1 : ano >= 2033 ? 0 : 1 - (ano - 2028) / 10);
@@ -1186,7 +1210,7 @@ const vendeComercio = () => $("#ad-vendedor").value === "comercio";
 /** Alíquotas atuais padrão de um item, antes dos ajustes manuais: PIS/Cofins do regime (zero na cesta básica e
  *  hortifrúti), monofásico pelo NCM, ICMS da UF ou ISS, ICMS-ST nas bebidas e IPI igual ao IS do produto. */
 function padroesAntigos(it, isDet) {
-  const regime = num($("#ad-regime").value) ?? 9.25;
+  const regime = pcDoRegime();
   const servico = it.tipo === "nbs";
   const mono = servico ? null : monofasicoPadrao(it.codigo);
   return {
@@ -1211,10 +1235,10 @@ async function renderizarAntesDepois() {
   const uf = $("#op-uf").value, munNome = $("#op-mun").selectedOptions[0]?.textContent || "";
   const total = estado.itens.reduce((a, i) => a + (num(i.valor) || 0), 0);
   $("#ad-resumo").innerHTML = estado.itens.length
-    ? `<strong>${estado.itens.length} ${estado.itens.length === 1 ? "item" : "itens"}</strong> · ${esc(munNome)} / ${esc(uf)} · ${brl(total)} a preço de hoje`
+    ? `<strong>${estado.itens.length} ${estado.itens.length === 1 ? "item" : "itens"}</strong> · ${esc(munNome)} / ${esc(uf)} · ${brl(total)} a preço de hoje<br>${esc(textoEmitente())}`
     : `Nenhum item na nota. Adicione itens na aba <strong>Calcular nota</strong>.`;
   const simples = ehSimplesAd();
-  $("#ad-sn").hidden = !simples;
+  $("#ad-regime-texto").innerHTML = `${esc(textoEmitente())}.`;
   $("#ad-antes-texto").innerHTML = simples
     ? `Regras de 2026, em ${fmtData(dataAntes())}: PIS/Cofins e ICMS ou ISS dentro do DAS. O Simples não destaca a CBS e o IBS de teste.`
     : `Regras de 2026, em ${fmtData(dataAntes())}: PIS/Cofins, ICMS/ISS e IPI integrais, mais CBS e IBS de teste (compensados).`;
@@ -1222,7 +1246,9 @@ async function renderizarAntesDepois() {
   $("#ad-fabrica-caixa").hidden = !vendeComercio() && !simples;
   $("#ad-fabrica-caixa span").textContent = simples ? "Custo das compras (% do preço de venda)" : "Preço de fábrica (% do preço de venda)";
   if ($("#ad-icms").dataset.uf !== uf) { $("#ad-icms").value = ICMS_MODAL_2026[uf] ?? 18; $("#ad-icms").dataset.uf = uf; }
-  $("#ad-padroes-nota").innerHTML = (simples ? `<strong>Simples Nacional:</strong> PIS/Cofins e ICMS (ou ISS) saem do DAS pela partilha da 1ª faixa do ${esc(PARTILHA_SN[$("#ad-sn-anexo").value].nome)}; serviços usam o Anexo III. A coluna de ICMS só vale para itens com ICMS-ST, que sai do DAS. IRPJ, CSLL e contribuição previdenciária também estão no DAS, mas são renda e folha e não entram na conta. ` : "") + `ICMS padrão: alíquota geral de ${esc(uf)} em 2026 (${pct(ICMS_MODAL_2026[uf] ?? 18, 1)}), sem fundo de pobreza. <strong>Atenção:</strong> itens de cesta básica, medicamentos, combustíveis e outros costumam ter ICMS reduzido, isento ou por substituição tributária no estado. Ajuste esses itens na tabela.`;
+  const snP = simples ? parametrosSimples(false) : null, snS = simples ? parametrosSimples(true) : null;
+  const descSn = (p) => `${esc(p.nome)}, ${nFaixa(p.faixa)}, alíquota efetiva de ${pct(p.efetiva, 2)}`;
+  $("#ad-padroes-nota").innerHTML = (simples ? `<strong>Simples Nacional:</strong> PIS/Cofins e ICMS (ou ISS) saem do DAS pela partilha da LC 214/2025 — produtos: ${descSn(snP)}${estado.itens.some((i) => i.tipo === "nbs") ? `; serviços: ${descSn(snS)}` : ""}. A coluna de ICMS só vale para itens com ICMS-ST${snP.sublimite ? " e, acima do sublimite, para todos (ICMS e ISS fora do DAS)" : ", que sai do DAS"}. IRPJ, CSLL e contribuição previdenciária também estão no DAS, mas são renda e folha e não entram na conta. ` : "") + `ICMS padrão: alíquota geral de ${esc(uf)} em 2026 (${pct(ICMS_MODAL_2026[uf] ?? 18, 1)}), sem fundo de pobreza. <strong>Atenção:</strong> itens de cesta básica, medicamentos, combustíveis e outros costumam ter ICMS reduzido, isento ou por substituição tributária no estado. Ajuste esses itens na tabela.`;
 
   // alíquotas de CBS/IBS do cenário "depois" (mesmo quadro da comparação)
   const d = $("#ad-data").value;
@@ -1286,11 +1312,13 @@ function tributosAtuais(it, isDet) {
     const ipiCadeia = servico ? 0 : F * ipi, monoV = mono ? m * F : 0;
     const icmsUp = st || servico ? 0 : i * F;
     const pcUp = mono ? 0 : 0.0925 * (F - icmsUp);
-    const pcDas = mono ? 0 : sn.a * sn.pc * P;
-    const icmsDas = st ? 0 : sn.a * sn.icms * P, icmsSt = st ? i * P : 0;
-    const ipiV = ipiCadeia + sn.a * sn.ipi * P;
+    const pcDas = mono ? 0 : sn.pc * P;
+    // ICMS fora do DAS: com substituição tributária (pago antes, pela indústria) ou acima do sublimite (pago à parte)
+    const icmsFora = st || sn.icms === null;
+    const icmsDas = icmsFora ? 0 : sn.icms * P, icmsSt = icmsFora ? i * P : 0;
+    const ipiV = ipiCadeia + sn.ipi * P;
     const Fsem = F - icmsUp - pcUp - ipiCadeia - monoV;
-    Object.assign(r, { sn, F, Fsem, ipiV, ipiCadeia, monoV, icmsUp, pcUp, icmsSt, pcV: pcDas + pcUp, icms: icmsDas + icmsSt + icmsUp,
+    Object.assign(r, { sn, icmsFora, F, Fsem, ipiV, ipiCadeia, monoV, icmsUp, pcUp, icmsSt, pcV: pcDas + pcUp, icms: icmsDas + icmsSt + icmsUp,
       L: P - pcDas - pcUp - icmsDas - icmsSt - icmsUp - monoV - ipiV, baseTeste: P - icmsDas - pcDas });
     return r;
   }
@@ -1365,18 +1393,20 @@ async function calcularAntesDepois() {
         // Dentro do DAS, a CBS e o IBS que o fornecedor cobrou ficam no custo (sem crédito); por fora, viram crédito,
         // e o total da cadeia é a CBS/IBS da calculadora oficial sobre o valor sem tributos.
         antes.cbsTeste = 0; antes.ibsTeste = 0;
-        antes.embutido = a.ipiCadeia + a.monoV + a.icmsSt + a.icmsUp + a.pcUp;
-        const ps = partesSimplesNoAno(a.sn, anoDe(d), fator);
+        antes.embutido = a.ipiCadeia + a.monoV + (a.st ? a.icmsSt : 0) + a.icmsUp + a.pcUp;
+        const ps = partesSimplesNoAno(a.sn, d);
         const tc = (aliquotas.cbs || 0) / 100, ti = ((aliquotas.ibsEstadual || 0) + (aliquotas.ibsMunicipal || 0)) / 100;
         const baseUp = a.Fsem + is;
         const cbsUp = tc * baseUp, ibsUp = ti * baseUp;
         const icmsUp2 = a.icmsUp > 0 && i2 < 1 ? i2 * baseUp / (1 - i2) : 0;
-        const icmsSt = a.st ? icmsD : 0;
-        const Pd = (a.L + is + icmsUp2 + cbsUp + ibsUp + icmsSt) / (1 - a.sn.a * (ps.cbs + ps.ibs + (a.st ? 0 : ps.icms)));
-        const dentro = { cbs: a.sn.a * ps.cbs * Pd + cbsUp, ibs: a.sn.a * ps.ibs * Pd + ibsUp, icms: (a.st ? icmsSt : a.sn.a * ps.icms * Pd) + icmsUp2,
-          preco: Pd, credito: a.sn.a * (ps.cbs + ps.ibs) * Pd, embutido: is + icmsSt + icmsUp2 + cbsUp + ibsUp };
-        const Pf = (a.L + is + cbs + ibs + icmsUp2 + icmsSt) / (1 - (a.st ? 0 : a.sn.a * ps.icms));
-        const fora = { cbs, ibs, icms: (a.st ? icmsSt : a.sn.a * ps.icms * Pf) + icmsUp2, preco: Pf, credito: cbs + ibs, embutido: is + icmsSt + icmsUp2 };
+        const icmsSt = a.icmsFora ? icmsD : 0; // ICMS-ST, ou ICMS/ISS pago fora do DAS acima do sublimite
+        const icmsStEmb = a.st ? icmsSt : 0;
+        const ibsRegular = a.sn.sublimite ? ibs : 0; // acima do sublimite o IBS é do regime regular
+        const Pd = (a.L + is + icmsUp2 + cbsUp + ibsUp + icmsSt + ibsRegular) / (1 - (ps.cbs + ps.ibs + (a.icmsFora ? 0 : ps.icms)));
+        const dentro = { cbs: ps.cbs * Pd + cbsUp, ibs: ps.ibs * Pd + ibsUp + ibsRegular, icms: (a.icmsFora ? icmsSt : ps.icms * Pd) + icmsUp2,
+          preco: Pd, credito: (ps.cbs + ps.ibs) * Pd + ibsRegular, embutido: is + icmsStEmb + icmsUp2 + cbsUp + ibsUp };
+        const Pf = (a.L + is + cbs + ibs + icmsUp2 + icmsSt) / (1 - (a.icmsFora ? 0 : ps.icms));
+        const fora = { cbs, ibs, icms: (a.icmsFora ? icmsSt : ps.icms * Pf) + icmsUp2, preco: Pf, credito: cbs + ibs, embutido: is + icmsStEmb + icmsUp2 };
         simples = { dentro, fora };
         const e = a.sn.opcao === "fora" ? fora : dentro;
         depois = { cbs: e.cbs, ibs: e.ibs, is, icms: e.icms };
@@ -1403,9 +1433,10 @@ function premissasAntesDepois(d, itens) {
   const aliq = aliquotasDoLado("ad");
   const uf = $("#op-uf").value, mun = $("#op-mun").selectedOptions[0]?.textContent || "";
   const ajustados = itens.filter((x) => Object.keys(x.it).some((k) => k.startsWith("ad_"))).length;
+  const em = emitente();
   const regime = ehSimplesAd()
-    ? `Simples Nacional, ${PARTILHA_SN[$("#ad-sn-anexo").value].nome}, alíquota efetiva de ${pct(num($("#ad-sn-aliq").value) ?? 0, 2)}, CBS e IBS ${$("#ad-sn-opcao").value === "fora" ? "por fora (regime regular)" : "dentro do DAS"} de 2027 em diante; compras de ${pct(num($("#ad-fabrica").value) ?? 60, 0)} do preço, de fornecedores do lucro real`
-    : `PIS/Cofins ${$("#ad-regime").value === "3.65" ? "cumulativo (lucro presumido), 3,65%" : "não cumulativo (lucro real), 9,25%"}`;
+    ? `Simples Nacional, receita de ${brl(em.rbt12)} nos últimos 12 meses (${nFaixa(faixaSN(em.rbt12))}), ${[itens.some((x) => !x.servico) ? `produtos no ${parametrosSimples(false).nome}` : "", itens.some((x) => x.servico) ? `serviços no ${parametrosSimples(true).nome}` : ""].filter(Boolean).join(" e ")}, CBS e IBS ${em.opcao === "fora" ? "por fora (regime regular)" : "dentro do DAS"} de 2027 em diante; compras de ${pct(num($("#ad-fabrica").value) ?? 60, 0)} do preço, de fornecedores do lucro real`
+    : `PIS/Cofins ${em.regime === "presumido" ? "cumulativo (lucro presumido), 3,65%" : "não cumulativo (lucro real), 9,25%"}`;
   return `<div class="premissas"><h3>Premissas deste cálculo</h3><ul>
     <li>Local: ${esc(mun)} / ${esc(uf)}. Hoje: regras de 2026 (${fmtData(dataAntes())}). Depois: ${fmtData(d)}, CBS de ${pct(aliq.cbs ?? 0, 2)} e IBS de ${pct((aliq.ibsEstadual ?? 0) + (aliq.ibsMunicipal ?? 0), 2)}.</li>
     <li>Quem vende: ${vendeComercio() ? `comércio, com preço de fábrica de ${pct(num($("#ad-fabrica").value) ?? 60, 0)} do preço` : "indústria ou importador"}. ${esc(regime)}.</li>
@@ -1423,9 +1454,9 @@ function blocoSimples(ok, d) {
     for (const k of ["cbs", "ibs", "icms", "preco", "credito"]) op[lado][k] = s(lado, k);
     op[lado].liquido = op[lado].preco - op[lado].credito;
   }
-  const escolhida = $("#ad-sn-opcao").value;
-  const sn = parametrosSimples(false);
-  const partesAno = partesSimplesNoAno(sn, anoDe(d), fatorIcmsIss(anoDe(d))); // CBS e IBS no DAS no ano escolhido
+  const escolhida = emitente().opcao;
+  const sn = parametrosSimples(!ok.some((x) => !x.servico)); // anexo dos produtos (ou dos serviços, se só houver serviços)
+  const partesAno = partesSimplesNoAno(sn, d); // CBS e IBS no DAS na data escolhida
   const col = (lado, k) => `<td class="n${lado === escolhida ? " forte" : ""}">${brl(op[lado][k])}</td>`;
   const linha = (rot, k) => `<tr><td>${rot}</td>${col("dentro", k)}${col("fora", k)}</tr>`;
   const melhorCliente = op.fora.liquido < op.dentro.liquido - 0.005 ? "fora" : "dentro";
@@ -1439,7 +1470,7 @@ function blocoSimples(ok, d) {
           ${linha("Crédito que um cliente empresa do regime regular aproveita", "credito")}
           ${linha("Custo para esse cliente, descontado o crédito", "liquido")}
         </tbody></table></div>
-      <p class="nota">Dentro do DAS, a nota informa ao cliente só a parte de CBS e IBS paga na guia (aqui, ${pct(sn.a * 100 * (partesAno.cbs + partesAno.ibs), 2)} da venda) e é esse o crédito dele.
+      <p class="nota">Dentro do DAS, a nota informa ao cliente só a parte de CBS e IBS paga na guia (aqui, ${pct(100 * (partesAno.cbs + partesAno.ibs), 2)} da venda, no ${esc(sn.nome.replace(/ —.*/, ""))}) e é esse o crédito dele.
         Por fora, o crédito é a CBS e o IBS cheios, e você também passa a aproveitar como crédito a CBS e o IBS que o seu fornecedor cobrou (dentro do DAS, eles ficam no seu custo).
         Para o consumidor final, que não usa crédito, o que importa é o preço. Para um cliente empresa, <strong>${melhorCliente === "fora" ? "comprar de quem recolhe por fora sai mais barato" : "a diferença de custo é pequena ou favorece o DAS"}</strong> neste cenário.
         A conta supõe fornecedores do lucro real e compras de ${pct(num($("#ad-fabrica").value) ?? 60, 0)} do preço. Recolher por fora exige apuração própria de CBS e IBS, e a opção é feita por semestre, no prazo do Comitê Gestor do Simples. Converse com o seu contador.</p>
@@ -1594,6 +1625,7 @@ function exportarCsv() {
 /** Salva os itens da nota num arquivo JSON, para reabrir depois ou em outro computador. */
 function exportarItens() {
   const dados = { formato: "calculadora-rtc-facil/itens@1", uf: $("#op-uf").value, municipio: $("#op-mun").value, data: dataOp(),
+    emitente: emitente(),
     itens: estado.itens.map(({ id, verOpcoes, ...resto }) => resto) };
   baixarArquivo("itens-nota.json", JSON.stringify(dados, null, 2), "application/json");
 }
@@ -1615,6 +1647,7 @@ async function importarItens(arquivo) {
           aliqIS: i.aliquotasNominais?.impostoSeletivo?.adValorem ?? "" })
       : novoItem(i));
     if (d.uf) { $("#op-uf").value = d.uf; await carregarMunicipios(d.uf, d.municipio); }
+    if (d.emitente) aplicarEmitente(d.emitente);
     if (d.data) $("#op-data").value = d.data;
     else if (d.dhFatoGerador) $("#op-data").value = d.dhFatoGerador.slice(0, 10);
     await aoMudarData();
@@ -1633,11 +1666,9 @@ async function carregarExemplo(chave) {
     $("#op-uf").value = ex.local.uf;
     await carregarMunicipios(ex.local.uf, ex.local.municipio);
   }
-  if (ex.antesDepois?.regime) $("#ad-regime").value = ex.antesDepois.regime;
+  if (ex.emitente) aplicarEmitente(ex.emitente);
   if (ex.antesDepois?.iss !== undefined) $("#ad-iss").value = ex.antesDepois.iss;
-  await preencherAliquotasReferencia(true);
-  renderizarItens();
-  salvar();
+  await aoMudarData();
 }
 
 /** Mostra a aba pedida e prepara o conteúdo dela com os itens atuais. */
@@ -1662,10 +1693,11 @@ async function iniciarApp() {
   if (salvo?.adVendedor) $("#ad-vendedor").value = salvo.adVendedor;
   if (salvo?.adFabrica) $("#ad-fabrica").value = salvo.adFabrica;
   if (salvo?.adIcmsBase) $("#ad-icms-base").value = salvo.adIcmsBase;
-  if (salvo?.adRegime) $("#ad-regime").value = salvo.adRegime;
-  if (salvo?.snAnexo) $("#ad-sn-anexo").value = salvo.snAnexo;
-  if (salvo?.snAliq) $("#ad-sn-aliq").value = salvo.snAliq;
-  if (salvo?.snOpcao) $("#ad-sn-opcao").value = salvo.snOpcao;
+  // quem emite: versões até a 1.7 guardavam o regime só na aba Antes e depois (adRegime, snOpcao)
+  const emSalvo = salvo?.emitente || (salvo?.adRegime ? {
+    regime: salvo.adRegime === "simples" ? "simples" : salvo.adRegime === "3.65" ? "presumido" : "real", opcao: salvo.snOpcao || "dentro",
+  } : null);
+  aplicarEmitente(emSalvo);
   $("#sel-exemplo").innerHTML += Object.entries(window.EXEMPLOS).map(([k, e]) => `<option value="${k}">${esc(e.nome)}</option>`).join("");
   try {
     await carregarUfs();
@@ -1681,6 +1713,7 @@ async function iniciarApp() {
     estado.itens = salvo.itens.map((i) => novoItem(i));
   }
   await carregarRelacao();
+  await carregarAtividadesSN();
   await aoMudarData();
   listaNcm(dataOp()); // pré-carrega a lista de NCM para o autocompletar
 }
@@ -1734,9 +1767,11 @@ function ligarEventos() {
   $$("[data-ir]").forEach((b) => b.addEventListener("click", () => trocarAba(b.dataset.ir)));
   $("#btn-antesdepois").addEventListener("click", calcularAntesDepois);
   $("#ad-data").addEventListener("change", () => { renderizarAntesDepois(); salvar(); });
-  for (const id of ["#ad-regime", "#ad-icms", "#ad-iss", "#ad-sn-opcao"]) $(id).addEventListener("change", () => { renderizarAntesDepois(); salvar(); });
-  $("#ad-sn-anexo").addEventListener("change", () => { $("#ad-sn-aliq").value = PARTILHA_SN[$("#ad-sn-anexo").value].aliqFaixa1; renderizarAntesDepois(); salvar(); });
-  $("#ad-sn-aliq").addEventListener("change", salvar);
+  for (const id of ["#ad-icms", "#ad-iss"]) $(id).addEventListener("change", () => { renderizarAntesDepois(); salvar(); });
+  // quem emite a nota: vale em todas as abas
+  for (const id of ["#em-regime", "#em-rbt12", "#em-ativ-prod", "#em-ativ-serv", "#em-fatorr", "#em-opcao", "#em-iss-retido"]) {
+    $(id).addEventListener("change", aoMudarEmitente);
+  }
   $("#ad-itens").addEventListener("input", (ev) => {
     const it = estado.itens.find((i) => String(i.id) === ev.target.dataset.id);
     if (!it) return;

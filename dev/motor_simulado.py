@@ -18,7 +18,7 @@ import json
 import re
 import sqlite3
 from datetime import date
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, ROUND_HALF_UP, ROUND_HALF_EVEN
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
@@ -222,6 +222,64 @@ def bases_componentes(comp, ano, bens, modelo):
     return rg.quantize(D2), bis.quantize(D2)
 
 
+# ---------------------------------------------------------------- Simples Nacional (motor calculadora-rtc-simples-nacional)
+def atividades_sn(data):
+    """Atividades do Simples vigentes na data, no formato de GET /calculadora/simples-nacional/atividades."""
+    docs = {}
+    for aid, tipo in q(f"""select t.TDAS_ATSN_ID, d.TPDF_TIPO from TIPO_DFE_ATIVIDADE_SIMPLES_NACIONAL t
+                         join TIPO_DFE d on d.TPDF_ID=t.TDAS_TPDF_ID where {vigente('t.TDAS', data)}"""):
+        docs.setdefault(aid, []).append(str(tipo))
+    r = q(f"""select ATSN_ID, ATSN_CATIVSN, ATSN_DESCRICAO, ATSN_ANEXO_SEM_FATOR_R, ATSN_ANEXO_COM_FATOR_R, ATSN_ROTULO,
+              ATSN_ROTULO_CURTO from ATIVIDADE_SIMPLES_NACIONAL where {vigente('ATSN', data)} order by ATSN_ORDEM""")
+    return [{"codigo": c, "descricao": d, "anexoSemFatorR": s, "anexoComFatorR": f, "rotuloAnexo": ro, "rotuloCurtoAnexo": rc,
+             "tpDocsAdmissiveis": sorted(docs.get(i, []))} for i, c, d, s, f, ro, rc in r]
+
+
+def calcular_simples(op):
+    """Simplificação da rota não assistida: escolhe o par de alíquotas pelo anexo da atividade (com ou sem
+    redistribuição do ISS), arredonda a alíquota a 2 casas na NFS-e e calcula base × alíquota, meio-para-o-par."""
+    data, tp = op.get("data", ""), str(op.get("tpDoc", ""))
+    linha = op.get("aliquotasEfetivas") or {}
+    nfse = tp == "91"
+    crt2 = op.get("CRT") == "2" or op.get("regApIBSCBSSN") == "2"
+    ativs = {a["codigo"]: a for a in atividades_sn(data)} if data >= "2027-01-01" else {}
+    objetos, tot = [], {"vBC": Decimal(0), "vCBSSNtot": Decimal(0), "vIBSSNtot": Decimal(0), "totalIs": Decimal(0)}
+    for it in op.get("itens", []):
+        n = it.get("numero")
+        a = ativs.get(str(it.get("cAtivSN", "")).zfill(2))
+        if not a or tp not in a["tpDocsAdmissiveis"]:
+            objetos.append({"nObj": n, "estadoItem": "NAO_CALCULADO", "motivoEstado": {"codigo": "ATIVIDADE_INADMISSIVEL",
+                            "descricao": "Atividade ausente, fora de vigência ou não admitida no documento"}, "erros": []})
+            continue
+        anexo = a["anexoComFatorR"] if linha.get("fatorR") and a["anexoComFatorR"] else a["anexoSemFatorR"]
+        par = linha.get("anexo" + anexo) or {}
+        sem_red = anexo in ("III", "IV", "V") and (it.get("tpRetISSQN") in ("2", "3") or op.get("regApTribSN") in ("2", "3")
+                                                     or op.get("CRT") == "2" or it.get("tribISSQN") in ("2", "3", "4"))
+        if sem_red and par.get("semRedistribuicaoISS"):
+            par = par["semRedistribuicaoISS"]
+        if par.get("pCBSSN") is None:
+            objetos.append(erro_item(n, "VSN-041", "Alíquota ausente", f"Falta o par de alíquotas do Anexo {anexo}", "/aliquotasEfetivas"))
+            continue
+        pc = Decimal(par["pCBSSN"])
+        pi = None if crt2 or par.get("pIBSSN") is None else Decimal(par["pIBSSN"])
+        if nfse:
+            pc = pc.quantize(D2, ROUND_HALF_EVEN)
+            pi = None if pi is None else pi.quantize(D2, ROUND_HALF_EVEN)
+        b = Decimal(str(it.get("baseCalculo", "0")))
+        vc = (b * pc / 100).quantize(D2, ROUND_HALF_EVEN)
+        vi = None if pi is None else (b * pi / 100).quantize(D2, ROUND_HALF_EVEN)
+        vis = Decimal(str(it.get("valorImpostoSeletivo") or "0"))
+        tot["vBC"] += b; tot["vCBSSNtot"] += vc; tot["vIBSSNtot"] += vi or 0; tot["totalIs"] += vis
+        objetos.append({"nObj": n, "estadoItem": "CALCULADO", "erros": [], "tribCalc": {
+            "vRBSNitem": float(b), "tpRBSN": 1, "vBC": float(b), "pCBSSN": float(pc), "vCBSSN": float(vc),
+            "pIBSSN": None if pi is None else float(pi), "vIBSSN": None if vi is None else float(vi),
+            "IS": {"valor": float(vis)} if not nfse else None, "totalItem": float(vc + (vi or 0) + vis),
+            "memoriaCalculo": {"cbs": f"SIMULADO: {b} × {pc}% = {vc} (Anexo {anexo}{', sem redistribuição do ISS' if sem_red else ''})",
+                               "ibs": None if vi is None else f"SIMULADO: {b} × {pi}% = {vi}"}}})
+    return {"oper": {"data": data, "tpDoc": tp}, "objetos": objetos,
+            "total": {k: float(v) for k, v in tot.items()} | {"totalTributos": float(tot["vCBSSNtot"] + tot["vIBSSNtot"] + tot["totalIs"])}}
+
+
 class H(BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass
@@ -243,6 +301,8 @@ class H(BaseHTTPRequestHandler):
         p = u.path.replace("/api/calculadora/dados-abertos", "")
         a = {k: v[0] for k, v in parse_qs(u.query).items()}
         data = a.get("data", date.today().isoformat())
+        if p == "/api/calculadora/simples-nacional/atividades":
+            return self.responder(200, atividades_sn(a.get("data", "2027-01-01")))
         if p == "/versao":
             return self.responder(200, {"versaoApp": "SIMULADO", "versaoDb": "simulado", "ambiente": "offline"})
         if p == "/ufs":
@@ -296,6 +356,8 @@ class H(BaseHTTPRequestHandler):
             avisos = [f"Campo {t} não compõe as bases para o ano {e['anoFatoGerador']} (vigência {de}–{ate}) e foi ignorado no cálculo"
                       for t, _, _, _, de, ate, _ in CATALOGO_BASE if e.get(t) is not None and not (de <= int(e["anoFatoGerador"]) <= ate)]
             return self.responder(200, {"baseRG": float(rg), "baseIS": float(bis), "baseSN": None, "avisos": avisos})
+        if self.path.startswith("/api/calculadora/observabilidade/simples-nacional/nao-assistido"):
+            return self.responder(200, calcular_simples(json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))))))
         if not self.path.startswith("/api/calculadora/observabilidade/regime-geral"):
             return self.responder(404, {"title": "não implementado no simulador"})
         op = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))))

@@ -28,6 +28,7 @@ jobs:
           node --check web/app.js
           node --check web/exemplos.js
           node --check web/nfe.js
+          node --check web/simples.js
       - name: Python válido
         run: python3 -m py_compile dev/*.py empacotar/icone/*.py
       - name: Pacote .deb monta e tem o lançador, a tela e o ícone

@@ -48,7 +48,8 @@ Toda conta de CBS, IBS e Imposto Seletivo é da calculadora oficial. A tela acre
 | CBS de 11,2% e IBS de 0,05% + 0,05% de 2027 em diante | `ESTIMATIVAS` em `web/app.js` | A base oficial não traz a referência desses anos e a API exige as alíquotas |
 | IS de 2,6% (2202.10.00) e 4,2% (2203) | `sugestaoIS2027` em `web/app.js` | A base oficial traz o IS sem alíquota; a MP 1.399/2026 fixou essas |
 | IS zero de 1º/1 a 1º/2/2027 | `INICIO_IS` em `web/app.js` e `web/nfe.js` | A MP só produz efeitos em 2/2/2027; a base oficial começa em 1º/1 |
-| Tributos de hoje, partilha do Simples, ICMS por estado | aba *Antes e depois*, em `web/app.js` | A calculadora oficial não calcula PIS/Cofins, ICMS, ISS nem IPI |
+| Tributos de hoje, ICMS por estado | aba *Antes e depois*, em `web/app.js` | A calculadora oficial não calcula PIS/Cofins, ICMS, ISS nem IPI |
+| Alíquota efetiva e partilha do Simples, DAS da nota | `web/simples.js` (tabelas da LC 214/2025) | A calculadora do Simples recebe as alíquotas efetivas prontas (o PGDAS as calcula) e não calcula o DAS |
 
 ## Por que assim
 
@@ -68,6 +69,12 @@ Toda conta de CBS, IBS e Imposto Seletivo é da calculadora oficial. A tela acre
 7. **Limpar.** Ficam a versão em uso e a anterior. As mais antigas e o código-fonte são apagados.
 
 Se qualquer passo falhar, a versão em uso continua ativa e o erro aparece na tela (chip de versão e aba *Ajuda*). A próxima tentativa acontece na verificação seguinte ou pelo botão *Procurar atualização agora*.
+
+### Motor do Simples Nacional
+
+Depois do motor do regime regular, o painel prepara a [calculadora oficial do Simples Nacional](https://github.com/ReceitaFederal/calculadora-rtc-simples-nacional) (`CALC_RTC_REPO_SIMPLES` troca o repositório), do mesmo jeito: descobre a maior tag, baixa, compila com `mvnw clean package -DskipTests` e guarda o JAR em `dados/motor-simples/<versão>/api-simples-nacional.jar`. Ela não tem banco próprio: lê o `calculadora/db/calculadora-pro.db` do motor do regime regular, por isso sobe com a pasta da versão em uso dele como diretório de trabalho e é reiniciada quando essa versão muda. Sobe em `127.0.0.1`, numa porta livre, com a porta de métricas desligada (`-Dmanagement.server.port=-1`), e fica pronta quando `GET /api/versao` responde. A tela chama `/api-simples/**`, que o painel repassa como `/api/**`.
+
+Se ela não puder ser instalada (sem internet na primeira vez, falha na compilação), a calculadora continua funcionando: a tela calcula o Simples pelas tabelas da lei, marca os itens como *Estimado* e avisa. O estado aparece em `/painel/status` (campo `simples`) e na aba *Ajuda*. Com `--api-externa`, o motor do Simples é procurado no mesmo endereço; `--api-externa-simples URL` aponta para outro.
 
 A verificação roda ao iniciar e a cada `CALC_RTC_HORAS_VERIFICACAO` horas (padrão 6). Para fixar uma versão use `--versao 1.7.3`. Para não procurar novidades use `--sem-atualizacao`.
 
