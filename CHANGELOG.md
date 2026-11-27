@@ -1,5 +1,9 @@
 # Mudanças
 
+## 1.8.1 — 2026-11-27
+
+- Corrige o erro 403 da calculadora do Simples Nacional ao calcular pela tela: o painel não repassa mais ao motor o endereço da página.
+
 ## 1.8.0 — 2026-11-27
 
 O regime de quem emite a nota passa a valer em todas as abas, com o Simples Nacional calculado como na realidade: sem CBS e IBS em 2026, e de 2027 em diante pela calculadora oficial do Simples Nacional da Receita, com o DAS da nota tributo por tributo.

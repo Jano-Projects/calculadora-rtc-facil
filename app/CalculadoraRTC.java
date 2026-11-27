@@ -39,7 +39,7 @@ public class CalculadoraRTC {
     // Segunda calculadora oficial: CBS e IBS de quem é do Simples Nacional (dentro do DAS). Usa o mesmo banco de
     // dados da calculadora do regime regular, por isso sobe na pasta do motor do regime regular em uso.
     static final String REPO_SIMPLES_PADRAO = "https://github.com/ReceitaFederal/calculadora-rtc-simples-nacional";
-    static final String VERSAO_PAINEL = "1.8.0";
+    static final String VERSAO_PAINEL = "1.8.1";
 
     // Pastas: base = onde estão app/ e web/; dados = o que é baixado e gerado (motores, fontes, logs, JDK).
     // Na versão portátil (ZIP ou git clone), dados fica dentro da própria pasta (base/dados). Na versão
@@ -1137,7 +1137,11 @@ public class CalculadoraRTC {
 
     // Cabeçalhos "hop-by-hop" que um proxy não deve repassar (e que o HttpClient do Java recusa)
     static final Set<String> CABECALHOS_PROIBIDOS = Set.of("connection", "content-length", "host", "upgrade",
-            "expect", "keep-alive", "transfer-encoding", "te", "trailer", "proxy-connection", "http2-settings");
+            "expect", "keep-alive", "transfer-encoding", "te", "trailer", "proxy-connection", "http2-settings",
+            // Origin e Referer ficam no navegador: para o motor, quem chama é o painel (mesma máquina), não uma página.
+            // A calculadora do Simples Nacional recusa (403, CORS) um POST com Origin fora da lista dela
+            // (por padrão, só http://localhost:4200).
+            "origin", "referer");
 
     /** Repassa /api/** ao motor oficial (método, corpo, cabeçalhos e resposta) — o navegador fala com uma origem só. */
     static void tratarProxy(HttpExchange ex) throws IOException {
