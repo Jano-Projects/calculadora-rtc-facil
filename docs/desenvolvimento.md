@@ -18,6 +18,17 @@ dev/teste_tela.py                               usa as abas num navegador sem ja
 
 Não há etapa de build: o Java roda direto do código-fonte (`java app/CalculadoraRTC.java`, recurso do Java 11+) e o front é estático.
 
+## Roteiro para estudar o código
+
+Todo o código é comentado em português: cada função diz o que faz e por quê, e as regras citam a lei de onde vêm. Uma ordem de leitura que funciona:
+
+1. **`iniciar.sh`** (ou `scripts/iniciar.ps1`): como o Java portátil é baixado, renovado e iniciado.
+2. **`app/CalculadoraRTC.java`**, de cima para baixo: `main` → `prepararNaInicializacao` → `verificarEAtualizar` → `instalarVersao` (baixar, gerar o banco, compilar) → `trocarMotor` → `tratarProxy`. É o ciclo de vida do motor oficial.
+3. **`web/app.js`**: comece por `montarOperacao` (o JSON enviado à calculadora oficial, com a estrutura comentada) e `interpretar` (onde fica cada valor na resposta). Depois, `aliquotasReferencia` e `ESTIMATIVAS` (alíquotas de 2027 em diante) e o bloco do Imposto Seletivo (`INICIO_IS`, `sugestaoIS2027`).
+4. **Aba *Antes e depois*** (`web/app.js`, a partir do comentário "antes e depois da reforma"): as fórmulas dos tributos de hoje, `tributosAtuais` e a partilha do Simples (`PARTILHA_SN`).
+5. **`web/nfe.js`**: leitura do XML (`lerNfe`), base oficial de cada item (`basesOficiais`) e a conferência (`conferirNfe`).
+6. **`dev/motor_simulado.py`**: uma versão simplificada das contas da calculadora oficial, boa para entender a lógica sem ler o código Java dela.
+
 ## Trabalhar no front sem compilar a calculadora oficial
 
 ```bash
@@ -54,7 +65,7 @@ CALC_RTC_REPO=https://github.com/meu-usuario/calculadora-rtc-regime-regular bash
 - **motor-oficial.yml**:
   - roda **todo dia**, mas só testa quando a Receita publicou uma versão que ainda não foi testada (o registro fica no cache do GitHub Actions, com a chave `motor-testado-<versão>`); às segundas-feiras, a cada push que muda a tela ou a instalação e à mão, testa sempre;
   - instala a **última versão oficial de verdade** com `--instalar-e-sair` em Ubuntu, Debian, Fedora (contêineres) e Windows;
-  - abre a tela com o motor oficial e roda `dev/teste_tela.py --motor-real`: calcular em 2026 e 2027, comparar, antes e depois (inclusive o Imposto Seletivo do refrigerante) e a conferência da NF-e de exemplo;
+  - abre a tela com o motor oficial e roda `dev/teste_tela.py --motor-real`: calcular em 2026, em janeiro de 2027 (IS zero) e em março de 2027, comparar, antes e depois (inclusive o Imposto Seletivo do refrigerante) e a conferência da NF-e de exemplo;
   - se uma execução agendada falhar, abre um aviso (*issue*) no repositório, ou comenta no aviso que já estiver aberto.
 
 - **dependabot-automerge.yml**: liga a mesclagem automática nos pedidos do Dependabot, que chegam uma vez por mês com todas as atualizações de *actions* juntas. O pedido só entra na `main` com as verificações aprovadas, e o ramo é apagado em seguida.
@@ -89,3 +100,5 @@ python3 dev/teste_tela.py http://localhost:8090 --motor-real       # com a calcu
 - Textos da interface em português, voltados ao usuário final, sem jargão interno.
 - CBS, IBS e Imposto Seletivo são sempre calculados pela calculadora oficial, inclusive a base de cálculo da conferência de NF-e (endpoint `base-calculo/base-calculo-unificada`). As regras que ficam no front são as estimativas que a calculadora oficial não cobre: alíquotas de referência ainda não publicadas, os tributos de hoje do *Antes e depois* e a partilha do DAS do Simples Nacional. Todas estão comentadas no código, com a fonte, e documentadas nos [pontos de atenção](pontos-de-atencao.md).
 - Nada de dependências externas no Java nem no front.
+- Toda função nova ganha um comentário curto dizendo o que faz e, se não for óbvio, por quê. Regras tributárias citam a fonte (lei, artigo, nota técnica) no próprio comentário.
+- Valores que dependem de decisão do governo (alíquotas estimadas, datas de início) ficam em constantes com nome (`ESTIMATIVAS`, `INICIO_IS`, `PARTILHA_SN`...), para serem achados e trocados num lugar só.

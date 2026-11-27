@@ -22,7 +22,10 @@ Depende do produto, de quem vende e do ano. A reforma foi desenhada para manter 
 Repasse não é automático: as empresas podem absorver parte ou repassar de outro jeito. Use a aba *Antes e depois* para simular os seus itens, lembrando das [premissas](pontos-de-atencao.md#14-antes-e-depois-é-uma-estimativa-com-premissas).
 
 ### Qual alíquota de Imposto Seletivo devo usar?
-Para 2027, as da Medida Provisória 1.399/2026, que variam por produto (bebidas açucaradas 2,6%, cerveja de malte 4,2%, destilados 24%…). Confira o seu produto no texto da MP. Veja a [tabela](entenda-a-reforma.md#imposto-seletivo-em-2027).
+Para 2027, as da Medida Provisória 1.399/2026, que variam por produto (bebidas açucaradas 2,6%, cerveja de malte 4,2%, destilados 24%…). A tela já preenche as duas primeiras; nos outros produtos, confira o seu no texto da MP. Veja a [tabela](entenda-a-reforma.md#imposto-seletivo-em-2027).
+
+### Por que o Imposto Seletivo saiu zero numa data de janeiro de 2027?
+Porque, pela MP 1.399/2026 (art. 19), ele só é cobrado a partir de 2 de fevereiro de 2027. A calculadora oficial ainda considera 1º de janeiro, então a tela manda o IS com alíquota zero nessas datas e avisa. Veja o [ponto de atenção 5](pontos-de-atencao.md#5-imposto-seletivo-alíquotas-provisórias-e-início-em-fevereiro-de-2027).
 
 ### Como descubro a classificação tributária (cClassTrib) de um item?
 Digite o NCM: a tela mostra as classificações vinculadas a ele na base oficial, com o trecho da lei. Escolha a que corresponde à sua operação. Na dúvida, confira na NF-e do fornecedor ou com o contador. Veja [como escolher](guia-de-uso.md#como-escolher-a-classificação-tributária).
@@ -31,7 +34,7 @@ Digite o NCM: a tela mostra as classificações vinculadas a ele na base oficial
 A classificação escolhida tem uma lista própria de NCMs, e o NCM do item não está nela. Por exemplo, um produto que não é da cesta básica marcado como `200003`. A tela já avisa antes de calcular. Troque a classificação ou confira o NCM.
 
 ### O total do cupom é diferente da soma dos itens. Está errado?
-Pode ser arredondamento (centavos) ou um item com erro, que fica fora do total. Confira a coluna *Situação* do detalhamento.
+Provavelmente há um item com erro, que fica fora do total: confira a coluna *Situação* do detalhamento. Desde a versão oficial 1.7.2, os totais são sempre a soma dos valores exibidos nos itens, sem diferença de centavos. Veja o [ponto de atenção 11](pontos-de-atencao.md#11-centavos-de-diferença).
 
 ### Posso usar o resultado para emitir nota fiscal?
 A calculadora serve para simular e conferir. A emissão deve seguir o seu sistema emissor e a orientação do contador. O botão *Ver JSON* ajuda a comparar o que o ERP calcula com o que a calculadora oficial calcula.
@@ -52,10 +55,13 @@ Emita notas de teste no sistema, abra os XMLs na aba *Conferir NF-e* e clique em
 Clique em **Copiar link**. O endereço leva a nota inteira (itens, local, datas e ajustes) e abre na Calculadora RTC Fácil de quem receber. Os dados vão dentro do próprio link e não passam por nenhum servidor. Para quem não tem a ferramenta, use **Imprimir ou salvar PDF**.
 
 ### Meus dados vão para a internet?
-Não. Os cálculos rodam no seu computador. A internet só é usada para baixar o Java, a calculadora oficial e as atualizações dela.
+Não. Os cálculos rodam no seu computador. A internet só é usada para baixar o Java, a calculadora oficial e as atualizações dos dois.
+
+### Por que a calculadora baixou o Java de novo?
+O Java portátil é renovado a cada 90 dias, para receber as correções de segurança. Isso acontece ao abrir, leva alguns minutos (~200 MB) e não muda nada nos cálculos. Se não houver internet, a cópia atual continua em uso. Veja a [política de segurança](../SECURITY.md).
 
 ### Posso usar de outro computador (por exemplo, fora da máquina virtual)?
 Sim: inicie com `--rede` e acesse `http://IP-DA-MÁQUINA:8090`. Não há senha, então use só em redes de confiança.
 
 ### Como volto para uma versão anterior da calculadora oficial?
-Inicie com `--versao 1.7.2` (ou a versão desejada). A ferramenta mantém instaladas a versão em uso e a anterior. Se você pedir outra, ela é baixada e compilada.
+Inicie com `--versao` e a versão desejada, por exemplo `--versao 1.7.2` para voltar da 1.7.3. A ferramenta mantém instaladas a versão em uso e a anterior. Se você pedir outra, ela é baixada e compilada.

@@ -29,7 +29,7 @@ Na tela, esses dados aparecem com os selos **vale em todas as abas** e **só nes
 
 - **Data da operação**: define as regras aplicadas. Na API ela corresponde ao campo `dhFatoGerador`.
   - **2026**: ano de teste. CBS de 0,9% e IBS de 0,1%, compensados com PIS/Cofins. As alíquotas vêm da base oficial, e a calculadora **não aceita** alíquotas informadas.
-  - **A partir de 2027**: a calculadora oficial **exige** que as alíquotas sejam informadas, e o resultado aparece como *cálculo simulado*. A partir da versão 1.7.2, a base oficial não traz alíquotas de referência para esses anos. Por isso a tela preenche **estimativas, sempre avisando**: CBS de 11,2% em 2027 e 2028 (a referência de 11,3% calculada pelo TCU, pendente de resolução do Senado até 15/12/2026, menos 0,1 ponto) e IBS de 0,05% + 0,05% em 2027 e 2028, fixados pela Emenda Constitucional 132. De 2029 em diante o IBS fica em branco para você informar. Se a Receita voltar a publicar referências, elas passam a ser usadas automaticamente.
+  - **A partir de 2027**: a calculadora oficial **exige** que as alíquotas sejam informadas, e o resultado aparece como *cálculo simulado*. Desde a versão 1.7.2 (e ainda na 1.7.3), a base oficial não traz alíquotas de referência para esses anos. Por isso a tela preenche **estimativas, sempre avisando**: CBS de 11,2% em 2027 e 2028 (a referência de 11,3% calculada pelo TCU, pendente de resolução do Senado até 15/12/2026, menos 0,1 ponto) e IBS de 0,05% + 0,05% em 2027 e 2028, fixados pela Emenda Constitucional 132. De 2029 em diante o IBS fica em branco para você informar. Se a Receita voltar a publicar referências, elas passam a ser usadas automaticamente.
 - **UF e município**: local da operação. Importa para o IBS.
 
 ## Itens
@@ -42,7 +42,7 @@ Na tela, esses dados aparecem com os selos **vale em todas as abas** e **só nes
 | Classificação tributária | O `cClassTrib`. Define o tratamento, por exemplo `000001` tributação integral, `200003` cesta básica (redução de 100%) ou `200035` higiene e limpeza (redução de 60%). O CST é preenchido automaticamente. Veja como escolher logo abaixo. |
 | Valor | Valor do item (base de cálculo). |
 | Quantidade e unidade | Opcionais para a maioria dos itens. |
-| Imposto Seletivo % (a partir de 2027) | Aparece só nos produtos sujeitos ao IS (bebidas açucaradas e alcoólicas, cigarros, veículos...), mesmo com a data em 2026, porque é usado na comparação com 2027. As alíquotas de 2027 estão na MP 1.399/2026 e variam por produto: veja a [tabela](entenda-a-reforma.md#imposto-seletivo-em-2027). |
+| Imposto Seletivo % (a partir de 2027) | Aparece só nos produtos sujeitos ao IS (bebidas açucaradas e alcoólicas, cigarros, veículos...), mesmo com a data em 2026, porque é usado na comparação com 2027. As alíquotas de 2027 estão na MP 1.399/2026 e variam por produto: veja a [tabela](entenda-a-reforma.md#imposto-seletivo-em-2027). Refrigerantes e bebidas açucaradas (NCM 2202.10.00) já vêm com 2,6%, e cervejas de malte (2203) com 4,2%; nos outros produtos, informe a alíquota. Para datas de 1º de janeiro a 1º de fevereiro de 2027, o IS entra com **zero**, porque pela MP ele só é cobrado a partir de 2 de fevereiro, e um aviso aparece ao lado do botão *Calcular*. |
 
 ### Como escolher a classificação tributária
 
@@ -60,8 +60,9 @@ A relação NCM × classificação é extraída do banco da versão instalada da
 ### Exemplos prontos
 
 - **Cesta básica completa**: 22 itens em Nova Odessa/SP, incluindo hortifrúti (Anexo XV) e óleo de soja (Anexo VII, redução de 60%).
-- **Compras do dia a dia (com Imposto Seletivo)**: itens com tributação cheia, itens de higiene com redução e bebidas sujeitas ao IS.
-- **Exemplo da documentação oficial**: o mesmo caso do repositório da Receita.
+- **Compras do dia a dia (com Imposto Seletivo)**: 12 itens com tributação cheia, itens de higiene com redução e bebidas sujeitas ao IS.
+- **Serviços de uma empresa do lucro presumido**: 3 serviços (NBS), o caso em que a troca do PIS/Cofins de 3,65% pela CBS mais pesa. Bom para testar a aba *Antes e depois*.
+- **Exemplo da documentação oficial**: o mesmo caso do repositório da Receita, em Porto Alegre/RS.
 
 ### Salvar e abrir
 
@@ -103,7 +104,7 @@ Se a tela travar por causa de dados antigos e o botão não responder, abra o en
 
 ## Comparar datas
 
-Usa os itens, a UF e o município da aba *Calcular nota*. O resumo da nota aparece no topo, com um botão para voltar e editar. As datas e as alíquotas são próprias desta aba: para datas a partir de 2027, os campos de CBS e IBS aparecem ao lado da data, já preenchidos (com estimativa, quando a base oficial não tem o valor). Se algum item paga Imposto Seletivo, aparece também o quadro **Imposto Seletivo**, com a alíquota estimada de cada um. O mesmo valor fica guardado no item.
+Usa os itens, a UF e o município da aba *Calcular nota*. O resumo da nota aparece no topo, com um botão para voltar e editar. As datas e as alíquotas são próprias desta aba: para datas a partir de 2027, os campos de CBS e IBS aparecem ao lado da data, já preenchidos (com estimativa, quando a base oficial não tem o valor). Se algum item paga Imposto Seletivo, aparece também o quadro **Imposto Seletivo**, com a alíquota de cada um (a da MP, quando a tela a conhece, ou a que você informou). O mesmo valor fica guardado no item. Se uma das datas cair entre 1º de janeiro e 1º de fevereiro de 2027, o IS dela entra com zero e a tela avisa.
 
 **Atenção ao interpretar**: a calculadora mostra só os tributos **novos**. PIS, Cofins, ICMS, ISS e IPI não aparecem. Em 2027 a CBS **substitui** o PIS e a Cofins, então o aumento que aparece na comparação não é o aumento de preço para o consumidor. O que é realmente novo é o **Imposto Seletivo**.
 
@@ -158,11 +159,11 @@ Abra o XML de uma NF-e (modelo 55) ou NFC-e (modelo 65), com ou sem o protocolo 
 2. calcula CBS, IBS e Imposto Seletivo com o CST e a classificação tributária da nota;
 3. a tela compara com o que a nota destacou.
 
-As alíquotas usadas são as de **referência** para a data da nota, não as da nota, para mostrar se a nota usou a alíquota certa. Elas podem ser alteradas no quadro *Alíquotas da conferência*.
+As alíquotas usadas são as de **referência** para a data da nota, não as da nota, para mostrar se a nota usou a alíquota certa. Elas podem ser alteradas no quadro *Alíquotas da conferência*. Numa nota emitida antes de 2 de fevereiro de 2027, o Imposto Seletivo é conferido com alíquota zero.
 
 | Situação | Significado |
 |---|---|
-| **Confere** | Base, CBS, IBS e Imposto Seletivo iguais, com até 1 centavo de diferença. |
+| **Confere** | Base, CBS, IBS e Imposto Seletivo iguais, com até 1 centavo de diferença (a calculadora oficial arredonda cada valor uma vez só, e um sistema emissor que arredonde no fim pode ficar 1 centavo diferente). |
 | **Diverge** | Algum valor ou a classificação é diferente. A linha de baixo mostra o que diverge, com o valor da nota e o oficial. |
 | **Erro** | A calculadora oficial recusou o item, por exemplo com uma classificação que não vale para o NCM ou para o tipo de documento. A linha de baixo mostra o código e a mensagem. |
 | **Sem destaque** | A nota não traz o grupo de CBS e IBS. A tela mostra o que a calculadora oficial calcularia. |

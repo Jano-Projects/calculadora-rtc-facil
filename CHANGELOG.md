@@ -25,6 +25,14 @@ Revisão contra as publicações do governo até 27/11/2026: calculadora oficial
 - Comentários para estudo em todo o código: cada função do front-end, do gerenciador Java e do motor simulado diz o que faz e por quê; as fórmulas e regras citam a lei de onde vêm.
 - Pontos de atenção 5 (Imposto Seletivo), 11 (centavos, com a regra de arredondamento da 1.7.2) e 17 (Simples) atualizados. Política de segurança com a atualização do Java.
 - Teste de tela: novo caso de janeiro de 2027, que confere o IS zero e o aviso.
+- Revisão de toda a documentação para a 1.6.2:
+  - **README:** Java renovado sozinho na lista de atualizações; o "teste semanal" passa a ser descrito como é (diário quando há versão nova da Receita, toda segunda em qualquer caso); exemplos com a versão oficial 1.7.3.
+  - **Guia de uso:** campo do Imposto Seletivo (valores sugeridos e janeiro de 2027), o exemplo *Serviços de uma empresa do lucro presumido*, que faltava, e a regra de 1 centavo da conferência de NF-e.
+  - **Entenda a reforma:** situação da CBS no Senado em 27/11/2026, partilha do Simples nos três anexos e em 2029, IS na tela; fontes oficiais do TCU, do Senado e do Congresso.
+  - **Perguntas frequentes:** IS zero em janeiro, total do cupom após a 1.7.2 e por que o Java é baixado de novo.
+  - **Como funciona:** quadro "O que a tela faz além de repassar", com cada estimativa e onde ela fica no código.
+  - **Desenvolvimento:** *Roteiro para estudar o código* e convenções de comentário.
+  - **Diferenças, Tributos e bases, Pontos de atenção (4 e 10), Solução de problemas, Como contribuir** e a aba *Ajuda* da tela atualizados.
 
 ## 1.6.1 — 2026-11-24
 

@@ -35,7 +35,7 @@ Leia antes de usar os resultados para qualquer decisão. Cada item diz **o que p
 | IBS estadual e municipal (2027 e 2028) | 0,05% + 0,05% | Fixado pela Emenda Constitucional 132. |
 | IBS (2029 em diante) | em branco | Não há valor publicado; você informa. |
 
-**O que fazer.** Antes de usar um resultado de 2027 em diante, confira as alíquotas no quadro da tela, onde aparece a origem de cada uma. Quando a resolução do Senado for publicada, a calculadora oficial deve trazer a alíquota numa versão nova, a ferramenta se atualiza sozinha e passa a usá-la no lugar da estimativa.
+**O que fazer.** Antes de usar um resultado de 2027 em diante, confira as alíquotas no quadro da tela, onde aparece a origem de cada uma. Até 27/11/2026 o Senado não tinha votado a resolução; depois de 15/12/2026, a nota da tela passa a pedir que você confira se os 11,3% foram mantidos. Quando a resolução for publicada, a calculadora oficial deve trazer a alíquota numa versão nova, a ferramenta se atualiza sozinha e passa a usá-la no lugar da estimativa.
 
 ## 5. Imposto Seletivo: alíquotas provisórias e início em fevereiro de 2027
 
@@ -78,7 +78,7 @@ Qual delas vale depende de **quem vende, para quem e com que finalidade**.
 
 ## 10. A versão da calculadora oficial muda os resultados
 
-**O que pode enganar.** A Receita publica versões novas com correções de regras, tabelas e alíquotas, e a ferramenta as instala sozinha. Um cálculo feito hoje pode não bater com o mesmo cálculo feito há um mês.
+**O que pode enganar.** A Receita publica versões novas com correções de regras, tabelas e alíquotas, e a ferramenta as instala sozinha. Um cálculo feito hoje pode não bater com o mesmo cálculo feito há um mês. Exemplo: a 1.7.2 (25/11/2026) mudou o arredondamento, e alguns valores mudaram em 1 centavo em relação à 1.7.0 (veja o [item 11](#11-centavos-de-diferença)).
 
 **O que fazer.** Ao registrar uma conferência (em homologação de ERP, por exemplo), anote a **versão do motor** que aparece no canto superior direito. Compare resultados só entre cálculos feitos na mesma versão. Se precisar repetir um cálculo antigo, inicie com `--versao X`.
 

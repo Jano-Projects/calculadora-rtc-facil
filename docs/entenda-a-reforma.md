@@ -26,7 +26,7 @@ Fonte: Emenda Constitucional 132/2023 (ADCT, arts. 125 a 129) e Lei Complementar
 
 ## Alíquota de referência da CBS em 2027
 
-Em 28/10/2026, o Tribunal de Contas da União calculou a alíquota de referência da CBS para 2027 em **11,3%**. O valor ficou acima dos 9,21% usados antes como estimativa. O Senado tem até 15/12/2026 para fixá-la por resolução; se não fixar, vale a do TCU. Em 2027 e 2028 a CBS cobrada é a referência menos 0,1 ponto, ou seja, **11,2%**, ao lado do IBS de teste de 0,1%. A referência é recalculada a cada ano durante a transição.
+Em 28/10/2026, o Tribunal de Contas da União calculou a alíquota de referência da CBS para 2027 em **11,3%** (11,3468%, arredondada a uma casa como manda a LC 214). O valor ficou acima dos 9,21% usados antes como estimativa. O Senado tem até 15/12/2026 para fixá-la por resolução; se não fixar, vale a do TCU. A Comissão de Assuntos Econômicos fez audiências públicas em novembro, com o relator Eduardo Braga; até 27/11/2026 a resolução não tinha sido votada. Em 2027 e 2028 a CBS cobrada é a referência menos 0,1 ponto, ou seja, **11,2%**, ao lado do IBS de teste de 0,1%. A referência é recalculada a cada ano durante a transição.
 
 Para a soma de CBS e IBS depois da transição (2033), as estimativas oficiais variam: 26,5% na aprovação da lei e cerca de 28% em estimativas posteriores do Comitê Gestor do IBS.
 
@@ -57,14 +57,16 @@ A Medida Provisória 1.399/2026 fixou as alíquotas do IS para 2027, em geral eq
 | Cigarros (regime específico) | 66,7% sobre o valor de referência, mais um valor fixo por maço de 20 |
 | Bens minerais extraídos | zero até o fim de 2027 |
 
-Pela MP, o IS começa a produzir efeitos em **2 de fevereiro de 2027**. A MP precisa ser convertida em lei, e as alíquotas de 2028 em diante virão de um projeto de lei. Consulte o texto oficial da MP para o seu produto.
+Pela MP (art. 19), o IS só produz efeitos a partir de **2 de fevereiro de 2027**. A base da calculadora oficial ainda marca o início em 1º de janeiro e não traz as alíquotas; por isso a tela usa zero nas datas de janeiro e já preenche 2,6% (NCM 2202.10.00) e 4,2% (cervejas, 2203). Nos outros produtos a alíquota depende de detalhes que o NCM não diz (teor alcoólico, porte do produtor, características do veículo), e você informa.
+
+A MP precisa ser convertida em lei pelo Congresso, e as alíquotas de 2028 em diante virão de um projeto de lei que o governo deve enviar até 31/5/2027. Consulte o texto oficial da MP para o seu produto.
 
 ## Simples Nacional
 
 A empresa do Simples continua no Simples. O que muda é a divisão da guia (DAS), pelas novas tabelas dos Anexos I a V da LC 123/2006, que estão nos Anexos XVIII a XXII da LC 214/2025 e valem a partir de 1º/1/2027:
 
-- **2027 e 2028:** a parte de PIS e Cofins vira CBS e uma pequena parte de IBS. No Anexo I (comércio), 1ª faixa, os 15,50% de PIS/Cofins passam a ser 15,33% de CBS e 0,17% de IBS. A alíquota efetiva não muda.
-- **2029 a 2032:** a cada ano, o IBS absorve mais 10% da parte do ICMS ou do ISS.
+- **2027 e 2028:** a parte de PIS e Cofins vira CBS e uma pequena parte de IBS. Na 1ª faixa: Anexo I (comércio), 15,50% → 15,33% de CBS e 0,17% de IBS; Anexo II (indústria), 14,00% → 13,85% e 0,15%; Anexo III (serviços), 15,60% → 15,43% e 0,17%. A alíquota efetiva não muda.
+- **2029 a 2032:** a CBS volta a ocupar toda a antiga parte de PIS/Cofins, e a cada ano o IBS absorve mais 10% da parte do ICMS ou do ISS. No Anexo I em 2029, por exemplo: CBS 15,50%, ICMS 30,60% e IBS 3,40%.
 - **2033:** o ICMS e o ISS saem do DAS.
 
 A partir de 2027, a empresa pode escolher, por semestre, recolher **CBS e IBS por fora do DAS**, pelo regime regular, mantendo os demais tributos na guia. É o chamado Simples híbrido (LC 214/2025, art. 41, § 3º; Resolução CGSN 186/2026). Isso muda o crédito de quem compra dela:
@@ -96,7 +98,10 @@ Na aba *Antes e depois*, escolha *Simples Nacional* no regime para comparar as d
 
 - [Senado: novos tributos começam a ser testados em 2026, e a transição vai até 2033](https://www12.senado.leg.br/noticias/materias/2024/12/16/novos-tributos-comecam-a-ser-testados-em-2026-e-transicao-vai-ate-2033)
 - [Receita Federal: material de apoio do curso sobre a Reforma Tributária do Consumo](https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/acoes-e-programas/programas-e-atividades/reforma-tributaria-do-consumo/curso/material-de-apoio/curso-cfc-rfb-modulo-1-mombelli_maio-2026-final.pdf)
-- [Mattos Filho: TCU propõe alíquota de referência de 11,35% para a CBS em 2027](https://www.mattosfilho.com.br/unico/tcu-aliquota-cbs-2027/)
+- [TCU: Tribunal calcula alíquota de referência de 11,3% para o novo tributo sobre o consumo](https://portal.tcu.gov.br/imprensa/noticias/tcu-calcula-aliquota-de-referencia-de-113-para-novo-tributo-sobre-consumo)
+- [Senado: CAE debate a alíquota da futura CBS (18/11/2026)](https://www12.senado.leg.br/noticias/materias/2026/11/18/cae-debate-reducao-da-sonegacao-como-saida-para-baixar-aliquota-da-futura-cbs)
+- [Congresso Nacional: tramitação da Medida Provisória 1.399/2026](https://www.congressonacional.leg.br/pt_BR/materias/medidas-provisorias/-/mpv/176208)
+- [Senado: Anexo XIX da LC 214/2025 (partilha do Simples Nacional, indústria)](https://legis.senado.leg.br/norma/40180341/publicacao/40181111)
 - [Congresso em Foco: TCU propõe alíquota de 11,3% para a CBS; Senado terá decisão final](https://www.congressoemfoco.com.br/noticia/129639/tcu-propoe-aliquota-de-11-3-para-cbs-senado-tera-decisao-final)
 - [TCU: painel da Reforma Tributária, cronograma](https://sites.tcu.gov.br/recursos/reforma-tributaria/Painel%20da%20Reforma%20Tribut%C3%A1ria_Cronograma_v5.pdf)
 - [Receita Federal: manual da opção pelo regime regular de IBS e CBS no Simples Nacional](https://www8.receita.fazenda.gov.br/SimplesNacional/Arquivos/manual/Manual%20op%C3%A7%C3%A3o%20regime%20regular%20IBS%20e%20CBS%20no%20Simples%20Nacional.pdf)

@@ -27,7 +27,7 @@ Cada tributo incide sobre uma base diferente, e alguns incidem sobre outros trib
 | Tributo | Base | Incide sobre outros tributos? | Na ferramenta |
 |---|---|---|---|
 | **CBS e IBS** | Valor da venda **sem** eles mesmos, sem IPI e, durante a transição, sem ICMS, ISS, PIS e Cofins. **Inclui** o Imposto Seletivo e o imposto de importação. | Sim, sobre o IS | ✔ pela calculadora oficial |
-| **Imposto Seletivo** | Venda da indústria ou do importador, **uma única vez** (primeiro fornecimento) | Entra na base do ICMS, do ISS, da CBS e do IBS | ✔ no comércio, sobre o preço de fábrica, como custo embutido; na indústria, sobre o valor da venda |
+| **Imposto Seletivo** | Venda da indústria ou do importador, **uma única vez** (primeiro fornecimento), a partir de 2/2/2027 | Entra na base do ICMS, do ISS, da CBS e do IBS | ✔ no comércio, sobre o preço de fábrica, como custo embutido; na indústria, sobre o valor da venda |
 | **ICMS e ISS** (até 2032) | Como hoje, agora **com** o Imposto Seletivo e **sem** PIS/Cofins, que deixam de existir | Sobre si mesmo e sobre o IS. A CBS e o IBS ficam de fora no padrão, ou dentro como cenário opcional (veja abaixo). | ✔ com a redução de 10% ao ano de 2029 a 2032 |
 | PIS/Cofins, IPI | Extintos (o IPI zerado, exceto produtos com industrialização incentivada na Zona Franca de Manaus) | — | ✔ zerados; a exceção da Zona Franca não é modelada |
 

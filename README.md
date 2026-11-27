@@ -53,8 +53,9 @@ e **se atualiza sozinha** quando o governo publica uma versão nova.
 | **Conferir NF-e** | Abra o XML de uma NF-e ou NFC-e e confira, item por item, se a base, a CBS, o IBS e o Imposto Seletivo destacados batem com a calculadora oficial. Serve para homologar o cálculo de um sistema emissor. |
 | **Compartilhar e imprimir** | Um link leva a mesma nota para outra Calculadora RTC Fácil, e cada aba vira PDF com as premissas usadas. |
 
-- **Um clique para abrir** no Windows, no Fedora, no Debian e no Ubuntu. Não precisa de administrador, `sudo`, Git nem Java, porque o Java 25 vem junto, dentro da pasta.
+- **Um clique para abrir** no Windows, no Fedora, no Debian e no Ubuntu. Não precisa de administrador, `sudo`, Git nem Java, porque o Java 25 vem junto, dentro da pasta, e é renovado sozinho para receber as correções de segurança.
 - **Sempre na versão mais recente**: quando a Receita publica uma versão nova da [calculadora oficial](https://github.com/ReceitaFederal/calculadora-rtc-regime-regular), ela é baixada, compilada e posta em uso sozinha, sem fechar a tela. Um teste diário no GitHub confere se a versão nova funciona com a tela.
+- **Valores de 2027 já preenchidos e explicados**: CBS de 11,2% e IBS de 0,1% enquanto a base oficial não traz a referência, e Imposto Seletivo pela MP 1.399/2026, a partir de 2 de fevereiro de 2027. A tela sempre mostra de onde vem cada número.
 - **Tudo local**: os cálculos rodam na sua máquina, e nenhum dado das suas notas sai do computador.
 - **100% código aberto** (licença MIT).
 
@@ -118,7 +119,8 @@ Veja o [guia de uso](docs/guia-de-uso.md) para entender cada campo e o resultado
 | O que atualiza | Como |
 |---|---|
 | **Calculadora oficial** (motor de cálculo) | Sozinha. Ao abrir e depois a cada 6 horas, o programa consulta as versões (tags) publicadas no repositório da Receita. Se houver uma nova, ele baixa, gera o banco, compila, sobe a versão nova e só então desliga a antiga, sem interromper quem está usando. Se algo falhar, a versão anterior continua funcionando. |
-| **Verificação semanal** | No GitHub, um teste instala a última versão da Receita em Windows, Ubuntu, Debian e Fedora e usa a tela como uma pessoa usaria. Quando a Receita publica uma versão nova, o teste roda no dia seguinte, e uma falha abre um aviso (*issue*) neste repositório. |
+| **Java portátil** | Sozinho. A pasta `dados/jdk` é baixada de novo a cada 90 dias, para receber as correções de segurança do Java. Se o download falhar, a cópia atual continua em uso. |
+| **Teste da versão oficial** | No GitHub, um teste instala a última versão da Receita em Windows, Ubuntu, Debian e Fedora e usa a tela como uma pessoa usaria. Ele roda toda manhã quando a Receita publicou uma versão ainda não testada, e toda segunda-feira em qualquer caso. Uma falha abre um aviso (*issue*) neste repositório. |
 | **Esta ferramenta** (tela e scripts) | Se você clonou com Git: `git pull`. Se baixou o ZIP: baixe a release nova e copie a pasta `dados/` antiga para dentro dela, assim nada é baixado nem compilado de novo. |
 
 A versão em uso aparece no canto superior direito da tela. Clique nela para ver detalhes ou forçar uma verificação.
@@ -133,7 +135,7 @@ iniciar.bat  [opções]          (Windows)
   --rede               permite acessar de outros computadores da rede (ex.: de fora de uma VM)
   --sem-navegador      não abre o navegador automaticamente
   --sem-atualizacao    não procura versões novas (usa a instalada)
-  --versao X           fixa uma versão da calculadora oficial (ex.: 1.7.2)
+  --versao X           fixa uma versão da calculadora oficial (ex.: 1.7.3)
   --instalar-e-sair    só instala/atualiza o motor, testa e encerra
   --criar-atalho       cria o atalho e encerra
 ```

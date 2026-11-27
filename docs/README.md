@@ -15,7 +15,9 @@ Por onde começar, conforme o que você quer fazer.
 | Resolver um problema na instalação ou na tela | [Solução de problemas](solucao-de-problemas.md) |
 | Achar uma resposta rápida | [Perguntas frequentes](perguntas-frequentes.md) |
 | Entender como a ferramenta funciona por dentro | [Como funciona](como-funciona.md) |
+| Estudar o código | [Roteiro para estudar o código](desenvolvimento.md#roteiro-para-estudar-o-código) |
 | Mudar o código ou testar | [Desenvolvimento](desenvolvimento.md) e [Como contribuir](../CONTRIBUTING.md) |
+| Saber o que mudou em cada versão | [Mudanças](../CHANGELOG.md) |
 
 ## Telas
 

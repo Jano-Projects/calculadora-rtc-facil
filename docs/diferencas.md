@@ -7,12 +7,13 @@ Coisas parecidas que funcionam de jeitos diferentes, lado a lado.
 | | Calculadora oficial (Receita Federal) | Calculadora RTC Fácil |
 |---|---|---|
 | O que é | Uma API, ou seja, um serviço sem tela, que faz os cálculos | Instalador, atualizador e uma tela para a calculadora oficial |
-| Quem calcula | Ela mesma | **A oficial.** Esta ferramenta não tem regra tributária própria. |
+| Quem calcula | Ela mesma | **A oficial.** Esta ferramenta só preenche o que a calculadora ainda não traz (alíquotas de 2027 em diante, IS da MP 1.399) e estima os tributos de hoje no *Antes e depois*, sempre avisando. |
 | Instalação | Manual: Java 25, Git, Maven, gerar o banco, compilar | Um clique; o Java vem junto |
 | Atualização | Manual (baixar e recompilar) | Automática, sem fechar a tela |
 | Como usar | Enviando JSON pela API ou pelo Swagger | Formulário, exemplos prontos e resultado em cupom |
 | Classificação tributária | Você precisa saber o código | Sugere a partir do NCM, com o trecho do anexo |
 | Alíquotas de 2027 em diante | Você precisa informar | Preenche com a referência oficial ou com uma estimativa marcada |
+| Imposto Seletivo em 2027 | Você informa a alíquota; cobra desde 1º de janeiro | Sugere 2,6% e 4,2% (bebidas açucaradas e cervejas) e usa zero até 1º de fevereiro, como manda a MP |
 
 O que a ferramenta **acrescenta** são conveniências de entrada e leitura. Toda conta, validação e mensagem de erro vem da calculadora oficial. O botão *Ver JSON* mostra exatamente o que foi enviado e recebido.
 
@@ -98,10 +99,10 @@ Todas zeram o tributo, mas por motivos diferentes e com códigos diferentes. Iss
 
 | | Soma dos itens | Total oficial (cupom) |
 |---|---|---|
-| Arredondamento | Cada item é arredondado | A calculadora arredonda o total |
+| Arredondamento | Cada valor é arredondado uma vez, no cálculo | É a soma dos valores exibidos nos itens (desde a versão oficial 1.7.2) |
 | Itens com erro | Aparecem com valor zero | Ficam de fora |
 
-Diferenças de centavos são esperadas. Para conferir um ERP, compare item a item.
+Desde a 1.7.2 o total fecha com a soma dos itens. Um ERP que arredonde só no fim pode ficar 1 centavo diferente: para conferir, compare item a item.
 
 ## Endpoint de observabilidade × endpoint do regime geral
 
@@ -114,8 +115,8 @@ A tela usa o endpoint **com observabilidade** da calculadora oficial.
 
 ## Atualizar o motor × atualizar a ferramenta
 
-| | Motor (calculadora oficial) | Ferramenta (tela e scripts) |
-|---|---|---|
-| Quem publica | Receita Federal | Este projeto |
-| Como atualiza | Sozinho, ao abrir e a cada 6 horas | `git pull` ou baixar a release nova (copie a pasta `dados/`) |
-| Onde ver a versão | Selo no canto superior direito | Arquivo `CHANGELOG.md` |
+| | Motor (calculadora oficial) | Ferramenta (tela e scripts) | Java portátil |
+|---|---|---|---|
+| Quem publica | Receita Federal | Este projeto | Eclipse Temurin (Adoptium) |
+| Como atualiza | Sozinho, ao abrir e a cada 6 horas | `git pull` ou baixar a release nova (copie a pasta `dados/`) | Sozinho, ao abrir, a cada 90 dias |
+| Onde ver a versão | Selo no canto superior direito | Aba *Ajuda* e `CHANGELOG.md` | Terminal, ao abrir |

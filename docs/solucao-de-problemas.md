@@ -5,6 +5,9 @@ O registro técnico está em **Ajuda → Ver registro técnico** e nos arquivos 
 ### A primeira abertura está demorando
 É normal levar de 5 a 15 minutos: o programa baixa o Java, a calculadora oficial e as dependências do Maven, e compila tudo. Acompanhe pela tela ou pelo terminal. Nas próximas vezes abre em segundos.
 
+### A calculadora está baixando o Java de novo
+É a renovação a cada 90 dias, para receber as correções de segurança do Java (~200 MB). Acontece também na primeira abertura depois de atualizar para a 1.6.2. Se aparecer **"Não foi possível atualizar o Java agora; continuando com o atual"**, a calculadora abre normalmente e tenta de novo na próxima vez. Se o seu computador estiver sempre sem internet, ignore o aviso.
+
 ### "sem conexão com o GitHub"
 - Confira a internet.
 - Em rede corporativa com proxy, o Java precisa conhecê-lo. Inicie assim:
