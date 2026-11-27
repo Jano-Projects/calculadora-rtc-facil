@@ -1,5 +1,31 @@
 # Mudanças
 
+## 1.6.2 — 2026-11-27
+
+Revisão contra as publicações do governo até 27/11/2026: calculadora oficial 1.7.3 (26/11), MP 1.399/2026 (Imposto Seletivo), cálculo do TCU para a CBS de 2027 (ainda pendente de resolução do Senado até 15/12/2026) e Anexos XVIII a XX da LC 214/2025 (Simples Nacional).
+
+### Segurança
+- **Java4Shell (CVE-2026-114938).** O painel e o motor oficial passam a subir com `-XX:-UseBASE64Intrinsics`, a mesma mitigação que a Receita adotou na versão oficial 1.7.1.
+- **O Java portátil agora se atualiza.** Antes ele era baixado uma única vez e nunca mais trocado. Agora é baixado de novo a cada 90 dias (e na primeira abertura desta versão, para quem já tinha a pasta `dados/jdk`). Se o download falhar, a cópia atual continua em uso.
+
+### Imposto Seletivo
+- **Início em 2 de fevereiro de 2027.** Pela MP 1.399/2026 (art. 19), o IS só produz efeitos a partir de 02/02/2027, mas a base oficial começa em 01/01/2027 e exige o grupo do IS. Para datas de 1º de janeiro a 1º de fevereiro de 2027, a tela envia o IS com alíquota zero e avisa. A conferência de NF-e faz o mesmo.
+- **Alíquotas sugeridas.** A base oficial (até a 1.7.3) não traz as alíquotas do IS. Itens de refrigerante e bebida açucarada (NCM 2202.10.00) e de cerveja de malte (2203) passam a vir com 2,6% e 4,2%, as alíquotas da MP. O campo continua editável.
+
+### Correções
+- **Conferir NF-e:** uma diferença de exatamente 1 centavo aparecia como *Diverge*, embora a tela dissesse que até 1 centavo era arredondamento. Relevante desde a 1.7.2 oficial, que mudou o arredondamento.
+- **Simples Nacional de 2029 em diante:** a nota do quadro "dentro ou fora do DAS" informava o crédito do cliente só com a parte da CBS, sem a parte do IBS que entra no DAS. Os valores da tabela já estavam certos.
+- **Partilha do Simples:** os Anexos II e III de 2027 e 2028 usavam uma divisão proporcional estimada; agora usam os percentuais da LC 214/2025 (13,85% + 0,15% e 15,43% + 0,17%). A diferença era menor que 0,01 ponto.
+
+### Conferido e sem mudança
+- CBS de 11,2% em 2027 e 2028 (referência de 11,3% calculada pelo TCU em 28/10/2026, menos 0,1 ponto) e IBS de 0,05% + 0,05%. O Senado ainda não votou a resolução; o prazo é 15/12/2026.
+- Calculadora oficial 1.7.3: só ajusta datas de vigência de tabelas de NBS (indicador de operação), de 30/11 para 06/12/2026. Nada muda no uso desta ferramenta.
+
+### Documentação e código
+- Comentários para estudo em todo o código: cada função do front-end, do gerenciador Java e do motor simulado diz o que faz e por quê; as fórmulas e regras citam a lei de onde vêm.
+- Pontos de atenção 5 (Imposto Seletivo), 11 (centavos, com a regra de arredondamento da 1.7.2) e 17 (Simples) atualizados. Política de segurança com a atualização do Java.
+- Teste de tela: novo caso de janeiro de 2027, que confere o IS zero e o aviso.
+
 ## 1.6.1 — 2026-11-24
 
 ### Documentação e repositório

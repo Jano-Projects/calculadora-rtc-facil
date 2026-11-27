@@ -55,28 +55,52 @@ baixar() { # url destino
     fi
 }
 
+# O Java portátil recebe correções de segurança a cada trimestre (e fora de época, como a do Java4Shell em
+# 17/11/2026). Por isso ele é baixado de novo quando a cópia tem mais de DIAS_JAVA dias ou não tem a marca de
+# data (cópias de versões anteriores desta ferramenta). Se o download falhar, a cópia antiga continua em uso.
+DIAS_JAVA=90
+MARCA_JAVA="$JDK/.baixado-em"
+java_antigo() {
+    [[ -f "$MARCA_JAVA" ]] || return 0
+    local baixado agora
+    baixado=$(cat "$MARCA_JAVA" 2>/dev/null || echo 0)
+    agora=$(date +%s)
+    (( agora - baixado > DIAS_JAVA * 86400 ))
+}
+
 if [[ -n "${CALC_RTC_JAVA_HOME:-}" ]]; then
     JDK="$CALC_RTC_JAVA_HOME"
     java_ok "$JDK" || erro "CALC_RTC_JAVA_HOME=$JDK não é um JDK $VERSAO_JAVA ou mais novo."
-elif ! java_ok "$JDK"; then
+elif ! java_ok "$JDK" || java_antigo; then
     case "$(uname -m)" in
         x86_64|amd64)   ARQ=x64 ;;
         aarch64|arm64)  ARQ=aarch64 ;;
         *) erro "Arquitetura $(uname -m) não suportada." ;;
     esac
     command -v tar >/dev/null 2>&1 || erro "O comando 'tar' não foi encontrado."
-    info "Baixando o Java $VERSAO_JAVA (Eclipse Temurin, ~200 MB). Isso só acontece na primeira vez..."
+    if java_ok "$JDK"; then
+        info "Atualizando o Java $VERSAO_JAVA portátil (correções de segurança, ~200 MB)..."
+    else
+        info "Baixando o Java $VERSAO_JAVA (Eclipse Temurin, ~200 MB). Isso só acontece na primeira vez..."
+    fi
     mkdir -p "$DADOS"
     TMP="$DADOS/jdk-download.tar.gz"
-    baixar "https://api.adoptium.net/v3/binary/latest/$VERSAO_JAVA/ga/linux/$ARQ/jdk/hotspot/normal/eclipse" "$TMP"
-    rm -rf "$JDK" "$JDK.tmp"
-    mkdir -p "$JDK.tmp"
-    tar -xzf "$TMP" -C "$JDK.tmp" --strip-components=1
-    mv "$JDK.tmp" "$JDK"
-    rm -f "$TMP"
-    java_ok "$JDK" || erro "O Java baixado não funcionou. Apague a pasta '$JDK' e tente de novo."
-    info "Java instalado em $JDK"
+    rm -rf "$JDK.tmp"
+    if baixar "https://api.adoptium.net/v3/binary/latest/$VERSAO_JAVA/ga/linux/$ARQ/jdk/hotspot/normal/eclipse" "$TMP" \
+        && mkdir -p "$JDK.tmp" && tar -xzf "$TMP" -C "$JDK.tmp" --strip-components=1 && java_ok "$JDK.tmp"; then
+        rm -rf "$JDK"
+        mv "$JDK.tmp" "$JDK"
+        date +%s > "$MARCA_JAVA"
+        info "Java instalado em $JDK"
+    elif java_ok "$JDK"; then
+        info "Não foi possível atualizar o Java agora; continuando com o atual."
+    else
+        rm -rf "$JDK.tmp" "$TMP"
+        erro "Não foi possível baixar o Java. Verifique a internet ou o proxy e tente de novo."
+    fi
+    rm -rf "$JDK.tmp" "$TMP"
 fi
 
 # ---------------------------------------------------------------- inicia o gerenciador
-exec "$JDK/bin/java" -Xshare:auto --enable-native-access=ALL-UNNAMED -Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8 "$DIR/app/CalculadoraRTC.java" --base "$DIR" "$@"
+# -XX:-UseBASE64Intrinsics: mitigação do Java4Shell (CVE-2026-114938); o motor oficial também recebe a opção.
+exec "$JDK/bin/java" -XX:-UseBASE64Intrinsics -Xshare:auto --enable-native-access=ALL-UNNAMED -Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8 "$DIR/app/CalculadoraRTC.java" --base "$DIR" "$@"

@@ -3,8 +3,12 @@
  * e com o gerenciador local: /painel/... */
 "use strict";
 
+// Endereços: /api/** é repassado pelo gerenciador local (app/CalculadoraRTC.java) ao motor oficial;
+// /painel/** é respondido pelo próprio gerenciador (estado do motor, log, relação NCM × classificação).
 const API = "/api/calculadora";
+// A partir deste ano a calculadora oficial exige que as alíquotas de CBS e IBS sejam informadas (aliquotasNominais).
 const ANO_ALIQ_OBRIGATORIA = 2027;
+// Atalhos de DOM e de formatação usados no arquivo inteiro.
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const brl = (v) => (Number(v) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -14,6 +18,8 @@ const hoje = () => new Date().toLocaleDateString("sv-SE"); // AAAA-MM-DD no fuso
 const anoDe = (d) => Number(String(d).slice(0, 4));
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
+/** Estado da tela em memória. Os itens da nota são a fonte única: as abas Comparar, Antes e depois
+ *  e Conferir NF-e leem e gravam a mesma lista. Tudo o que importa é salvo no navegador por salvar(). */
 const estado = {
   itens: [],
   ufs: [],
@@ -23,6 +29,8 @@ const estado = {
 const cache = new Map(); // respostas de dados abertos
 
 /* ====================================================================== armazenamento local */
+/** Grava no localStorage os itens, o local, as datas e os ajustes das abas. Não há servidor: os dados
+ *  ficam só neste navegador. Chamado depois de cada alteração. */
 const salvar = () => {
   if (zerando) return;
   try {
@@ -47,10 +55,12 @@ function zerarTudo() {
 /* ---------------------------------------------------------------- link da nota (dados dentro do próprio endereço) */
 const b64url = (bytes) => btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 const deB64url = (s) => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
+/** Comprime ("c") ou descomprime ("d") com deflate-raw, para o link da nota caber no endereço. */
 async function comprimir(texto, sentido) {
   const fluxo = new Blob([texto]).stream().pipeThrough(sentido === "c" ? new CompressionStream("deflate-raw") : new DecompressionStream("deflate-raw"));
   return new Uint8Array(await new Response(fluxo).arrayBuffer());
 }
+/** Monta o link que leva a nota inteira no próprio endereço (depois do #, que o navegador não envia a servidor). */
 async function linkDaNota() {
   salvar();
   const dados = JSON.parse(localStorage.getItem("calc-rtc") || "{}");
@@ -59,6 +69,7 @@ async function linkDaNota() {
   const corpo = typeof CompressionStream === "function" ? "z" + b64url(await comprimir(json, "c")) : "j" + b64url(new TextEncoder().encode(json));
   return `${location.origin}${location.pathname}#nota=${corpo}`;
 }
+/** Abre uma nota recebida por link: grava os dados no navegador e recarrega a página limpa. */
 async function abrirLinkDaNota() {
   const m = location.hash.match(/^#nota=([zj])([A-Za-z0-9_-]+)$/);
   if (!m) return;
@@ -82,11 +93,14 @@ let zerando = false; // impede que um salvar() pendente regrave os dados durante
 if (new URLSearchParams(location.search).has("limpar")) zerarTudo();
 if (location.hash.startsWith("#nota=")) abrirLinkDaNota();
 
+/** Lê o que salvar() gravou; null se não houver nada ou se os dados estiverem corrompidos. */
 const carregarSalvo = () => {
   try { return JSON.parse(localStorage.getItem("calc-rtc") || "null"); } catch { return null; }
 };
 
 /* ====================================================================== chamadas */
+/** Chama a calculadora oficial (pelo proxy local) e devolve { corpo, cabecalhos }. Em erro HTTP, lança um Error
+ *  com a mensagem já traduzida por mensagemDeErro() e o corpo original em e.corpo. */
 async function api(caminho, opcoes = {}) {
   const r = await fetch(API + caminho, {
     ...opcoes,
@@ -103,6 +117,7 @@ async function api(caminho, opcoes = {}) {
   return { corpo, cabecalhos: r.headers };
 }
 
+/** Transforma a resposta de erro da API oficial (formato "problem+json": title, detail, campos) em texto legível. */
 function mensagemDeErro(corpo, status) {
   if (corpo && typeof corpo === "object") {
     const partes = [corpo.title, corpo.detail].filter(Boolean);
@@ -114,6 +129,8 @@ function mensagemDeErro(corpo, status) {
   return `Erro ${status} ao falar com a calculadora.`;
 }
 
+/** Consulta os "dados abertos" da calculadora oficial (UFs, municípios, NCMs, classificações, alíquotas)
+ *  guardando a promessa em cache: a mesma pergunta não vai duas vezes ao motor. */
 async function dadoAberto(caminho) {
   if (cache.has(caminho)) return cache.get(caminho);
   const p = api("/dados-abertos" + caminho).then((r) => r.corpo).catch((e) => { cache.delete(caminho); throw e; });
@@ -121,10 +138,13 @@ async function dadoAberto(caminho) {
   return p;
 }
 
+/** Data da operação escolhida na aba Calcular nota (AAAA-MM-DD); hoje, se estiver vazia. */
 const dataOp = () => $("#op-data").value || hoje();
 
 /* ====================================================================== status do painel / motor */
 let jaIniciouApp = false;
+/** Consulta o gerenciador a cada poucos segundos: mostra a tela de espera enquanto o motor é instalado ou
+ *  atualizado e inicia a aplicação quando ele fica pronto. */
 async function acompanharPainel() {
   let s;
   try {
@@ -145,6 +165,7 @@ async function acompanharPainel() {
   }
 }
 
+/** Tela de espera (primeira instalação) ou de erro, com o log da instalação quando a pessoa abre os detalhes. */
 async function mostrarPreparo(s) {
   const p = $("#preparo");
   p.hidden = false;
@@ -157,6 +178,7 @@ async function mostrarPreparo(s) {
   }
 }
 
+/** Selo no topo com a versão do motor oficial em uso e o aviso de versão nova ou de falha na atualização. */
 function atualizarChip(s) {
   const chip = $("#chip-versao");
   chip.className = "chip";
@@ -184,6 +206,7 @@ function atualizarChip(s) {
     : s.mensagem;
 }
 
+/** Pede ao gerenciador que procure e instale agora a versão mais recente da calculadora oficial. */
 async function pedirAtualizacao() {
   const r = await fetch("/painel/atualizar", { method: "POST" });
   if (r.status === 409) alert("A atualização automática está desligada (o painel foi iniciado com --sem-atualizacao, --versao ou --api-externa).");
@@ -191,12 +214,14 @@ async function pedirAtualizacao() {
 }
 
 /* ====================================================================== operação: data, UF, município */
+/** Preenche a lista de UFs com os dados abertos da base oficial. */
 async function carregarUfs() {
   estado.ufs = await dadoAberto("/ufs");
   estado.ufs.sort((a, b) => a.sigla.localeCompare(b.sigla));
   $("#op-uf").innerHTML = estado.ufs.map((u) => `<option value="${esc(u.sigla)}">${esc(u.sigla)} — ${esc(u.nome)}</option>`).join("");
 }
 
+/** Preenche os municípios da UF (o código IBGE do município define o IBS municipal). */
 async function carregarMunicipios(uf, selecionar) {
   const lista = await dadoAberto("/ufs/municipios?siglaUf=" + encodeURIComponent(uf));
   lista.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
@@ -205,15 +230,18 @@ async function carregarMunicipios(uf, selecionar) {
   if (selecionar && lista.some((m) => String(m.codigo) === String(selecionar))) sel.value = String(selecionar);
 }
 
+/** Frase que explica em que fase da transição a data cai (teste em 2026, CBS cheia em 2027, transição do IBS
+ *  de 2029 a 2032, sistema completo em 2033) e a classe de cor correspondente. */
 function textoFase(data) {
   const ano = anoDe(data);
   if (ano < 2026) return ["Antes de 2026 a CBS e o IBS ainda não existem.", ""];
   if (ano === 2026) return ["2026 é o ano de teste: CBS de 0,9% e IBS de 0,1%, compensados com PIS/Cofins. As alíquotas vêm da base oficial.", ""];
-  if (ano < 2029) return [`${ano}: a CBS substitui o PIS e a Cofins, e começa o Imposto Seletivo. O IBS ainda é simbólico (0,1%).`, "f2027"];
+  if (ano < 2029) return [`${ano}: a CBS substitui o PIS e a Cofins, e começa o Imposto Seletivo${data < INICIO_IS ? " (só em 2 de fevereiro de 2027)" : ""}. O IBS ainda é simbólico (0,1%).`, "f2027"];
   if (ano < 2033) return [`${ano}: transição — o IBS sobe aos poucos enquanto ICMS e ISS diminuem.`, "f2027"];
   return [`${ano}: sistema novo completo. ICMS e ISS deixam de existir.`, "f2027"];
 }
 
+/** Ao trocar a data: atualiza a fase, as classificações vigentes e as alíquotas de referência do quadro. */
 async function aoMudarData() {
   const d = dataOp();
   const [txt, cls] = textoFase(d);
@@ -303,6 +331,7 @@ function notaAliquotas(ref, d) {
   return partes.join(" ") + " Altere se quiser simular outro cenário.";
 }
 
+/** Preenche o quadro de alíquotas da aba Calcular nota. Com forcar = true, sobrescreve o que a pessoa digitou. */
 async function preencherAliquotasReferencia(forcar) {
   const d = dataOp();
   if (anoDe(d) < ANO_ALIQ_OBRIGATORIA) return;
@@ -315,6 +344,9 @@ async function preencherAliquotasReferencia(forcar) {
 
 /* ====================================================================== classificações e NCM */
 let classificacoes = []; // [{codigo, descricao, cst, cstDescricao, reducao}]
+/** Carrega as classificações tributárias (cClassTrib) vigentes na data, agrupadas pelo CST, com o percentual de
+ *  redução de cada uma. O cClassTrib (6 dígitos) diz o tratamento do item: integral, redução de 30%/60%, alíquota
+ *  zero, imunidade etc.; os 3 primeiros dígitos são o CST. */
 async function carregarClassificacoes(data) {
   const [lista, detalhes] = await Promise.all([
     dadoAberto("/situacoes-tributarias/cbs-ibs?data=" + data),
@@ -332,12 +364,14 @@ async function carregarClassificacoes(data) {
   out.sort((a, b) => a.codigo.localeCompare(b.codigo));
   classificacoes = out;
 }
+/** Dados da classificação tributária pelo código, entre as vigentes carregadas. */
 const classificacao = (codigo) => classificacoes.find((c) => c.codigo === codigo);
 
 /* ---------------------------------------------------------------- relação NCM × classificação (base oficial)
  * Gerada pelo gerenciador a partir do banco da versão instalada (tabela NCM_APLICAVEL + anexos da LC 214).
  * regras: [id, prefixoNcm, cClassTrib, inicio, fim, idAnexo]; excecoes: [idRegra, prefixoNcm, inicio, fim] */
 let relacao = null;
+/** Lê a relação NCM × classificação que o gerenciador extraiu do banco oficial. Sem ela, a tela funciona sem sugestões. */
 async function carregarRelacao() {
   try {
     const r = await fetch("/painel/ncm-classificacoes", { cache: "no-cache" });
@@ -352,6 +386,7 @@ async function carregarRelacao() {
       comLista: new Set((d.regras || []).map((r) => r[2])) };
   } catch { relacao = null; }
 }
+/** Vigência como na base oficial: início e fim inclusivos; fim vazio = ainda vigente. Datas como texto AAAA-MM-DD. */
 const vigente = (data, ini, fim) => (!ini || ini <= data) && (!fim || fim >= data);
 
 /** Classificações às quais o NCM está vinculado na data, com o item do anexo que justifica. */
@@ -370,6 +405,7 @@ function classificacoesDoNcm(ncm, data) {
   return [...porCodigo.values()].filter((s) => classificacao(s.codigo)).sort((x, y) => x.codigo.localeCompare(y.codigo));
 }
 
+/** HTML do <select> de classificações: primeiro as vinculadas ao NCM (sugeridas), depois todas, agrupadas por CST. */
 function opcoesClassificacao(selecionada, sugeridas = []) {
   const grupos = new Map();
   if (sugeridas.length) grupos.set("sug", { rotulo: "Vinculadas a este NCM na base oficial", itens: sugeridas.map((s) => classificacao(s.codigo)) });
@@ -392,16 +428,20 @@ function opcoesClassificacao(selecionada, sugeridas = []) {
   return html;
 }
 
+/** CST da classificação: vem da base; se a classificação não estiver carregada, são os 3 primeiros dígitos. */
 const cstDe = (cClassTrib) => (classificacoes.find((c) => c.codigo === cClassTrib) || {}).cst || String(cClassTrib || "").slice(0, 3);
 
+/** Todos os NCMs vigentes na data (para o autocompletar). */
 async function listaNcm(data) {
   return dadoAberto("/ncm/vigentes?data=" + data).catch(() => []);
 }
+/** Detalhe de um NCM na data: descrição e se paga Imposto Seletivo (com a alíquota, quando a base tiver). */
 async function detalheNcm(ncm, data) {
   return dadoAberto(`/ncm?ncm=${encodeURIComponent(ncm)}&data=${data}`).catch(() => null);
 }
 
 /* ====================================================================== editor de itens */
+/** Item vazio da nota, com um id único na sessão (usado para ligar o item ao seu elemento na tela). */
 function novoItem(dados = {}) {
   return {
     descricao: "", tipo: "ncm", codigo: "", cClassTrib: "", valor: "", quantidade: "", unidade: "UN", aliqIS: "",
@@ -410,6 +450,7 @@ function novoItem(dados = {}) {
   };
 }
 
+/** Converte uma linha de web/exemplos.js ([descrição, código, cClassTrib, valor, qtd, unidade, IS %, tipo]) em item. */
 function itemDeExemplo([descricao, codigo, cClassTrib, valor, quantidade, unidade, aliqIS, tipo]) {
   return novoItem({
     descricao, codigo, cClassTrib, valor, quantidade: quantidade ?? "", unidade: unidade || "UN",
@@ -417,6 +458,7 @@ function itemDeExemplo([descricao, codigo, cClassTrib, valor, quantidade, unidad
   });
 }
 
+/** Redesenha a lista de itens a partir de estado.itens, reaproveitando o HTML do <select> entre itens iguais. */
 function renderizarItens() {
   const lista = $("#lista-itens");
   lista.innerHTML = "";
@@ -442,20 +484,40 @@ function renderizarItens() {
   });
 }
 
+/** Ajusta o rótulo e o tamanho do campo de código: NCM (mercadoria, 8 dígitos) ou NBS (serviço, 9 dígitos). */
 function atualizarRotulosItem(el, it) {
   $(".rot-codigo", el).textContent = it.tipo === "nbs" ? "NBS (9 dígitos)" : "NCM (8 dígitos)";
   $("[data-c=codigo]", el).maxLength = it.tipo === "nbs" ? 9 : 8;
 }
 
+/* ---------------------------------------------------------------- Imposto Seletivo (IS)
+ * A base oficial marca o IS a partir de 01/01/2027, mas deixa a alíquota em branco: quem usa precisa informá-la.
+ * A MP 1.399/2026 (art. 19) fixou as alíquotas de 2027 e determinou que elas só produzem efeitos a partir de
+ * 02/02/2027. Entre 01/01 e 01/02/2027 a calculadora oficial ainda exige o grupo do IS; esta tela o envia com
+ * alíquota zero, que é o que a MP determina, e avisa. */
+const INICIO_IS = "2027-02-02";
+
+/** Alíquotas de 2027 da MP 1.399/2026 para os casos em que o NCM leva a uma alíquota só, sem depender
+ *  de teor alcoólico, porte do produtor, cilindrada ou eficiência do veículo. São sugestões: o campo continua
+ *  editável e, se um dia a base oficial trouxer a alíquota, ela é usada no lugar desta. */
+function sugestaoIS2027(ncm) {
+  if (ncm === "22021000") return 2.6; // bebidas açucaradas (águas com açúcar, refrigerantes)
+  if (/^2203/.test(ncm)) return 4.2;  // cervejas de malte
+  return null;
+}
+
 /** Data usada para saber se o produto paga Imposto Seletivo: o IS só existe a partir de 2027. */
 const dataReferenciaIS = (d) => (anoDe(d) >= ANO_ALIQ_OBRIGATORIA ? d : `${ANO_ALIQ_OBRIGATORIA}-01-01`);
 
+/** Detalhe do NCM na base oficial se ele paga Imposto Seletivo na data (ou em 2027, para datas anteriores); senão, null. */
 async function pagaImpostoSeletivo(ncm, data) {
   if (!/^\d{8}$/.test(ncm)) return null;
   const det = await detalheNcm(ncm, dataReferenciaIS(data));
   return det && det.tributadoPeloImpostoSeletivo ? det : null;
 }
 
+/** Depois de digitar o código: mostra a descrição do NCM, atualiza as classificações sugeridas e, se o produto
+ *  paga Imposto Seletivo, mostra o campo do IS já preenchido quando houver alíquota oficial ou sugerida. */
 async function atualizarDescricaoCodigo(el, it) {
   const desc = $(".desc-codigo", el);
   const caixaIS = $(".caixa.is", el);
@@ -473,13 +535,21 @@ async function atualizarDescricaoCodigo(el, it) {
   const det = await pagaImpostoSeletivo(it.codigo, d);
   if (det) {
     caixaIS.hidden = false;
-    if (it.aliqIS === "" && det.aliquotaAdValorem !== null && det.aliquotaAdValorem !== undefined) {
-      it.aliqIS = det.aliquotaAdValorem;
-      $("[data-c=aliqIS]", el).value = it.aliqIS;
+    // Ordem de preferência: o que a pessoa digitou > alíquota da base oficial > sugestão pela MP 1.399/2026
+    if (it.aliqIS === "") {
+      const oficial = det.aliquotaAdValorem !== null && det.aliquotaAdValorem !== undefined ? det.aliquotaAdValorem : null;
+      const sugerida = oficial ?? sugestaoIS2027(it.codigo);
+      if (sugerida !== null) {
+        it.aliqIS = sugerida;
+        $("[data-c=aliqIS]", el).value = it.aliqIS;
+        salvar();
+      }
     }
     caixaIS.title = anoDe(d) < ANO_ALIQ_OBRIGATORIA
       ? "Não entra no cálculo desta data (o Imposto Seletivo começa em 2027), mas é usado na aba Comparar datas."
-      : "Alíquota do Imposto Seletivo do produto. Para 2027, veja a MP 1.399/2026 (ex.: bebidas açucaradas 2,6%, cerveja de malte 4,2%).";
+      : d < INICIO_IS
+        ? "Pela MP 1.399/2026, o Imposto Seletivo só é cobrado a partir de 2 de fevereiro de 2027: nesta data ele entra com alíquota zero."
+        : "Alíquota do Imposto Seletivo do produto. Para 2027, veja a MP 1.399/2026 (ex.: bebidas açucaradas 2,6%, cerveja de malte 4,2%).";
   }
 }
 
@@ -535,10 +605,13 @@ function renderizarAssistente(el, it) {
   box.innerHTML = html;
 }
 
+/** Item de estado.itens correspondente a um elemento .item da tela. */
 function itemDoElemento(el) {
   return estado.itens.find((i) => String(i.id) === el.dataset.id);
 }
 
+/** Eventos da lista de itens (delegação: um ouvinte para todos os itens): digitação, troca de tipo ou de
+ *  classificação, clique numa sugestão e remoção. */
 function ligarEditor() {
   const lista = $("#lista-itens");
   lista.addEventListener("input", (ev) => {
@@ -599,6 +672,7 @@ function ligarEditor() {
 
 /* ---------------------------------------------------------------- autocompletar NCM */
 let sugestaoAlvo = null;
+/** Autocompletar do NCM: lista até 40 códigos que começam com o que foi digitado. */
 async function sugerirNcm(input, it) {
   if (it.tipo !== "ncm" || input.value.length < 2) return fecharSugestoes();
   const lista = await listaNcm(dataOp());
@@ -618,6 +692,7 @@ async function sugerirNcm(input, it) {
   });
 }
 
+/** Caixa flutuante de sugestões, posicionada logo abaixo do campo. */
 function mostrarSugestoes(input, achados, escolher) {
   const box = $("#sugestoes");
   const r = input.getBoundingClientRect();
@@ -647,12 +722,27 @@ document.addEventListener("keydown", (ev) => {
 });
 
 /* ====================================================================== montagem da requisição */
+/** Arredonda para 2 casas (centavos), meio para cima. EPSILON corrige casos como 1.005 → 1.01. */
 const arred2 = (v) => Math.round((v + Number.EPSILON) * 100) / 100;
 
-/** Valida os itens e devolve o JSON no formato da calculadora oficial. */
+/** Valida os itens e devolve o JSON no formato da calculadora oficial (POST /calculadora/regime-geral).
+ *
+ *  Estrutura enviada (os nomes são os da API oficial):
+ *    { id, versao, dhFatoGerador, uf, municipio, itens: [ { numero, ncm|nbs, cst, cClassTrib, baseCalculo,
+ *      quantidade?, unidade?, aliquotasNominais?, impostoSeletivo? } ] }
+ *  - Até 2026 as alíquotas vêm da base oficial e "aliquotasNominais" não é enviado.
+ *  - De 2027 em diante a API exige "aliquotasNominais" (CBS, IBS estadual, IBS municipal) e marca o
+ *    resultado como CALCULO_SIMULADO.
+ *  - Produto com IS: envia-se o grupo "impostoSeletivo" com a base e o valor do IS, e NÃO a base de CBS/IBS;
+ *    a calculadora oficial monta essa base como base do IS + IS (o IS entra na base da CBS e do IBS).
+ *
+ *  opcoes: { aliquotas, bases, aliqIS, uf, municipio } — usadas pelas abas Comparar e Antes e depois,
+ *  que trocam as alíquotas, as bases ou o local sem mexer no que está na tela.
+ *  Devolve { erros, avisos, operacao }: com erros a operação não deve ser enviada; avisos são só informativos. */
 async function montarOperacao(data, opcoes = {}) {
   const ano = anoDe(data);
   const erros = [];
+  const avisos = [];
   let aliq = null;
   if (ano >= ANO_ALIQ_OBRIGATORIA) {
     aliq = opcoes.aliquotas || {
@@ -685,6 +775,13 @@ async function montarOperacao(data, opcoes = {}) {
         if (det) {
           let a = opcoes.aliqIS ? opcoes.aliqIS[i] : num(it.aliqIS);
           if (a === null && det.aliquotaAdValorem !== null && det.aliquotaAdValorem !== undefined) a = Number(det.aliquotaAdValorem);
+          if (a === null) a = sugestaoIS2027(it.codigo);
+          if (data < INICIO_IS) {
+            // MP 1.399/2026, art. 19: o IS só produz efeitos a partir de 02/02/2027. A calculadora oficial exige o
+            // grupo do IS desde 01/01/2027; mandamos alíquota zero para que ela calcule CBS e IBS sem o IS.
+            if (a) avisos.push(`${rot}: o Imposto Seletivo só é cobrado a partir de 2 de fevereiro de 2027 (MP 1.399/2026, art. 19). Nesta data ele entrou com alíquota zero.`);
+            a = 0;
+          }
           if (a === null) {
             erros.push(`${rot}: este produto paga Imposto Seletivo a partir de 2027. Informe a alíquota no campo "Imposto Seletivo %" do item (para 2027, veja a MP 1.399/2026: bebidas açucaradas 2,6%, cerveja de malte 4,2%...).`);
           } else if (valor !== null) {
@@ -706,6 +803,7 @@ async function montarOperacao(data, opcoes = {}) {
   if (!mun) erros.push("Escolha o município.");
   return {
     erros,
+    avisos,
     operacao: {
       id: "calc-rtc-facil-" + Date.now(),
       versao: "1.0.0",
@@ -718,8 +816,13 @@ async function montarOperacao(data, opcoes = {}) {
 }
 
 /* ====================================================================== interpretação da resposta */
+/** Número de um campo da resposta (que pode vir ausente). */
 const n2 = (v) => Number(v || 0);
 
+/** Lê a resposta da calculadora oficial e devolve, por item: base (vBC), alíquota e valor da CBS, valor do IBS
+ *  (estadual + municipal), IS, redução, alíquota efetiva, memória de cálculo e erros; e os totais da nota.
+ *  Caminhos na resposta: objetos[].tribCalc.IBSCBS.gIBSCBS.{vBC, gCBS, gIBSUF, gIBSMun, vIBS} e objetos[].tribCalc.IS.
+ *  Desde a versão oficial 1.7.2, cada total é a soma dos valores exibidos nos itens (sem diferença de centavos). */
 function interpretar(resposta, operacao) {
   const itens = (resposta.objetos || []).map((o) => {
     const env = operacao.itens.find((i) => i.numero === o.nObj) || {};
@@ -761,6 +864,7 @@ function interpretar(resposta, operacao) {
   return { itens, tot, comErro: itens.filter((i) => i.erros.length).length };
 }
 
+/** Situação de cada item na resposta oficial → texto e cor do selo. CALCULO_SIMULADO = usou alíquotas informadas. */
 const nomeEstado = {
   CALCULADO: ["Calculado", "ok"], CALCULO_SIMULADO: ["Simulado", "sim"], INCONSISTENCIA_ENTRADA: ["Erro nos dados", "erro"],
   NAO_IMPLEMENTADO: ["Não implementado", "erro"], FALHA_TECNICA: ["Falha técnica", "erro"],
@@ -768,6 +872,8 @@ const nomeEstado = {
 const selo = (e) => { const [t, c] = nomeEstado[e] || [e, ""]; return `<span class="selo ${c}">${esc(t)}</span>`; };
 
 /* ====================================================================== calcular */
+/** Botão Calcular: monta a operação, chama a rota de observabilidade (que devolve também a memória de cálculo)
+ *  e mostra o cupom e o detalhamento. */
 async function calcular() {
   const st = $("#calc-status");
   const btn = $("#btn-calcular");
@@ -777,7 +883,7 @@ async function calcular() {
   btn.disabled = true;
   try {
     const data = dataOp();
-    const { erros, operacao } = await montarOperacao(data);
+    const { erros, avisos, operacao } = await montarOperacao(data);
     if (erros.length) {
       st.className = "calc-status erro";
       st.textContent = erros[0] + (erros.length > 1 ? ` (+${erros.length - 1} pendência${erros.length > 2 ? "s" : ""})` : "");
@@ -790,6 +896,7 @@ async function calcular() {
     renderizarCupom(estado.ultimoCalculo);
     renderizarDetalhe(resultado);
     st.textContent = resultado.comErro ? `${resultado.comErro} item(ns) com erro — veja o detalhamento.` : "Pronto.";
+    if (avisos.length) st.textContent += " " + avisos[0] + (avisos.length > 1 ? ` (o mesmo vale para mais ${avisos.length - 1} item(ns))` : "");
     if (resultado.comErro) st.className = "calc-status erro";
   } catch (e) {
     st.className = "calc-status erro";
@@ -800,6 +907,7 @@ async function calcular() {
   }
 }
 
+/** Marca em vermelho os campos que impediram o cálculo. */
 function marcarInvalidos() {
   for (const el of $$("#lista-itens .item")) {
     const it = itemDoElemento(el);
@@ -812,6 +920,7 @@ function marcarInvalidos() {
   }
 }
 
+/** Cupom-resumo: valor dos itens, CBS, IBS, IS e a proporção dos tributos novos sobre o valor. */
 function renderizarCupom({ resultado: r, data, aviso }) {
   const uf = $("#op-uf").value;
   const mun = $("#op-mun").selectedOptions[0]?.textContent || "";
@@ -837,6 +946,7 @@ function renderizarCupom({ resultado: r, data, aviso }) {
   $("#cupom-acoes").hidden = false;
 }
 
+/** Tabela por item; clicar numa linha mostra a memória de cálculo devolvida pela calculadora oficial. */
 function renderizarDetalhe(r) {
   const tab = $("#tab-detalhe");
   const temIS = r.itens.some((i) => i.is || i.pIS !== null);
@@ -862,6 +972,7 @@ function renderizarDetalhe(r) {
 }
 
 /* ====================================================================== comparar */
+/** AAAA-MM-DD → DD/MM/AAAA. O T12:00 evita que o fuso horário mude o dia. */
 const fmtData = (d) => new Date(String(d).slice(0, 10) + "T12:00").toLocaleDateString("pt-BR");
 const ladosCmp = { a: "#cmp-a", b: "#cmp-b" };
 const refAliqCmp = {}; // lado -> chave (data|uf|mun) das alíquotas já preenchidas
@@ -915,12 +1026,14 @@ async function renderizarPainelComparacao() {
       <input type="number" step="0.01" min="0" data-is="${it.id}" value="${esc(it.aliqIS)}" placeholder="estimativa"></label>`).join("");
 }
 
+/** Alíquotas digitadas no quadro de um lado da comparação (a, b) ou do cenário Depois (ad). */
 function aliquotasDoLado(lado) {
   const box = $(`.cmp-data[data-lado="${lado}"] .cmp-aliq`);
   const v = (k) => num($(`[data-aliq="${k}"]`, box)?.value);
   return { cbs: v("cbs"), ibsEstadual: v("ibsEstadual"), ibsMunicipal: v("ibsMunicipal") };
 }
 
+/** Calcula a mesma nota em duas datas pela calculadora oficial e mostra a diferença dos tributos novos, item a item. */
 async function comparar() {
   const st = $("#cmp-status");
   const a = $("#cmp-a").value, b = $("#cmp-b").value;
@@ -931,7 +1044,9 @@ async function comparar() {
   st.className = "calc-status";
   st.textContent = "Calculando as duas datas...";
   $("#btn-comparar").disabled = true;
+  const avisosCmp = [];
   try {
+    // Calcula a mesma nota numa data, com as alíquotas do quadro daquele lado (a ou b)
     const rodar = async (d, lado) => {
       let aliquotas = null;
       if (anoDe(d) >= ANO_ALIQ_OBRIGATORIA) {
@@ -940,18 +1055,19 @@ async function comparar() {
           throw new Error(`Preencha as alíquotas de ${fmtData(d)} no quadro "Datas e alíquotas", acima.`);
         }
       }
-      const { erros, operacao } = await montarOperacao(d, { aliquotas });
+      const { erros, avisos, operacao } = await montarOperacao(d, { aliquotas });
       if (erros.length) {
         const msg = erros[0].replace(`no campo "Imposto Seletivo %" do item`, `no quadro "Imposto Seletivo", acima,`);
         throw new Error(`Em ${fmtData(d)}: ${msg}`);
       }
+      if (avisos.length) avisosCmp.push(`Em ${fmtData(d)}: ${avisos[0]}`);
       const r = await api("/observabilidade/regime-geral", { method: "POST", body: JSON.stringify(operacao) });
       return interpretar(r.corpo, operacao);
     };
     const [ra, rb] = await Promise.all([rodar(a, "a"), rodar(b, "b")]);
     estado.ultimaComparacao = { a, b, ra, rb };
     renderizarComparacao(a, b, ra, rb);
-    st.textContent = "";
+    st.textContent = avisosCmp.join(" ");
     salvar();
   } catch (e) {
     st.className = "calc-status erro";
@@ -961,6 +1077,7 @@ async function comparar() {
   }
 }
 
+/** Cartões com o total de cada data e a tabela por item, com barras proporcionais ao maior valor. */
 function renderizarComparacao(a, b, ra, rb) {
   const fmt = (d) => new Date(d + "T12:00").toLocaleDateString("pt-BR");
   const card = (d, r) => `<div class="cmp-card"><h3>${fmt(d)}</h3><div class="valor">${brl(r.tot.tributos)}</div>
@@ -1018,16 +1135,23 @@ function monofasicoPadrao(ncm) {
 }
 const stPadrao = (ncm) => /^220[123]/.test(ncm); // bebidas: ICMS-ST é comum em todos os estados
 
-/** Simples Nacional: parte de cada tributo sobre o consumo no DAS, na 1ª faixa (LC 123/2006, Anexos I a III).
- *  De 2027 em diante (LC 214/2025, Anexos XVIII a XX): em 2027 e 2028 a parte de PIS/Cofins vira CBS + um pouco de IBS
- *  (Anexo I, 1ª faixa: 15,50% → 15,33% de CBS e 0,17% de IBS); de 2029 a 2032 o IBS absorve 10% por ano da parte do
- *  ICMS/ISS; em 2033 o ICMS/ISS sai do DAS. Anexos II e III em 2027–2028: mesma divisão proporcional (estimada). */
+/** Simples Nacional: parte de cada tributo sobre o consumo dentro do DAS, na 1ª faixa.
+ *  Hoje (LC 123/2006, Anexos I a III): pc = PIS + Cofins, icms = ICMS (ou ISS no Anexo III), ipi = IPI.
+ *    Anexo I: Cofins 12,74% + PIS 2,76% = 15,50%; ICMS 34%. Anexo II: Cofins 11,51% + PIS 2,49% = 14,00%; IPI 7,5%;
+ *    ICMS 32%. Anexo III: Cofins 12,82% + PIS 2,78% = 15,60%; ISS 33,5%.
+ *  2027 e 2028 (LC 214/2025, Anexos XVIII, XIX e XX, que reescrevem os Anexos I a III da LC 123): a parte de
+ *    PIS/Cofins vira CBS + um pouco de IBS — Anexo I 15,33% + 0,17%, Anexo II 13,85% + 0,15%, Anexo III 15,43% + 0,17%.
+ *  2029 a 2032: a CBS volta a ocupar toda a antiga parte de PIS/Cofins e o IBS absorve 10% por ano da parte do
+ *    ICMS/ISS (ex.: Anexo I em 2029: CBS 15,50%, ICMS 30,60%, IBS 3,40%). Em 2033 o ICMS/ISS sai do DAS.
+ *  A alíquota total do Simples não muda: só a divisão interna (a "partilha"). */
 const PARTILHA_SN = {
   I: { nome: "Anexo I (comércio)", aliqFaixa1: 4, pc: 0.155, icms: 0.34, ipi: 0, cbs27: 0.1533, ibs27: 0.0017 },
-  II: { nome: "Anexo II (indústria)", aliqFaixa1: 4.5, pc: 0.14, icms: 0.32, ipi: 0.075, cbs27: 0.14 * 0.1533 / 0.155, ibs27: 0.14 * 0.0017 / 0.155 },
-  III: { nome: "Anexo III (serviços)", aliqFaixa1: 6, pc: 0.156, icms: 0.335, ipi: 0, cbs27: 0.156 * 0.1533 / 0.155, ibs27: 0.156 * 0.0017 / 0.155 },
+  II: { nome: "Anexo II (indústria)", aliqFaixa1: 4.5, pc: 0.14, icms: 0.32, ipi: 0.075, cbs27: 0.1385, ibs27: 0.0015 },
+  III: { nome: "Anexo III (serviços)", aliqFaixa1: 6, pc: 0.156, icms: 0.335, ipi: 0, cbs27: 0.1543, ibs27: 0.0017 },
 };
+/** O regime escolhido no Antes e depois é o Simples Nacional? */
 const ehSimplesAd = () => $("#ad-regime").value === "simples";
+/** Partilha do anexo escolhido (serviços usam sempre o Anexo III) e a alíquota efetiva do DAS informada. */
 function parametrosSimples(servico) {
   const anexo = servico ? "III" : $("#ad-sn-anexo").value;
   return { anexo, ...PARTILHA_SN[anexo], a: (num($("#ad-sn-aliq").value) ?? PARTILHA_SN[anexo].aliqFaixa1) / 100, opcao: $("#ad-sn-opcao").value };
@@ -1040,9 +1164,13 @@ function partesSimplesNoAno(sn, ano, fator) {
 
 /** Parte do ICMS/ISS que ainda existe no ano (transição da EC 132: −10% ao ano de 2029 a 2032, extinto em 2033). */
 const fatorIcmsIss = (ano) => (ano <= 2028 ? 1 : ano >= 2033 ? 0 : 1 - (ano - 2028) / 10);
+/** Data do cenário "hoje": a data atual, limitada a 31/12/2026 (último dia das regras antigas completas). */
 const dataAntes = () => { const h = hoje(); return h <= "2026-12-31" ? h : "2026-12-31"; };
+/** Quem vende é o comércio (e não a indústria)? Muda onde o IPI, o IS e o monofásico incidem. */
 const vendeComercio = () => $("#ad-vendedor").value === "comercio";
 
+/** Alíquotas atuais padrão de um item, antes dos ajustes manuais: PIS/Cofins do regime (zero na cesta básica e
+ *  hortifrúti), monofásico pelo NCM, ICMS da UF ou ISS, ICMS-ST nas bebidas e IPI igual ao IS do produto. */
 function padroesAntigos(it, isDet) {
   const regime = num($("#ad-regime").value) ?? 9.25;
   const servico = it.tipo === "nbs";
@@ -1056,6 +1184,7 @@ function padroesAntigos(it, isDet) {
     ipi: !servico && isDet && num(it.aliqIS) !== null ? num(it.aliqIS) : 0,
   };
 }
+/** Valor ajustado à mão na tabela do Antes e depois (guardado no item como ad_<campo>) ou o padrão. */
 const valorAntigo = (it, campo, padrao) => {
   const v = it["ad_" + campo];
   if (v === undefined || v === "") return padrao;
@@ -1063,6 +1192,7 @@ const valorAntigo = (it, campo, padrao) => {
   return num(v);
 };
 
+/** Monta a aba Antes e depois: resumo da nota, alíquotas do cenário Depois e a tabela editável de tributos atuais. */
 async function renderizarAntesDepois() {
   const uf = $("#op-uf").value, munNome = $("#op-mun").selectedOptions[0]?.textContent || "";
   const total = estado.itens.reduce((a, i) => a + (num(i.valor) || 0), 0);
@@ -1162,6 +1292,9 @@ function tributosAtuais(it, isDet) {
   return r;
 }
 
+/** Calcula os dois cenários. Hoje: tributos atuais estimados aqui + CBS/IBS de teste pela calculadora oficial.
+ *  Depois: CBS, IBS e IS pela calculadora oficial sobre o valor sem tributos (L), ICMS/ISS reduzido pela transição.
+ *  O preço estimado supõe repasse integral: margens e custos não mudam, só os tributos. */
 async function calcularAntesDepois() {
   const st = $("#ad-status");
   st.className = "calc-status erro";
@@ -1278,6 +1411,7 @@ function blocoSimples(ok, d) {
   }
   const escolhida = $("#ad-sn-opcao").value;
   const sn = parametrosSimples(false);
+  const partesAno = partesSimplesNoAno(sn, anoDe(d), fatorIcmsIss(anoDe(d))); // CBS e IBS no DAS no ano escolhido
   const col = (lado, k) => `<td class="n${lado === escolhida ? " forte" : ""}">${brl(op[lado][k])}</td>`;
   const linha = (rot, k) => `<tr><td>${rot}</td>${col("dentro", k)}${col("fora", k)}</tr>`;
   const melhorCliente = op.fora.liquido < op.dentro.liquido - 0.005 ? "fora" : "dentro";
@@ -1291,13 +1425,14 @@ function blocoSimples(ok, d) {
           ${linha("Crédito que um cliente empresa do regime regular aproveita", "credito")}
           ${linha("Custo para esse cliente, descontado o crédito", "liquido")}
         </tbody></table></div>
-      <p class="nota">Dentro do DAS, a nota informa ao cliente só a parte de CBS e IBS paga na guia (aqui, ${pct(sn.a * 100 * (anoDe(d) <= 2028 ? sn.cbs27 + sn.ibs27 : sn.pc), 2)} da venda) e é esse o crédito dele.
+      <p class="nota">Dentro do DAS, a nota informa ao cliente só a parte de CBS e IBS paga na guia (aqui, ${pct(sn.a * 100 * (partesAno.cbs + partesAno.ibs), 2)} da venda) e é esse o crédito dele.
         Por fora, o crédito é a CBS e o IBS cheios, e você também passa a aproveitar como crédito a CBS e o IBS que o seu fornecedor cobrou (dentro do DAS, eles ficam no seu custo).
         Para o consumidor final, que não usa crédito, o que importa é o preço. Para um cliente empresa, <strong>${melhorCliente === "fora" ? "comprar de quem recolhe por fora sai mais barato" : "a diferença de custo é pequena ou favorece o DAS"}</strong> neste cenário.
         A conta supõe fornecedores do lucro real e compras de ${pct(num($("#ad-fabrica").value) ?? 60, 0)} do preço. Recolher por fora exige apuração própria de CBS e IBS, e a opção é feita por semestre, no prazo do Comitê Gestor do Simples. Converse com o seu contador.</p>
     </div>`;
 }
 
+/** Quadros e tabela do resultado do Antes e depois: totais, preço estimado, o que migra e o que fica. */
 function renderizarResultadoAntesDepois(itens, d, fator, cbsNaBaseIcms) {
   const ok = itens.filter((x) => !x.erro);
   const soma = (f) => ok.reduce((a, x) => a + f(x), 0);
@@ -1412,6 +1547,7 @@ async function buscarNcm() {
   }
 }
 
+/** Aba Ajuda: busca classificações tributárias pelo código ou pela descrição (até 120 resultados). */
 function buscarClassificacao() {
   const q = $("#busca-class").value.trim().toLowerCase();
   const ul = $("#res-class");
@@ -1428,6 +1564,7 @@ function baixarArquivo(nome, conteudo, tipo) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+/** Exporta o detalhamento do último cálculo em CSV (separador ;, vírgula decimal, para abrir no Excel/LibreOffice). */
 function exportarCsv() {
   const c = estado.ultimoCalculo;
   if (!c?.resultado) return;
@@ -1440,12 +1577,14 @@ function exportarCsv() {
   baixarArquivo(`tributos-${c.data}.csv`, csv, "text/csv;charset=utf-8");
 }
 
+/** Salva os itens da nota num arquivo JSON, para reabrir depois ou em outro computador. */
 function exportarItens() {
   const dados = { formato: "calculadora-rtc-facil/itens@1", uf: $("#op-uf").value, municipio: $("#op-mun").value, data: dataOp(),
     itens: estado.itens.map(({ id, verOpcoes, ...resto }) => resto) };
   baixarArquivo("itens-nota.json", JSON.stringify(dados, null, 2), "application/json");
 }
 
+/** Abre itens de um JSON salvo por exportarItens(), de um JSON no formato da API oficial ou do XML de uma NF-e/NFC-e. */
 async function importarItens(arquivo) {
   try {
     const conteudo = await arquivo.text();
@@ -1487,6 +1626,7 @@ async function carregarExemplo(chave) {
   salvar();
 }
 
+/** Mostra a aba pedida e prepara o conteúdo dela com os itens atuais. */
 function trocarAba(nome) {
   $$(".abas button").forEach((b) => b.setAttribute("aria-selected", b.dataset.aba === nome));
   $(`.abas button[data-aba="${nome}"]`)?.scrollIntoView({ block: "nearest", inline: "nearest" });
@@ -1498,6 +1638,7 @@ function trocarAba(nome) {
   if (nome === "nfe") renderizarNfe();
 }
 
+/** Primeira carga, quando o motor fica pronto: UFs, municípios, relação NCM × classificação e dados salvos. */
 async function iniciarApp() {
   const salvo = carregarSalvo();
   $("#op-data").value = salvo?.data || hoje();
@@ -1530,6 +1671,7 @@ async function iniciarApp() {
   listaNcm(dataOp()); // pré-carrega a lista de NCM para o autocompletar
 }
 
+/** Liga os botões e campos da página às funções acima. */
 function ligarEventos() {
   $$(".abas button").forEach((b) => b.addEventListener("click", () => trocarAba(b.dataset.aba)));
   $("#chip-versao").addEventListener("click", () => trocarAba("ajuda"));

@@ -55,37 +55,61 @@ function Test-Jdk($home_) {
     return $false
 }
 
+# O Java portatil recebe correcoes de seguranca a cada trimestre (e fora de epoca, como a do Java4Shell em
+# 17/11/2026). Por isso e baixado de novo quando a copia tem mais de $DiasJava dias ou nao tem a marca de data
+# (copias de versoes anteriores desta ferramenta). Se o download falhar, a copia antiga continua em uso.
+$DiasJava = 90
+function Test-JdkAntigo($home_) {
+    $marca = Join-Path $home_ '.baixado-em'
+    if (-not (Test-Path $marca)) { return $true }
+    $baixado = [DateTime]::MinValue
+    if (-not [DateTime]::TryParse((Get-Content $marca -Raw).Trim(), [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::RoundtripKind, [ref]$baixado)) { return $true }
+    return ((Get-Date) - $baixado).TotalDays -gt $DiasJava
+}
+
 if ($env:CALC_RTC_JAVA_HOME) {
     $Jdk = $env:CALC_RTC_JAVA_HOME
     if (-not (Test-Jdk $Jdk)) { Falha "CALC_RTC_JAVA_HOME=$Jdk nao e um JDK $VersaoJava ou mais novo." }
 }
-elseif (-not (Test-Jdk $Jdk)) {
+elseif (-not (Test-Jdk $Jdk) -or (Test-JdkAntigo $Jdk)) {
+    $temJava = Test-Jdk $Jdk
     $arq = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'aarch64' } else { 'x64' }
-    Info "Baixando o Java $VersaoJava (Eclipse Temurin, ~200 MB). Isso so acontece na primeira vez..."
+    if ($temJava) { Info "Atualizando o Java $VersaoJava portatil (correcoes de seguranca, ~200 MB)..." }
+    else { Info "Baixando o Java $VersaoJava (Eclipse Temurin, ~200 MB). Isso so acontece na primeira vez..." }
     New-Item -ItemType Directory -Force -Path $Dados | Out-Null
     $zip = Join-Path $Dados 'jdk-download.zip'
     $tmp = Join-Path $Dados 'jdk-tmp'
     $url = "https://api.adoptium.net/v3/binary/latest/$VersaoJava/ga/windows/$arq/jdk/hotspot/normal/eclipse"
     try {
         Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing
+        if (Test-Path $tmp) { Remove-Item -Recurse -Force $tmp }
+        Expand-Archive -Path $zip -DestinationPath $tmp -Force
+        $interno = Get-ChildItem -Path $tmp -Directory | Select-Object -First 1
+        if (-not (Test-Jdk $interno.FullName)) { throw 'o Java baixado nao funcionou' }
+        # Renomeia o Java atual antes de trocar: se ele estiver em uso por outra janela, o Windows recusa o
+        # Move-Item e nada e apagado (a troca fica para a proxima vez)
+        $antigo = "$Jdk-antigo"
+        if (Test-Path $antigo) { Remove-Item -Recurse -Force $antigo }
+        if (Test-Path $Jdk) { Move-Item -Path $Jdk -Destination $antigo }
+        Move-Item -Path $interno.FullName -Destination $Jdk
+        (Get-Date).ToString('o') | Set-Content -Path (Join-Path $Jdk '.baixado-em')
+        if (Test-Path $antigo) { Remove-Item -Recurse -Force $antigo -ErrorAction SilentlyContinue }
+        Info "Java instalado em $Jdk"
     } catch {
-        Falha "Nao consegui baixar o Java. Verifique a internet/proxy. Detalhe: $($_.Exception.Message)"
+        if (-not (Test-Path $Jdk) -and (Test-Path "$Jdk-antigo")) { Move-Item -Path "$Jdk-antigo" -Destination $Jdk }
+        if ($temJava) { Info "Nao foi possivel atualizar o Java agora; continuando com o atual. ($($_.Exception.Message))" }
+        else { Falha "Nao consegui baixar o Java. Verifique a internet/proxy. Detalhe: $($_.Exception.Message)" }
+    } finally {
+        if (Test-Path $tmp) { Remove-Item -Recurse -Force $tmp }
+        if (Test-Path $zip) { Remove-Item -Force $zip }
     }
-    if (Test-Path $tmp) { Remove-Item -Recurse -Force $tmp }
-    if (Test-Path $Jdk) { Remove-Item -Recurse -Force $Jdk }
-    Expand-Archive -Path $zip -DestinationPath $tmp -Force
-    $interno = Get-ChildItem -Path $tmp -Directory | Select-Object -First 1
-    Move-Item -Path $interno.FullName -Destination $Jdk
-    Remove-Item -Recurse -Force $tmp
-    Remove-Item -Force $zip
-    if (-not (Test-Jdk $Jdk)) { Falha "O Java baixado nao funcionou. Apague a pasta '$Jdk' e tente de novo." }
-    Info "Java instalado em $Jdk"
 }
 
 # ---------------------------------------------------------------- inicia o gerenciador
 $java = Join-Path $Jdk 'bin\java.exe'
 $app = Join-Path $Dir 'app\CalculadoraRTC.java'
-$argumentos = @('--enable-native-access=ALL-UNNAMED', '-Dfile.encoding=UTF-8', '-Dstdout.encoding=UTF-8', $app, '--base', $Dir)
+# -XX:-UseBASE64Intrinsics: mitigacao do Java4Shell (CVE-2026-114938); o motor oficial tambem recebe a opcao.
+$argumentos = @('-XX:-UseBASE64Intrinsics', '--enable-native-access=ALL-UNNAMED', '-Dfile.encoding=UTF-8', '-Dstdout.encoding=UTF-8', $app, '--base', $Dir)
 if ($Resto.Count -gt 0) { $argumentos += $Resto }
 & $java @argumentos
 # 130 / -1073741510 = encerrada com Ctrl+C (normal)

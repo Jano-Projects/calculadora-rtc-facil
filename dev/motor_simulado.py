@@ -27,6 +27,7 @@ D2 = Decimal("0.01")
 
 
 def q(sql, *args):
+    """Executa uma consulta no banco de desenvolvimento, somente leitura."""
     con = sqlite3.connect(f"file:{DB}?mode=ro", uri=True)
     try:
         return con.execute(sql, args).fetchall()
@@ -35,20 +36,24 @@ def q(sql, *args):
 
 
 def vigente(prefixo, data):
+    """Trecho SQL de vigência na data (início e fim inclusivos; fim nulo = vigente), como na base oficial."""
     return (f"{prefixo}_INICIO_VIGENCIA <= '{data}' AND "
             f"({prefixo}_FIM_VIGENCIA IS NULL OR {prefixo}_FIM_VIGENCIA >= '{data}')")
 
 
 def dinheiro(v):
+    """Valor com 2 casas, arredondamento comercial (meio para cima), como texto."""
     return str(Decimal(v).quantize(D2, ROUND_HALF_UP))
 
 
 def aliquota_ref(tributo, data):
+    """Alíquota de referência do tributo na data (2 = CBS, 3 = IBS estadual, 4 = IBS municipal); zero se não houver."""
     r = q(f"select ALRE_VALOR from ALIQUOTA_REFERENCIA where ALRE_TBTO_ID=? and {vigente('ALRE', data)}", tributo, )
     return Decimal(str(r[0][0])) if r else Decimal(0)
 
 
 def classificacao(codigo, data):
+    """(id, código, descrição, CST) da classificação tributária vigente, ou None."""
     r = q(f"""select c.CLTR_ID, c.CLTR_CD, c.CLTR_DESCRICAO, s.SITR_CD from CLASSIFICACAO_TRIBUTARIA c
               join SITUACAO_TRIBUTARIA s on s.SITR_ID=c.CLTR_SITR_ID
               where c.CLTR_CD=? and {vigente('c.CLTR', data)} order by c.CLTR_ID limit 1""",
@@ -57,11 +62,13 @@ def classificacao(codigo, data):
 
 
 def reducao(cltr_id, data):
+    """Percentual de redução da CBS da classificação (ex.: 60 para os 60% de redução); zero se não houver."""
     r = q(f"select PERE_VALOR from PERCENTUAL_REDUCAO where PERE_CLTR_ID=? and PERE_TBTO_ID=2 and {vigente('PERE', data)}", cltr_id)
     return Decimal(str(r[0][0])) if r else Decimal(0)
 
 
 def ncm_vinculado(ncm, cltr_id, data):
+    """A classificação aceita este NCM? Se ela não tem lista de NCMs, aceita qualquer um (erro REG-011 da oficial)."""
     tem_lista = q("select count(*) from NCM_APLICAVEL where NCMA_CLTR_ID=?", cltr_id)[0][0]
     if not tem_lista:
         return True
@@ -71,6 +78,7 @@ def ncm_vinculado(ncm, cltr_id, data):
 
 
 def ncm_is(ncm, data):
+    """O NCM paga Imposto Seletivo na data?"""
     r = q(f"""select count(*) from NCM_APLICAVEL a join CLASSIFICACAO_TRIBUTARIA c on c.CLTR_ID=a.NCMA_CLTR_ID
               join SITUACAO_TRIBUTARIA s on s.SITR_ID=c.CLTR_SITR_ID
               where s.SITR_DESCRICAO like '%Imposto Seletivo%' and c.CLTR_CD='000001'
@@ -79,11 +87,15 @@ def ncm_is(ncm, data):
 
 
 def erro_item(n, code, title, detail, pointer):
+    """Item recusado, no mesmo formato de erro da calculadora oficial."""
     return {"nObj": n, "estadoItem": "INCONSISTENCIA_ENTRADA",
             "erros": [{"code": code, "title": title, "detail": detail, "pointer": pointer}]}
 
 
 def calcular(op):
+    """Imita POST /calculadora/regime-geral: valida o item, monta a base (com IS, base = base do IS + IS),
+    aplica a redução da classificação e calcula CBS, IBS estadual e municipal. Desde a 1.7.2 a oficial
+    arredonda a alíquota efetiva a 4 casas antes de multiplicar a base; aqui também."""
     data = op["dhFatoGerador"][:10]
     ano = int(data[:4])
     objetos, tot = [], {"vBC": Decimal(0), "cbs": Decimal(0), "ibs": Decimal(0), "is": Decimal(0)}
@@ -215,6 +227,7 @@ class H(BaseHTTPRequestHandler):
         pass
 
     def responder(self, status, obj, extra=None):
+        """Responde em JSON (o cabeçalho de dados simulados imita o da calculadora oficial)."""
         b = json.dumps(obj, ensure_ascii=False).encode()
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
@@ -225,6 +238,7 @@ class H(BaseHTTPRequestHandler):
         self.wfile.write(b)
 
     def do_GET(self):
+        """Dados abertos: UFs, municípios, NCMs, classificações e alíquotas, lidos do banco de desenvolvimento."""
         u = urlparse(self.path)
         p = u.path.replace("/api/calculadora/dados-abertos", "")
         a = {k: v[0] for k, v in parse_qs(u.query).items()}
@@ -275,6 +289,7 @@ class H(BaseHTTPRequestHandler):
         return self.responder(404, {"title": "não implementado no simulador", "detail": p})
 
     def do_POST(self):
+        """Cálculo da operação e base unificada da NF-e."""
         if self.path.startswith("/api/calculadora/base-calculo/base-calculo-unificada"):
             e = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))))
             rg, bis = bases_componentes(e, int(e["anoFatoGerador"]), str(e.get("natureza", "BEM")).upper() == "BEM", int(e["tipoDocumento"]))

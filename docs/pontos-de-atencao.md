@@ -41,12 +41,12 @@ Leia antes de usar os resultados para qualquer decisão. Cada item diz **o que p
 
 **O que pode enganar.**
 - **Alíquotas provisórias.** As alíquotas de 2027 foram fixadas pela **Medida Provisória 1.399/2026**. Alguns exemplos: bebidas açucaradas 2,6%, cerveja de malte 4,2%, vinhos 8%, destilados 24%. Uma medida provisória que cria ou aumenta imposto precisa virar lei para valer no ano seguinte, então esses números ainda podem mudar.
-- **Início em fevereiro.** Pela MP, o IS começa a produzir efeitos em **2 de fevereiro de 2027**. A calculadora oficial não aplica essa data: se você informar uma alíquota de IS para uma operação de janeiro de 2027, ela calcula.
-- **Valor estimado.** A alíquota é informada por você em cada item. O campo pode vir vazio ou com uma estimativa dos exemplos.
+- **Início em fevereiro.** Pela MP (art. 19), o IS só produz efeitos a partir de **2 de fevereiro de 2027**. A base da calculadora oficial ainda marca o início em 1º de janeiro e exige o grupo do IS nessas datas. Por isso, para operações de **1º de janeiro a 1º de fevereiro de 2027**, a tela envia o IS com **alíquota zero** e avisa ao lado do botão *Calcular*. A conferência de NF-e faz o mesmo.
+- **Valor estimado.** A base oficial ainda não traz as alíquotas do IS: você informa em cada item. Para refrigerantes e bebidas açucaradas (NCM 2202.10.00) e cervejas de malte (2203), em que a MP leva a uma alíquota só, o campo já vem com **2,6%** e **4,2%**. Nos demais produtos (vinhos, destilados, cigarros, veículos...), a alíquota depende de teor alcoólico, porte do produtor ou características do veículo, e o campo vem vazio.
 
 - **Cobrado uma vez, na indústria.** O IS é cobrado na venda da indústria ou do importador, sobre o preço de fábrica. Nas abas *Calcular nota* e *Comparar datas*, informar o IS num item trata aquela venda como **venda da indústria**. Para simular uma compra no comércio, use a aba *Antes e depois* com "Quem vende: comércio".
 
-**O que fazer.** Confira a alíquota do seu produto na MP, porque ela varia por tipo de bebida, cigarro, veículo etc. Para operações entre 1º de janeiro e 1º de fevereiro de 2027, avalie com o contador se o IS deve entrar. Lembre que o IS entra na base de cálculo da CBS e do IBS.
+**O que fazer.** Confira a alíquota do seu produto na MP, porque ela varia por tipo de bebida, cigarro, veículo etc. Acompanhe a votação da MP no Congresso: se o texto mudar ao virar lei, os valores sugeridos mudam numa versão nova desta ferramenta. Lembre que o IS entra na base de cálculo da CBS e do IBS.
 
 ## 6. A classificação tributária depende da operação, não só do produto
 
@@ -84,9 +84,9 @@ Qual delas vale depende de **quem vende, para quem e com que finalidade**.
 
 ## 11. Centavos de diferença
 
-**O que pode enganar.** Os totais oficiais da calculadora podem diferir em centavos da soma dos itens, por causa do arredondamento feito item a item.
+**O que pode enganar.** Desde a versão oficial **1.7.2** (25/11/2026), a calculadora arredonda cada valor uma única vez, no próprio cálculo, e usa o valor arredondado na conta seguinte: a base sai com 2 casas, a alíquota efetiva (com redução) com 4 casas, o IBS do item é a soma do IBS estadual e do municipal exibidos e cada total é a soma dos itens exibidos. Antes, os totais podiam diferir da soma dos itens em centavos. Um ERP que ainda faça as contas com mais casas e arredonde só no fim pode ficar **1 centavo** diferente da calculadora oficial.
 
-**O que fazer.** Para conferir com um ERP, compare **item a item**. O botão *Ver JSON* mostra exatamente o que a calculadora oficial devolveu.
+**O que fazer.** Para conferir com um ERP, compare **item a item**. O botão *Ver JSON* mostra exatamente o que a calculadora oficial devolveu. Na aba *Conferir NF-e*, diferenças de até 1 centavo contam como arredondamento e o item aparece como *Confere*.
 
 ## 12. Os exemplos têm preços fictícios
 
@@ -133,7 +133,7 @@ A regra de base de cada tributo está em [tributos e bases](tributos-e-bases.md)
 
 ## 17. Simples Nacional: dentro ou fora do DAS é uma decisão com o contador
 
-**O que pode enganar.** O quadro do Simples no *Antes e depois* usa a partilha do DAS da **1ª faixa** do anexo escolhido, considera **fornecedores do lucro real** e aplica a mesma margem nas duas opções. Faixas maiores mudam um pouco a divisão da guia. A divisão de 2027 e 2028 do Anexo I é a da LC 214/2025, e a dos Anexos II e III é estimada na mesma proporção. A conta não inclui o custo de apurar CBS e IBS por fora (obrigações acessórias, sistema, contador) nem o efeito no fluxo de caixa.
+**O que pode enganar.** O quadro do Simples no *Antes e depois* usa a partilha do DAS da **1ª faixa** do anexo escolhido, considera **fornecedores do lucro real** e aplica a mesma margem nas duas opções. Faixas maiores mudam um pouco a divisão da guia. A divisão de 2027 a 2033 é a dos Anexos XVIII a XX da LC 214/2025 (por exemplo, na 1ª faixa de 2027 e 2028: CBS de 15,33% e IBS de 0,17% no Anexo I; 13,85% e 0,15% no Anexo II; 15,43% e 0,17% no Anexo III). A conta não inclui o custo de apurar CBS e IBS por fora (obrigações acessórias, sistema, contador) nem o efeito no fluxo de caixa.
 
 **O que fazer.** Use o quadro para ver o **sentido e a ordem de grandeza** da escolha: quem vende a consumidor final tende a ficar melhor dentro do DAS, e quem vende a empresas do regime regular tende a ficar melhor por fora, porque o cliente aproveita o crédito cheio. A opção é feita por semestre, nos prazos do Comitê Gestor do Simples Nacional. Decida com o seu contador, com os números reais da empresa.
 

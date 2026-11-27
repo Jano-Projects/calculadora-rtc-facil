@@ -1,6 +1,11 @@
 /* Exemplos prontos. Os códigos (NCM × cClassTrib) foram conferidos na base oficial da calculadora.
  * Os preços são estimativas de mercado; troque pelos seus.
  * Imposto Seletivo: alíquotas de 2027 da MP 1.399/2026 (bebidas açucaradas 2,6%; cerveja de malte 4,2%). */
+/* Formato de cada exemplo: { nome, local: { uf, municipio (código IBGE) }, itens: [linha, ...] }.
+ * Cada linha: [descrição, NCM ou NBS, cClassTrib, valor (R$), quantidade, unidade, alíquota do IS % (opcional), "nbs" para serviço].
+ * cClassTrib usados aqui (base oficial): 000001 tributação integral; 200003 cesta básica nacional (Anexo I da LC 214,
+ * alíquota zero); 200014 hortícolas, frutas e ovos (Anexo XV, alíquota zero); 200028 educação (Anexo II), 200034
+ * alimentos (Anexo VII) e 200035 higiene pessoal e limpeza (Anexo VIII), com redução de 60%. Lista completa na aba Ajuda. */
 window.EXEMPLOS = {
   cesta: {
     nome: "Cesta básica completa",

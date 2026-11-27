@@ -7,9 +7,11 @@
 /* ====================================================================== leitura do XML */
 // filhos diretos pelo nome local (o XML da NF-e usa namespace)
 const filho = (el, nome) => (el ? [...el.children].find((c) => c.localName === nome) || null : null);
+// caminho(el, "a", "b") = neto <b> dentro do filho <a>; texto() e valorXml() leem o conteúdo como texto ou número
 const caminho = (el, ...nomes) => nomes.reduce((e, n) => filho(e, n), el);
 const texto = (el, ...nomes) => { const e = caminho(el, ...nomes); return e ? e.textContent.trim() : ""; };
 const valorXml = (el, ...nomes) => { const t = texto(el, ...nomes); return t === "" ? null : Number(t); };
+// Ex.: <ICMS><ICMS00>...</ICMS00></ICMS> — o grupo de dentro muda conforme o CST, então pegamos o primeiro
 const primeiroFilho = (el) => (el && el.children.length ? el.children[0] : null);
 
 /** Lê o texto de um XML de NF-e (modelo 55) ou NFC-e (modelo 65), com ou sem o protocolo de autorização. */
@@ -80,8 +82,10 @@ function lerNfe(xmlTexto) {
   return { cab, itens };
 }
 
+// CRT (Código de Regime Tributário do emitente) que indicam Simples Nacional
 const SIMPLES = new Set(["1", "2", "4"]); // CRT: 1 Simples Nacional, 2 excesso de sublimite, 4 MEI
 const ehSimples = (cab) => SIMPLES.has(cab.emitente.crt);
+// CST (regime normal) e CSOSN (Simples) do ICMS que indicam substituição tributária
 const ICMS_ST = /^(10|30|60|70)$|^(201|202|203|500)$/;
 
 /** Converte um item da NF-e em item da nota, já com os tributos de hoje para a aba "Antes e depois". */
@@ -126,9 +130,11 @@ async function importarNfe(xmlTexto) {
 }
 
 /* ====================================================================== aba Conferir NF-e */
+// Nomes dos códigos de regime tributário (CRT) mostrados no resumo da nota
 const nomeCrt = { 1: "Simples Nacional", 2: "Simples Nacional (excesso de sublimite)", 3: "Regime normal", 4: "MEI" };
 let refAliqNfe = null;
 
+/** Mostra o resumo da nota aberta (número, emitente, local, totais) e o quadro de alíquotas para a conferência. */
 async function renderizarNfe() {
   const n = estado.nfe;
   $("#nfe-vazio").hidden = !!n;
@@ -201,6 +207,8 @@ function operacaoDaNfe(n, aliq, bases) {
       item.baseCalculo = arred2(bases[k].is + (x.is.vIS ?? 0));
       if (x.is.qTrib) { item.impostoSeletivo.quantidade = x.is.qTrib; item.impostoSeletivo.unidade = (x.is.uTrib || "UN").slice(0, 6).toUpperCase(); }
       item.aliquotasNominais.impostoSeletivo = { ...(x.is.p !== null ? { adValorem: x.is.p } : {}), ...(x.is.pEspec ? { adRem: x.is.pEspec } : {}) };
+      // MP 1.399/2026, art. 19: antes de 02/02/2027 o IS não é devido; a conferência usa alíquota zero
+      if (c.dhEmi.slice(0, 10) < INICIO_IS) item.aliquotasNominais.impostoSeletivo = { adValorem: 0 };
     }
     return item;
   });
@@ -208,8 +216,15 @@ function operacaoDaNfe(n, aliq, bases) {
     municipio: Number($("#op-mun").value || c.local.mun), uf: $("#op-uf").value || c.local.uf, itens };
 }
 
-const TOLERANCIA = 0.009; // diferenças de até 1 centavo são arredondamento
+/** Diferença que ainda conta como arredondamento: até 1 centavo. O limite fica entre 0,01 e 0,02 porque contas
+ *  com números de ponto flutuante dão, por exemplo, 0,13 − 0,12 = 0,010000000000000009; com 0,009 (valor antigo)
+ *  uma diferença de exatamente 1 centavo era marcada como divergência. Desde a versão oficial 1.7.2 a calculadora
+ *  arredonda cada valor uma única vez, o que pode dar 1 centavo de diferença para sistemas emissores que somam
+ *  antes de arredondar. */
+const TOLERANCIA = 0.015;
 
+/** Conferência: (1) pede à calculadora oficial a base de cada item com os componentes da nota; (2) calcula a nota
+ *  com essas bases; (3) compara base, CBS, IBS, IS e classificação, item a item, com o que a nota destacou. */
 async function conferirNfe() {
   const st = $("#nfe-status"), n = estado.nfe;
   st.className = "calc-status erro";
@@ -260,8 +275,10 @@ async function conferirNfe() {
   }
 }
 
+// Situação de cada item na conferência → texto do selo
 const NOME_SITUACAO = { confere: "Confere", diverge: "Diverge", erro: "Erro", "sem-destaque": "Sem destaque" };
 
+/** Tabela da conferência: situação de cada item, valores da nota × oficiais e totais. */
 function renderizarConferencia({ linhas }) {
   const n = estado.nfe;
   const conta = (s) => linhas.filter((l) => l.situacao === s).length;
@@ -311,6 +328,7 @@ function renderizarConferencia({ linhas }) {
     <p class="nota">A calculadora oficial monta a base de cada item com os valores da própria nota (produto, frete, seguro, outras despesas, desconto, ICMS, PIS/Cofins quando vigentes...) e calcula CBS, IBS e Imposto Seletivo pelas regras da data de emissão. Diferenças de até 1 centavo são tratadas como arredondamento.</p>`;
 }
 
+/** Exporta a conferência em CSV (separador ;, vírgula decimal). */
 function exportarConferenciaCsv() {
   const c = estado.nfeConferencia;
   if (!c) return;
@@ -324,6 +342,7 @@ function exportarConferenciaCsv() {
   baixarArquivo(`conferencia-nfe-${estado.nfe.cab.numero || "nota"}.csv`, "﻿" + linhas.join("\r\n"), "text/csv");
 }
 
+/** Abre o XML escolhido no botão da aba Conferir NF-e. */
 async function abrirArquivoNfe(arquivo) {
   const st = $("#nfe-status");
   try {

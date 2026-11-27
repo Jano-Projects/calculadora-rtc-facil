@@ -36,8 +36,9 @@ public class CalculadoraRTC {
 
     // ------------------------------------------------------------------ configuração
     static final String REPO_PADRAO = "https://github.com/ReceitaFederal/calculadora-rtc-regime-regular";
-    static final String VERSAO_PAINEL = "1.6.1";
+    static final String VERSAO_PAINEL = "1.6.2";
 
+    // Pastas: base = raiz do projeto; dados/ guarda o que é baixado e gerado (motores, fontes, logs, JDK)
     static Path base, dados, dirWeb, dirMotores, dirFontes, dirLogs;
     static String repo = env("CALC_RTC_REPO", REPO_PADRAO);
     static int portaWeb = Integer.parseInt(env("CALC_RTC_PORTA", "8090"));
@@ -59,6 +60,7 @@ public class CalculadoraRTC {
     static volatile int portaMotor = -1;
     static final AtomicReference<Path> ultimoLog = new AtomicReference<>();
 
+    // http: downloads no GitHub (segue redirecionamentos); httpLocal: conversa com o motor em 127.0.0.1
     static final HttpClient http = HttpClient.newBuilder()
             .followRedirects(HttpClient.Redirect.NORMAL)
             .connectTimeout(Duration.ofSeconds(20))
@@ -74,6 +76,8 @@ public class CalculadoraRTC {
     });
 
     // ================================================================== main
+    /** Ponto de entrada: lê as opções, cria as pastas, sobe o painel web e prepara o motor em segundo plano.
+     *  Com --instalar-e-sair (usado na CI), só instala, faz um cálculo de teste e termina. */
     public static void main(String[] args) throws Exception {
         lerArgumentos(args);
         dados = base.resolve("dados");
@@ -122,6 +126,7 @@ public class CalculadoraRTC {
         Thread.currentThread().join();
     }
 
+    /** Interpreta as opções da linha de comando (as mesmas de iniciar.sh / iniciar.bat). */
     static void lerArgumentos(String[] args) {
         String b = null;
         for (int i = 0; i < args.length; i++) {
@@ -141,6 +146,7 @@ public class CalculadoraRTC {
         base = Paths.get(b != null ? b : ".").toAbsolutePath().normalize();
     }
 
+    /** Texto de --ajuda. */
     static void ajuda() {
         System.out.println("""
             Uso: iniciar.sh | iniciar.bat [opções]
@@ -156,6 +162,8 @@ public class CalculadoraRTC {
     }
 
     // ================================================================== ciclo do motor
+    /** Primeira preparação ao abrir: usa a versão fixada (--versao), ou procura a mais recente e instala se preciso;
+     *  sem internet, sobe a última versão já instalada. */
     static void prepararNaInicializacao() {
         try {
             versaoInstalada = lerTexto(dirMotores.resolve("atual"));
@@ -208,6 +216,7 @@ public class CalculadoraRTC {
         }
     }
 
+    /** Maior tag de versão publicada no repositório oficial (ex.: 1.7.3). */
     static String descobrirUltimaVersao() throws IOException, InterruptedException {
         // Endpoint "smart HTTP" do git: lista as tags sem precisar de git nem da API (sem limite de requisições)
         String url = repo + ".git/info/refs?service=git-upload-pack";
@@ -222,6 +231,7 @@ public class CalculadoraRTC {
         return ((TreeSet<String>) tags).last();
     }
 
+    /** Compara versões pelos números (1.10.0 > 1.9.2), e não como texto. */
     static int compararVersoes(String a, String b) {
         int[] x = numeros(a), y = numeros(b);
         for (int i = 0; i < Math.max(x.length, y.length); i++) {
@@ -231,11 +241,13 @@ public class CalculadoraRTC {
         return a.compareTo(b);
     }
 
+    /** "v1.7.3" → [1, 7, 3]. */
     static int[] numeros(String v) {
         return Arrays.stream(v.replaceFirst("^v", "").split("\\D+")).filter(s -> !s.isEmpty())
                 .mapToInt(s -> (int) Math.min(Integer.MAX_VALUE, Long.parseLong(s))).toArray();
     }
 
+    /** A versão está instalada por completo (JAR e banco)? A instalação só publica a pasta no fim, de forma atômica. */
     static boolean motorValido(String versao) {
         if (versao == null) return false;
         Path d = dirMotores.resolve(versao);
@@ -309,7 +321,10 @@ public class CalculadoraRTC {
         int porta = portaLivre();
         Path log = dirLogs.resolve("motor.log");
         ultimoLog.set(log);
-        List<String> cmd = List.of(javaExe(), "-Xms128m", "-Dspring.profiles.active=offline",
+        // -XX:-UseBASE64Intrinsics: mitigação da falha Java4Shell (CVE-2026-114938, 17/11/2026) no decodificador
+        // Base64 acelerado do HotSpot, a mesma que a Receita adotou na versão oficial 1.7.1. Desliga só a versão
+        // otimizada do Base64 (o resultado é idêntico) e vale mesmo que o Java portátil ainda não tenha a correção.
+        List<String> cmd = List.of(javaExe(), "-XX:-UseBASE64Intrinsics", "-Xms128m", "-Dspring.profiles.active=offline",
                 "-Dserver.address=127.0.0.1", "-Dserver.port=" + porta, "-jar", "api-regime-geral.jar");
         Process novo = new ProcessBuilder(cmd).directory(dir.toFile()).redirectErrorStream(true)
                 .redirectOutput(ProcessBuilder.Redirect.to(log.toFile())).start();
@@ -411,6 +426,8 @@ public class CalculadoraRTC {
         }
     }
 
+    /** Consulta as tabelas NCM_APLICAVEL, EXCECAO_NCM_APLICAVEL e ANEXO e monta o JSON compacto lido pela tela
+     *  (formato descrito em web/app.js, antes de carregarRelacao). */
     static String montarRelacaoJson(java.sql.Connection c) throws java.sql.SQLException {
         StringBuilder sb = new StringBuilder("{\"regras\":[");
         // Só classificações de CBS/IBS (o Imposto Seletivo tem classificações próprias com os mesmos códigos)
@@ -457,16 +474,19 @@ public class CalculadoraRTC {
         return sb.append("}}").toString();
     }
 
+    /** "2026-01-01 00:00:00" → "2026-01-01". */
     static String dataCurta(String s) {
         return s == null ? null : s.length() >= 10 ? s.substring(0, 10) : s;
     }
 
+    /** Arquivo da relação NCM × classificação da versão em uso (ou o indicado em CALC_RTC_RELACAO, no desenvolvimento). */
     static Path arquivoRelacao() {
         String dev = env("CALC_RTC_RELACAO", null); // desenvolvimento com motor externo/simulado
         if (dev != null) return Paths.get(dev);
         return versaoInstalada == null ? null : dirMotores.resolve(versaoInstalada).resolve(ARQ_RELACAO);
     }
 
+    /** O motor na porta indicada já responde? Usa uma rota leve dos dados abertos. */
     static boolean respondendo(int porta) {
         try {
             var r = httpLocal.send(HttpRequest.newBuilder(URI.create(
@@ -478,6 +498,7 @@ public class CalculadoraRTC {
         }
     }
 
+    /** Encerra um motor: pede com educação e, se não sair em 15 s, força. */
     static void pararMotor(Process p) {
         if (p == null || !p.isAlive()) return;
         p.destroy();
@@ -552,6 +573,7 @@ public class CalculadoraRTC {
         throw new IOException("não foi possível baixar o Maven Wrapper de " + url + ": " + (ultimo != null ? descrever(ultimo) : "arquivo vazio"));
     }
 
+    /** Roda o mvnw com o Java desta instalação (JAVA_HOME e PATH ajustados) e grava a saída no log. */
     static void executarUmaVez(Path dir, Path log, List<String> argsMaven) throws Exception {
         List<String> cmd = new ArrayList<>();
         if (windows()) {
@@ -600,6 +622,7 @@ public class CalculadoraRTC {
         }
     }
 
+    /** Baixa um arquivo para o disco; qualquer resposta diferente de 200 é erro. */
     static void baixar(String url, Path destino) throws IOException, InterruptedException {
         log("Baixando " + url);
         HttpResponse<Path> r = http.send(HttpRequest.newBuilder(URI.create(url))
@@ -633,6 +656,7 @@ public class CalculadoraRTC {
         return destino;
     }
 
+    /** Apaga uma pasta inteira (como rm -rf), tirando antes a proteção contra escrita (o Windows a usa no .git). */
     static void apagar(Path p) throws IOException {
         if (!Files.exists(p)) return;
         try (Stream<Path> s = Files.walk(p)) {
@@ -643,6 +667,7 @@ public class CalculadoraRTC {
         }
     }
 
+    /** Tamanho do arquivo em bytes, ou -1 se não existir. */
     static long tamanho(Path p) {
         try {
             return Files.size(p);
@@ -651,6 +676,7 @@ public class CalculadoraRTC {
         }
     }
 
+    /** Conteúdo de um arquivo de texto curto (sem espaços nas pontas), ou null se não existir ou estiver vazio. */
     static String lerTexto(Path p) {
         try {
             String s = Files.readString(p).trim();
@@ -660,12 +686,14 @@ public class CalculadoraRTC {
         }
     }
 
+    /** Porta livre escolhida pelo sistema, só na interface local. */
     static int portaLivre() throws IOException {
         try (ServerSocket s = new ServerSocket(0, 0, InetAddress.getLoopbackAddress())) {
             return s.getLocalPort();
         }
     }
 
+    /** Caminho do executável java desta mesma instalação, usado para subir o motor. */
     static String javaExe() {
         return Paths.get(System.getProperty("java.home"), "bin", windows() ? "java.exe" : "java").toString();
     }
@@ -675,6 +703,8 @@ public class CalculadoraRTC {
     }
 
     // ================================================================== servidor web + proxy
+    /** Sobe o servidor HTTP do painel (só localhost, a menos que --rede): /painel/ (estado), /api/ (proxy para o motor)
+     *  e / (arquivos da pasta web/). Se a porta estiver ocupada, tenta as 19 seguintes. */
     static int iniciarServidorWeb() throws IOException {
         InetAddress endereco = rede ? InetAddress.getByName("0.0.0.0") : InetAddress.getLoopbackAddress();
         IOException ultimo = null;
@@ -695,6 +725,7 @@ public class CalculadoraRTC {
         throw new IOException("nenhuma porta livre entre " + portaWeb + " e " + (portaWeb + 19), ultimo);
     }
 
+    /** Rotas do próprio gerenciador: status, pedido de atualização, relação NCM × classificação e log. */
     static void tratarPainel(HttpExchange ex) throws IOException {
         try (ex) {
             String caminho = ex.getRequestURI().getPath();
@@ -731,6 +762,7 @@ public class CalculadoraRTC {
         }
     }
 
+    /** Estado atual em JSON, lido pela tela a cada poucos segundos. */
     static String statusJson() {
         Process m = motor;
         boolean pronto = apiExterna != null || (m != null && m.isAlive() && portaMotor > 0);
@@ -754,9 +786,11 @@ public class CalculadoraRTC {
                 + "}";
     }
 
+    // Cabeçalhos "hop-by-hop" que um proxy não deve repassar (e que o HttpClient do Java recusa)
     static final Set<String> CABECALHOS_PROIBIDOS = Set.of("connection", "content-length", "host", "upgrade",
             "expect", "keep-alive", "transfer-encoding", "te", "trailer", "proxy-connection", "http2-settings");
 
+    /** Repassa /api/** ao motor oficial (método, corpo, cabeçalhos e resposta) — o navegador fala com uma origem só. */
     static void tratarProxy(HttpExchange ex) throws IOException {
         try (ex) {
             String alvo = apiExterna != null ? apiExterna : (portaMotor > 0 ? "http://127.0.0.1:" + portaMotor : null);
@@ -791,12 +825,14 @@ public class CalculadoraRTC {
         }
     }
 
+    // Tipo de conteúdo pela extensão dos arquivos servidos da pasta web/
     static final Map<String, String> TIPOS = Map.ofEntries(
             Map.entry("html", "text/html; charset=utf-8"), Map.entry("js", "text/javascript; charset=utf-8"),
             Map.entry("css", "text/css; charset=utf-8"), Map.entry("json", "application/json; charset=utf-8"),
             Map.entry("svg", "image/svg+xml"), Map.entry("png", "image/png"), Map.entry("ico", "image/x-icon"),
             Map.entry("md", "text/markdown; charset=utf-8"), Map.entry("txt", "text/plain; charset=utf-8"));
 
+    /** Serve os arquivos da pasta web/, recusando caminhos que saiam dela (path traversal). */
     static void tratarEstatico(HttpExchange ex) throws IOException {
         try (ex) {
             String caminho = URLDecoder.decode(ex.getRequestURI().getRawPath(), StandardCharsets.UTF_8);
@@ -818,6 +854,7 @@ public class CalculadoraRTC {
         }
     }
 
+    /** Responde com JSON e sem cache. */
     static void responderJson(HttpExchange ex, int status, String json) throws IOException {
         byte[] b = json.getBytes(StandardCharsets.UTF_8);
         ex.getResponseHeaders().set("Content-Type", "application/json; charset=utf-8");
@@ -827,6 +864,7 @@ public class CalculadoraRTC {
     }
 
     // ================================================================== utilidades
+    /** Muda o estado mostrado na tela e registra a mensagem no terminal. */
     static void definir(String e, String m) {
         estado = e;
         mensagem = m;
@@ -839,6 +877,7 @@ public class CalculadoraRTC {
         else { mensagem = m; log(m); }
     }
 
+    /** Texto como string JSON (com aspas e escapes); null vira null. */
     static String q(String s) {
         if (s == null) return "null";
         StringBuilder b = new StringBuilder("\"");
@@ -855,6 +894,7 @@ public class CalculadoraRTC {
         return b.append('"').toString();
     }
 
+    /** Últimas n linhas de um log (tenta UTF-8 e, se falhar, ISO-8859-1, comum no Maven do Windows). */
     static String ultimasLinhas(Path p, int n) {
         try {
             List<String> l = Files.readAllLines(p, StandardCharsets.UTF_8);
@@ -869,6 +909,7 @@ public class CalculadoraRTC {
         }
     }
 
+    /** Mensagem curta e compreensível para uma exceção (sem rede, tempo esgotado ou a própria mensagem). */
     static String descrever(Throwable e) {
         if (e instanceof ConnectException || e instanceof UnknownHostException || e instanceof HttpConnectTimeoutException
                 || (e.getCause() != null && (e.getCause() instanceof ConnectException || e.getCause() instanceof UnknownHostException))) {
@@ -878,19 +919,23 @@ public class CalculadoraRTC {
         return e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
     }
 
+    /** Data e hora atuais no formato brasileiro. */
     static String agora() {
         return LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
     }
 
+    /** Mensagem no terminal, com horário. */
     static void log(String m) {
         System.out.println("[" + LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss")) + "] " + m);
     }
 
+    /** Variável de ambiente, ou o padrão se não existir ou estiver vazia. */
     static String env(String k, String padrao) {
         String v = System.getenv(k);
         return v == null || v.isBlank() ? padrao : v;
     }
 
+    /** Abre o painel no navegador padrão (Desktop do Java; se não houver, rundll32 no Windows ou xdg-open no Linux). */
     static void abrirNoNavegador(String url) {
         new Thread(() -> {
             try {

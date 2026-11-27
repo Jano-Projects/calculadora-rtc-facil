@@ -15,12 +15,14 @@ falhas = []
 
 
 def conferir(cond, msg):
+    """Registra o resultado de uma verificação; as falhas são contadas no fim e definem o código de saída."""
     print(("  ok   " if cond else "  FALHA ") + msg)
     if not cond:
         falhas.append(msg)
 
 
 def status(pg, sel):
+    """Texto da linha de status de uma aba (vazia ou "Pronto." quando deu certo)."""
     return pg.inner_text(sel).strip()
 
 
@@ -55,6 +57,15 @@ with sync_playwright() as p:
     conferir(status(pg, "#calc-status") == "Pronto.", f"status: {status(pg, '#calc-status')!r}")
     conferir(r and r["comErro"] == 0, "nenhum item com erro em 2027")
     conferir(r and r["tot"]["is"] > 0, f"Imposto Seletivo calculado: {r and r['tot']['is']}")
+
+    print("Calcular nota em janeiro de 2027 (antes do início do Imposto Seletivo)")
+    pg.fill("#op-data", "2027-01-15"); pg.dispatch_event("#op-data", "change"); pg.wait_for_timeout(2500)
+    pg.click("#btn-calcular"); pg.wait_for_function("!document.querySelector('#btn-calcular').disabled", timeout=60_000)
+    r = pg.evaluate("estado.ultimoCalculo?.resultado")
+    conferir(r and r["comErro"] == 0, "nenhum item com erro em janeiro de 2027")
+    conferir(r and r["tot"]["is"] == 0, f"Imposto Seletivo zero antes de 02/02/2027 (MP 1.399/2026): {r and r['tot']['is']}")
+    conferir("2 de fevereiro de 2027" in status(pg, "#calc-status"), f"aviso do início do IS: {status(pg, '#calc-status')!r}")
+    pg.fill("#op-data", "2027-03-01"); pg.dispatch_event("#op-data", "change"); pg.wait_for_timeout(1500)
 
     print("Comparar datas")
     pg.click("[data-aba=comparar]")
