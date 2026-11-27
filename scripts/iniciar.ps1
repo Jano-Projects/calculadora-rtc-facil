@@ -20,6 +20,11 @@ $ProgressPreference = 'SilentlyContinue'   # deixa o download muito mais rapido
 $Dir = Split-Path -Parent $PSScriptRoot
 # Versao instalada: o lancador (CalculadoraRTC.exe) define CALC_RTC_DADOS para %LOCALAPPDATA%\CalculadoraRTC
 $Dados = if ($env:CALC_RTC_DADOS) { $env:CALC_RTC_DADOS } else { Join-Path $Dir 'dados' }
+if ($Resto -contains '--so-java') {
+    # A janela do download do Java fecha sozinha ao terminar: o que ela mostrou fica em dados\logs\java.log
+    New-Item -ItemType Directory -Force -Path (Join-Path $Dados 'logs') | Out-Null
+    try { Start-Transcript -Path (Join-Path $Dados 'logs\java.log') -Append | Out-Null } catch { Write-Verbose 'sem registro' }
+}
 $Jdk = Join-Path $Dados 'jdk'
 $VersaoJava = 25
 
@@ -83,9 +88,16 @@ elseif (-not (Test-Jdk $Jdk) -or (Test-JdkAntigo $Jdk)) {
     $tmp = Join-Path $Dados 'jdk-tmp'
     $url = "https://api.adoptium.net/v3/binary/latest/$VersaoJava/ga/windows/$arq/jdk/hotspot/normal/eclipse"
     try {
-        Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing
+        # WebClient e ZipFile (do .NET), e nao Invoke-WebRequest e Expand-Archive: no PowerShell 5.1, que vem
+        # no Windows, esses dois sao muito lentos com arquivos grandes, e so extrair o Java (~200 MB, milhares
+        # de arquivos) podia levar mais de 10 minutos.
+        $cliente = New-Object Net.WebClient
+        $cliente.Headers['User-Agent'] = 'calculadora-rtc-facil'
+        $cliente.DownloadFile($url, $zip)
+        Info 'Download concluido. Extraindo o Java...'
         if (Test-Path $tmp) { Remove-Item -Recurse -Force $tmp }
-        Expand-Archive -Path $zip -DestinationPath $tmp -Force
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        [IO.Compression.ZipFile]::ExtractToDirectory($zip, $tmp)
         $interno = Get-ChildItem -Path $tmp -Directory | Select-Object -First 1
         if (-not (Test-Jdk $interno.FullName)) { throw 'o Java baixado nao funcionou' }
         # Renomeia o Java atual antes de trocar: se ele estiver em uso por outra janela, o Windows recusa o

@@ -144,7 +144,7 @@ jobs:
     name: Homologação · Windows
     needs: windows
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/download-artifact@v8
         with: { name: instalador-windows, path: pacotes }
@@ -167,7 +167,7 @@ jobs:
           # Espera só o CalculadoraRTC.exe (que baixa o Java e termina). "Start-Process -Wait" esperaria também
           # os processos filhos, e a calculadora que ele deixa aberta em segundo plano é um deles.
           $lancador = Start-Process (Join-Path $env:PASTA 'CalculadoraRTC.exe') -ArgumentList '--sem-navegador','--api-externa','http://127.0.0.1:9' -PassThru
-          if (-not $lancador.WaitForExit(900000)) { throw "o lançador não terminou em 15 minutos" }
+          if (-not $lancador.WaitForExit(1500000)) { throw "o lançador não terminou em 25 minutos" }
           $dados = Join-Path $env:LOCALAPPDATA 'CalculadoraRTC'
           $arq = Join-Path $dados 'painel.porta'
           for ($i = 0; $i -lt 120 -and -not (Test-Path $arq); $i++) { Start-Sleep -Seconds 3 }
@@ -190,6 +190,14 @@ jobs:
           if (Test-Path (Join-Path $env:PASTA 'CalculadoraRTC.exe')) { throw "a desinstalação deixou o CalculadoraRTC.exe" }
           if (Test-Path $dados) { throw "a desinstalação deixou a pasta de dados $dados" }
           "| Windows | success |" >> $env:GITHUB_STEP_SUMMARY
+      - name: Diagnóstico (só se falhar)
+        if: failure()
+        shell: pwsh
+        run: |
+          $dados = Join-Path $env:LOCALAPPDATA 'CalculadoraRTC'
+          Get-ChildItem $dados -ErrorAction SilentlyContinue | Format-Table Name, Length, LastWriteTime
+          Get-ChildItem (Join-Path $dados 'logs') -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "===== $($_.Name)"; Get-Content $_.FullName -Tail 60 }
+          Get-Process powershell, java, CalculadoraRTC -ErrorAction SilentlyContinue | Format-Table Id, ProcessName, StartTime, CPU
 
   publicar:
     name: Publicar na página de Releases

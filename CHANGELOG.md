@@ -24,6 +24,7 @@ Instaladores com ícone para Windows, Debian/Ubuntu e Fedora: a calculadora abre
 ### Correções
 - **Downloads recusados por excesso de pedidos (HTTP 429):** a instalação do motor esperava só 5 e 10 segundos entre tentativas. Agora respeita o tempo que o servidor pede (`Retry-After`) ou espera 30, 60 e 120 segundos, com até 5 tentativas, e o Maven espera mais quando o repositório recusa. Foi o que derrubou o teste do Ubuntu em 27/11/2026.
 - O teste diário com o motor oficial guarda as dependências do Maven entre execuções, e quase não baixa nada do Maven Central.
+- **Windows: o Java baixa e extrai muito mais rápido na primeira abertura.** O script usava o `Invoke-WebRequest` e o `Expand-Archive` do PowerShell 5.1, que são lentíssimos com arquivos grandes: só extrair o Java podia levar mais de 10 minutos. Agora usa as rotinas do .NET (`WebClient` e `ZipFile`). O que a janela do download mostra fica registrado em `logs\java.log`.
 
 ### Repositório
 - Novo workflow **Lançamento**: ao enviar a tag, monta a versão portátil e os três instaladores, homologa cada um num sistema limpo (instala, abre pelo lançador baixando o Java de verdade, abre de novo, encerra e desinstala, em Debian, Ubuntu LTS e mais recente, Fedora e Windows) e só então publica a release, com as notas do CHANGELOG e o `SHA256SUMS.txt`.
